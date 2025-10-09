@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import Image from "next/image"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -20,8 +21,10 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 text-center lg:text-left">
+    <div className="space-y-6 justify-center">
+              <Image src="/logos/GoldKach-Logo-New-3.png" className="justify-center items-center ml-40" width={100} height={100} alt="logo"/>
+
+      <div className="space-y-2 text-center items-center justify-center lg:text-left">
         <h1 className="text-3xl font-bold tracking-tight">Sign in to your account</h1>
         <p className="text-muted-foreground">Enter your credentials to access your portfolio</p>
       </div>

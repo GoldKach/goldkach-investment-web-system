@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import Image from "next/image"
 
 export function RegisterForm() {
   const [formData, setFormData] = useState({
@@ -33,6 +34,7 @@ export function RegisterForm() {
 
   return (
     <div className="space-y-6">
+       <Image src="/logos/GoldKach-Logo-New-3.png" className="justify-center items-center ml-40" width={80} height={80} alt="logo"/>
       <div className="space-y-2 text-center lg:text-left">
         <h1 className="text-3xl font-bold tracking-tight">Create your account</h1>
         <p className="text-muted-foreground">Get started with your investment journey today</p>

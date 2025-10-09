@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle2, ArrowLeft } from "lucide-react"
+import Image from "next/image"
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("")
@@ -58,6 +59,7 @@ export function ForgotPasswordForm() {
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center lg:text-left">
+          <Image src="/logos/GoldKach-Logo-New-3.png" className="justify-center items-center ml-40" width={100} height={100} alt="logo"/>
         <h1 className="text-3xl font-bold tracking-tight">Reset your password</h1>
         <p className="text-muted-foreground">
           Enter your email address and we'll send you a link to reset your password
