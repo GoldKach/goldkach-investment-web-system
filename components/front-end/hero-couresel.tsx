@@ -84,7 +84,7 @@ export default function HeroCarousel() {
 
   return (
     <section
-      className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
+      className="relative w-full h-full overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
       onMouseEnter={() => setIsAutoPlaying(false)}
       onMouseLeave={() => setIsAutoPlaying(true)}
     >
