@@ -1,147 +1,190 @@
+
+
+
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Play, Plus, Info } from "lucide-react"
+import { ChevronLeft, ChevronRight, Users, BookOpen, Heart, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
-const heroMovies = [
+import { TrendingUp, Shield, BarChart3, Briefcase } from "lucide-react";
+
+export const banners = [
   {
     id: 1,
-    title: "Quantum Horizon",
+    title: "Invest in Your Future Today",
+    subtitle: "Secure Growth, Smart Decisions",
     description:
-      "In a world where reality bends to quantum mechanics, a brilliant physicist discovers the key to manipulating time itself. But with great power comes devastating consequences.",
-    image: "/8507f90d74a40b47290766ce6f373043.jpg",
-    rating: 8.9,
-    year: 2024,
-    genre: "Sci-Fi Thriller",
+      "Join InvestPro and take control of your financial future. Our platform empowers you to invest confidently with expert insights, real-time analytics, and trusted security.",
+    url: "/banners/WhatsApp Image 2025-09-24 at 09.53.05_b88fddef.jpg",
+    icon: TrendingUp,
+    primaryAction: "Start Investing",
+    primaryLink: "/get-started",
+    secondaryAction: "Learn More",
+    secondaryLink: "/about",
   },
   {
     id: 2,
-    title: "The Last Symphony",
+    title: "Smart Portfolios for Smart Investors",
+    subtitle: "Diversify, Optimize, Prosper",
     description:
-      "A renowned conductor's final performance becomes a journey through memory, love, and the transformative power of music in this emotionally charged masterpiece.",
-    image: "/8fdeb8f8cc9b17c0c17cb6c5ae0fd35c.jpg",
-    rating: 9.2,
-    year: 2024,
-    genre: "Drama",
+      "Our AI-driven investment portfolios help you balance risk and return—designed to meet your goals, whether you're saving for retirement or growing wealth.",
+    url: "/banners/WhatsApp Image 2025-09-24 at 09.53.07_23949db7.jpg",
+    icon: BarChart3,
+    primaryAction: "View Plans",
+    primaryLink: "/plans",
+    secondaryAction: "Compare Options",
+    secondaryLink: "/compare",
   },
   {
     id: 3,
-    title: "Shadow Protocol",
+    title: "Your Money, Fully Protected",
+    subtitle: "Security You Can Trust",
     description:
-      "When a covert operation goes wrong, an elite agent must navigate a web of betrayal and conspiracy to uncover the truth behind a global conspiracy.",
-    image: "/e0f205758f1bc8f56000b8823130b0e6.jpg",
-    rating: 8.5,
-    year: 2024,
-    genre: "Action Thriller",
+      "We use bank-level encryption, two-factor authentication, and regulatory compliance to ensure your assets are safe 24/7—because your trust is our priority.",
+    url: "/banners/WhatsApp Image 2025-09-24 at 09.53.07_bcf4037a.jpg",
+    icon: Shield,
+    primaryAction: "See Security Features",
+    primaryLink: "/security",
+    secondaryAction: "Contact Support",
+    secondaryLink: "/contact",
   },
-]
+ 
+];
 
-export function HeroCarousel() {
+
+export default function HeroCarousel() {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true)
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % heroMovies.length)
-    }, 6000)
+    if (!isAutoPlaying) return
 
-    return () => clearInterval(timer)
-  }, [])
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % banners.length)
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [isAutoPlaying])
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % heroMovies.length)
+    setCurrentSlide((prev) => (prev + 1) % banners.length)
   }
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + heroMovies.length) % heroMovies.length)
+    setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length)
   }
 
-  const currentMovie = heroMovies[currentSlide]
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index)
+  }
+
+  const currentSlideData = banners[currentSlide]
 
   return (
-    <div className="relative h-screen overflow-hidden">
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
-        style={{ backgroundImage: `url(${currentMovie.image})` }}
-      >
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-      </div>
+    <section
+      className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900"
+      onMouseEnter={() => setIsAutoPlaying(false)}
+      onMouseLeave={() => setIsAutoPlaying(true)}
+    >
+      {/* Background Images */}
+      {banners?.map((slide:any, index:any) => (
+        <div
+          key={slide.id}
+          className={`absolute inset-0 transition-opacity duration-1000 ${
+            index === currentSlide ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <img src={slide.url || "/placeholder.svg"} alt={slide.title} className="w-full h-full object-cover" />
+        </div>
+      ))}
+
+      {/* Light overlay for better image visibility */}
+      <div className="absolute inset-0 bg-black/10" />
 
       {/* Content */}
-      <div className="relative z-10 h-full flex items-center">
-        <div className="px-4 md:px-8 lg:px-12 max-w-2xl">
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <span className="text-primary font-semibold">{currentMovie.year}</span>
-              <span>•</span>
-              <span>{currentMovie.genre}</span>
-              <span>•</span>
-              <div className="flex items-center space-x-1">
-                <span className="text-primary">★</span>
-                <span>{currentMovie.rating}</span>
+      <div className="relative z-10 h-full flex flex-col">
+        <div className="flex-grow min-h-0"></div>
+        <div className="h-1/3 flex items-center">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="max-w-3xl mx-auto text-center text-white">
+              {/* Content with animations and background */}
+              <div
+                key={currentSlide}
+                className="animate-in fade-in slide-in-from-bottom-4 duration-700 bg-black/60 backdrop-blur-sm rounded-xl p-4 md:p-6"
+              >
+                <h2 className="text-sm md:text-base font-semibold text-blue-200 mb-3">{currentSlideData.title}</h2>
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 leading-tight">
+                  {currentSlideData.title}
+                </h1>
+                <p className="text-sm md:text-base text-gray-200 mb-4 max-w-3xl mx-auto leading-relaxed">
+                  {currentSlideData.description}
+                </p>
+
+                {/* Action Buttons */}
+                {/* <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                  <Link href={currentSlideData.link1}>
+                    <Button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 text-base font-semibold rounded-full transition-all duration-300 transform hover:scale-105">
+                      Join
+                    </Button>
+                  </Link>
+                  <Link href={currentSlideData.link2}>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="border-white text-black hover:bg-white hover:text-blue-900 px-8 py-3 text-lg font-semibold rounded-full transition-all duration-300"
+                    >
+                      Donate
+                    </Button>
+                  </Link>
+                </div> */}
               </div>
-            </div>
-
-            <h1 className="text-4xl md:text-6xl font-bold text-balance leading-tight">{currentMovie.title}</h1>
-
-            <p className="text-lg text-muted-foreground text-pretty leading-relaxed max-w-xl">
-              {currentMovie.description}
-            </p>
-
-            <div className="flex items-center space-x-4">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground golden-glow">
-                <Play className="w-5 h-5 mr-2" />
-                Play Now
-              </Button>
-              <Button size="lg" variant="outline" className="border-border hover:bg-secondary bg-transparent">
-                <Plus className="w-5 h-5 mr-2" />
-                My List
-              </Button>
-              <Button size="lg" variant="ghost" className="hover:bg-secondary">
-                <Info className="w-5 h-5 mr-2" />
-                More Info
-              </Button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Navigation Arrows */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-background/20 hover:bg-background/40 backdrop-blur-sm"
+      <button
         onClick={prevSlide}
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition-all duration-300 group"
+        aria-label="Previous slide"
       >
-        <ChevronLeft className="w-6 h-6" />
-      </Button>
+        <ChevronLeft className="w-6 h-6 group-hover:scale-110 transition-transform" />
+      </button>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-background/20 hover:bg-background/40 backdrop-blur-sm"
+      <button
         onClick={nextSlide}
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition-all duration-300 group"
+        aria-label="Next slide"
       >
-        <ChevronRight className="w-6 h-6" />
-      </Button>
+        <ChevronRight className="w-6 h-6 group-hover:scale-110 transition-transform" />
+      </button>
 
       {/* Slide Indicators */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
-        <div className="flex space-x-2">
-          {heroMovies.map((_, index) => (
-            <button
-              key={index}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentSlide ? "bg-primary golden-glow" : "bg-muted-foreground/50 hover:bg-muted-foreground"
-              }`}
-              onClick={() => setCurrentSlide(index)}
-            />
-          ))}
-        </div>
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex space-x-3">
+        {banners.map((_:any, index:any) => (
+          <button
+            key={index}
+            onClick={() => goToSlide(index)}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              index === currentSlide ? "bg-white scale-125" : "bg-white/50 hover:bg-white/75"
+            }`}
+            aria-label={`Go to slide ${index + 1}`}
+          />
+        ))}
       </div>
-    </div>
+
+      {/* Progress Bar */}
+      <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20">
+        <div
+          className="h-full bg-orange-500 transition-all duration-300 ease-linear"
+          style={{
+            width: `${((currentSlide + 1) / banners.length) * 100}%`,
+          }}
+        />
+      </div>
+    </section>
   )
 }

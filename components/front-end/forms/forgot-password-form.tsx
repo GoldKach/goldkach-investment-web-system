@@ -3,69 +3,70 @@
 import type React from "react"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Mail, CheckCircle2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CheckCircle2, ArrowLeft } from "lucide-react"
 
 export function ForgotPasswordForm() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
   const [email, setEmail] = useState("")
+  const [isSubmitted, setIsSubmitted] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    console.log("[v0] Password reset requested for:", email)
-
-    setIsLoading(false)
+    console.log("Password reset requested for:", email)
     setIsSubmitted(true)
   }
 
   if (isSubmitted) {
     return (
-      <div className="text-center space-y-6 py-8">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+      <div className="space-y-6">
+        <div className="space-y-2 text-center lg:text-left">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
             <CheckCircle2 className="w-8 h-8 text-primary" />
           </div>
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-xl font-semibold text-foreground">Check your email</h3>
+          <h1 className="text-3xl font-bold tracking-tight">Check your email</h1>
           <p className="text-muted-foreground">
-            We've sent a password reset link to <span className="font-semibold text-foreground">{email}</span>
+            We've sent a password reset link to <span className="font-medium text-foreground">{email}</span>
           </p>
         </div>
-        <div className="bg-secondary border border-border rounded-lg p-4 text-sm text-muted-foreground">
-          <p>Didn't receive the email? Check your spam folder or try again in a few minutes.</p>
+
+        <Alert>
+          <AlertDescription>
+            If you don't see the email, check your spam folder or try again with a different email address.
+          </AlertDescription>
+        </Alert>
+
+        <div className="space-y-3">
+          <Button variant="outline" className="w-full bg-transparent" size="lg" onClick={() => setIsSubmitted(false)}>
+            Try another email
+          </Button>
+
+          <Link href="/login" className="block">
+            <Button variant="ghost" className="w-full" size="lg">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to sign in
+            </Button>
+          </Link>
         </div>
-        <Button
-          onClick={() => {
-            setIsSubmitted(false)
-            setEmail("")
-          }}
-          variant="outline"
-          className="w-full"
-        >
-          Try another email
-        </Button>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Email Field */}
-      <div className="space-y-2">
-        <Label htmlFor="email" className="text-foreground">
-          Email Address
-        </Label>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+    <div className="space-y-6">
+      <div className="space-y-2 text-center lg:text-left">
+        <h1 className="text-3xl font-bold tracking-tight">Reset your password</h1>
+        <p className="text-muted-foreground">
+          Enter your email address and we'll send you a link to reset your password
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email address</Label>
           <Input
             id="email"
             type="email"
@@ -73,45 +74,29 @@ export function ForgotPasswordForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="bg-secondary border-border pl-10"
           />
         </div>
-        <p className="text-xs text-muted-foreground">Enter the email address associated with your account</p>
+
+        <Button type="submit" className="w-full" size="lg">
+          Send reset link
+        </Button>
+      </form>
+
+      <div className="text-center">
+        <Link href="/login" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to sign in
+        </Link>
       </div>
 
-      {/* Submit Button */}
-      <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Sending reset link...
-          </>
-        ) : (
-          <>
-            <Mail className="w-4 h-4 mr-2" />
-            Send Reset Link
-          </>
-        )}
-      </Button>
-
-      {/* Info Box */}
-      <div className="bg-secondary border border-border rounded-lg p-4 space-y-2">
-        <h4 className="text-sm font-semibold text-foreground">What happens next?</h4>
-        <ul className="text-sm text-muted-foreground space-y-1">
-          <li className="flex items-start gap-2">
-            <span className="text-primary mt-0.5">•</span>
-            <span>You'll receive an email with a secure reset link</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-primary mt-0.5">•</span>
-            <span>Click the link to create a new password</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-primary mt-0.5">•</span>
-            <span>The link expires in 1 hour for security</span>
-          </li>
-        </ul>
+      <div className="pt-4 border-t">
+        <p className="text-center text-sm text-muted-foreground">
+          {"Don't have an account? "}
+          <Link href="/register" className="font-medium text-primary hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
-    </form>
+    </div>
   )
 }
