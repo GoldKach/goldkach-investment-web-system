@@ -45,14 +45,14 @@ import {
 import AdminTop from "./top-section"
 
 export default function AdminDashboard() {
-  // --- DUMMY DATA (replace with real data later) ---
-  const users = [
-    { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 },
-    { id: 5 }, { id: 6 }, { id: 7 }, { id: 8 },
-  ]
+
+  const users = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }, { id: 8 }]
   const userPortfolios = [
-    { id: 1, userId: 1 }, { id: 2, userId: 2 }, { id: 3, userId: 3 },
-    { id: 4, userId: 4 }, { id: 5, userId: 5 },
+    { id: 1, userId: 1 },
+    { id: 2, userId: 2 },
+    { id: 3, userId: 3 },
+    { id: 4, userId: 4 },
+    { id: 5, userId: 5 },
   ]
   const deposits = [
     { id: 1, amount: 120000 },
@@ -78,6 +78,9 @@ export default function AdminDashboard() {
       trend: "up",
       icon: DollarSign,
       description: "vs last quarter",
+      gradient: "from-[#0089ff] to-[#302a5e]",
+      iconBg: "bg-blue-100 dark:bg-blue-900/30",
+      iconColor: "text-[#0089ff] dark:text-blue-400",
     },
     {
       title: "Active Users",
@@ -86,6 +89,9 @@ export default function AdminDashboard() {
       trend: "up",
       icon: Users,
       description: "vs last month",
+      gradient: "from-emerald-500 to-teal-600",
+      iconBg: "bg-emerald-100 dark:bg-emerald-900/30",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
     },
     {
       title: "Total User Portfolios",
@@ -94,6 +100,9 @@ export default function AdminDashboard() {
       trend: "up",
       icon: PieChartIcon,
       description: "active portfolios",
+      gradient: "from-violet-500 to-purple-600",
+      iconBg: "bg-violet-100 dark:bg-violet-900/30",
+      iconColor: "text-violet-600 dark:text-violet-400",
     },
     {
       title: "Platform Performance",
@@ -102,6 +111,9 @@ export default function AdminDashboard() {
       trend: "down",
       icon: Activity,
       description: "uptime this month",
+      gradient: "from-amber-500 to-orange-600",
+      iconBg: "bg-amber-100 dark:bg-amber-900/30",
+      iconColor: "text-amber-600 dark:text-amber-400",
     },
   ] as const
 
@@ -113,8 +125,10 @@ export default function AdminDashboard() {
       trend: "up",
       icon: ArrowUpRight,
       description: "this month",
-      color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-100 dark:bg-green-900",
+      gradient: "from-emerald-500 via-green-500 to-teal-500",
+      iconBg: "bg-gradient-to-br from-emerald-500/20 to-green-500/20",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      glowColor: "shadow-emerald-500/20",
     },
     {
       title: "Total Withdrawals",
@@ -123,8 +137,10 @@ export default function AdminDashboard() {
       trend: "up",
       icon: ArrowDownRight,
       description: "this month",
-      color: "text-red-600 dark:text-red-400",
-      bgColor: "bg-red-100 dark:bg-red-900",
+      gradient: "from-rose-500 via-red-500 to-pink-500",
+      iconBg: "bg-gradient-to-br from-rose-500/20 to-red-500/20",
+      iconColor: "text-rose-600 dark:text-rose-400",
+      glowColor: "shadow-rose-500/20",
     },
     {
       title: "Total Transactions",
@@ -133,8 +149,10 @@ export default function AdminDashboard() {
       trend: "up",
       icon: ArrowRightLeft,
       description: "this month",
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-100 dark:bg-blue-900",
+      gradient: "from-[#0089ff] via-blue-500 to-cyan-500",
+      iconBg: "bg-gradient-to-br from-[#0089ff]/20 to-cyan-500/20",
+      iconColor: "text-[#0089ff] dark:text-blue-400",
+      glowColor: "shadow-blue-500/20",
     },
     {
       title: "Net Flow",
@@ -143,8 +161,10 @@ export default function AdminDashboard() {
       trend: "up",
       icon: Wallet,
       description: "deposits - withdrawals",
-      color: "text-purple-600 dark:text-purple-400",
-      bgColor: "bg-purple-100 dark:bg-purple-900",
+      gradient: "from-violet-500 via-purple-500 to-fuchsia-500",
+      iconBg: "bg-gradient-to-br from-violet-500/20 to-purple-500/20",
+      iconColor: "text-violet-600 dark:text-violet-400",
+      glowColor: "shadow-violet-500/20",
     },
   ] as const
 
@@ -310,7 +330,104 @@ export default function AdminDashboard() {
           </div>
         </div>
       </header>
-      <AdminTop/>
+          <div className="bg-gray-50 dark:bg-slate-950 transition-colors">
+            <div className="p-6 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {kpiData.map((kpi, index) => (
+                  <Card
+                    key={index}
+                    className="relative overflow-hidden bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:-translate-y-1 group cursor-pointer"
+                  >
+                    {/* Gradient overlay on hover */}
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${kpi.gradient} opacity-0 group-hover:opacity-5 dark:group-hover:opacity-10 transition-opacity duration-300`}
+                    />
+      
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-slate-200 transition-colors">
+                        {kpi.title}
+                      </CardTitle>
+                      <div
+                        className={`p-2.5 rounded-xl ${kpi.iconBg} transition-all duration-300 group-hover:scale-110 group-hover:rotate-6`}
+                      >
+                        <kpi.icon className={`h-5 w-5 ${kpi.iconColor} transition-all duration-300`} />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="relative z-10">
+                      <div className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2 transition-all duration-300 group-hover:scale-105">
+                        {kpi.value}
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs">
+                        <div
+                          className={`flex items-center space-x-1 px-2 py-1 rounded-full ${
+                            kpi.trend === "up" ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-rose-100 dark:bg-rose-900/30"
+                          }`}
+                        >
+                          {kpi.trend === "up" ? (
+                            <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <TrendingDown className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+                          )}
+                          <span
+                            className={
+                              kpi.trend === "up"
+                                ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                                : "text-rose-600 dark:text-rose-400 font-semibold"
+                            }
+                          >
+                            {kpi.change}
+                          </span>
+                        </div>
+                        <span className="text-gray-500 dark:text-slate-400">{kpi.description}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+      
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {transactionKpis.map((kpi, index) => (
+                  <Card
+                    key={index}
+                    className={`relative overflow-hidden bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 transition-all duration-300 hover:shadow-2xl hover:${kpi.glowColor} hover:scale-[1.03] hover:-translate-y-1 group cursor-pointer`}
+                  >
+                    {/* Animated gradient background */}
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${kpi.gradient} opacity-0 group-hover:opacity-10 dark:group-hover:opacity-20 transition-all duration-500`}
+                    />
+      
+                    {/* Animated border glow */}
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-br ${kpi.gradient} opacity-0 group-hover:opacity-20 blur-xl transition-all duration-500`}
+                    />
+      
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                      <CardTitle className="text-sm font-medium text-gray-600 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-slate-200 transition-colors">
+                        {kpi.title}
+                      </CardTitle>
+                      <div
+                        className={`p-3 rounded-xl ${kpi.iconBg} backdrop-blur-sm transition-all duration-300 group-hover:scale-125 group-hover:rotate-12 shadow-lg`}
+                      >
+                        <kpi.icon className={`h-5 w-5 ${kpi.iconColor} transition-all duration-300`} />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="relative z-10">
+                      <div className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-3 transition-all duration-300 group-hover:scale-105">
+                        {kpi.value}
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs">
+                        <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 shadow-sm">
+                          <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{kpi.change}</span>
+                        </div>
+                        <span className="text-gray-500 dark:text-slate-400 font-medium">{kpi.description}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
       <div className="p-2 space-y-2">
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
