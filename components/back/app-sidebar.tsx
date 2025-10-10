@@ -512,6 +512,29 @@ export default function AppSidebar() {
       ],
     },
     {
+      title: "User Management",
+      url: "/dashboard/users",
+      icon: Users,
+      items: [
+        {
+          title: "All Users",
+          url: "/dashboard/users",
+        },
+        {
+          title: "Roles & Permissions",
+          url: "/users/roles",
+        },
+        {
+          title: "On BoardingApprovals",
+          url: "/users/dashboard/approvals",
+        },
+        {
+          title: "Active Sessions",
+          url: "/users/sessions",
+        },
+      ],
+    },
+    {
       title: "Portfolio Management",
       url: "/portfolio",
       icon: Briefcase,
@@ -603,29 +626,7 @@ export default function AppSidebar() {
         },
       ],
     },
-    {
-      title: "User Management",
-      url: "/users",
-      icon: Users,
-      items: [
-        {
-          title: "All Users",
-          url: "/users",
-        },
-        {
-          title: "Roles & Permissions",
-          url: "/users/roles",
-        },
-        {
-          title: "Pending Approvals",
-          url: "/users/approvals",
-        },
-        {
-          title: "Active Sessions",
-          url: "/users/sessions",
-        },
-      ],
-    },
+    
     {
       title: "Reports & Analytics",
       url: "/reports",
