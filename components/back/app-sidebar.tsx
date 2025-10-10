@@ -521,16 +521,12 @@ export default function AppSidebar() {
           url: "/dashboard/users",
         },
         {
-          title: "Roles & Permissions",
-          url: "/users/roles",
-        },
-        {
           title: "On BoardingApprovals",
-          url: "/users/dashboard/approvals",
+          url: "/dashboard/approvals",
         },
         {
           title: "Active Sessions",
-          url: "/users/sessions",
+          url: "/dashboard/active-sessions",
         },
       ],
     },

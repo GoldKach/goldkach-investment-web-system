@@ -17,7 +17,7 @@ export default function DashboardLayout({children}:{children:React.ReactNode}) {
             <SidebarInset>
                 <div className="md:ml-[220px] lg:ml-[225px]">
                 <DashboardNav/>
-                 <div className="">
+                 <div className="px-4 md:px-8 lg:px-12 py-8">
                  {children}
                  </div>
                 </div>
