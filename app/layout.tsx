@@ -56,8 +56,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "School-Guru",
-  description: "School Management System",
+  title: " GoldKach",
+  description: "GoldKach - Your Trusted Financial Partner",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
