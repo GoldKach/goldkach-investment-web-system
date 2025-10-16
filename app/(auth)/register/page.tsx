@@ -12,11 +12,11 @@ export default function RegisterPage() {
       </div>
 
       {/* Right side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 relative">
+      <div className="flex-1 flex items-center justify-center p-4 relative">
         <div className="absolute top-8 right-8">
           <ThemeToggle />
         </div>
-        <div className="w-full max-w-md">
+        <div className="w-full px-8">
           <RegisterForm />
         </div>
       </div>

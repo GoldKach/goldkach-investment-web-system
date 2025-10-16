@@ -1,9 +1,9 @@
- import { ForgotPasswordForm } from "@/components/front-end/forms/forgot-password-form";
+import ResetPasswordForm from "@/components/front-end/forms/reset-password-form";
 import HeroCarousel from "@/components/front-end/hero-couresel";
 import { ThemeToggle } from "@/components/front-end/theme-toggle";
 
 
-export default function ForgotPasswordPage() {
+export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Form */}
@@ -12,7 +12,7 @@ export default function ForgotPasswordPage() {
           <ThemeToggle />
         </div>
         <div className="w-full max-w-md">
-          <ForgotPasswordForm />
+          <ResetPasswordForm />
         </div>
       </div>
 
