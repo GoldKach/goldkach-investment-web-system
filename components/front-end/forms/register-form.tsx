@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area"; // if not present, replace with a div
 import { createUser as createUserAction } from "@/actions/auth";
+import { toast } from "sonner";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -62,7 +63,8 @@ export function RegisterForm() {
         phone: form.phone.trim(),
         password: form.password,
       });
-      router.replace("/login?registered=1");
+      toast.success("Account created! Check your email for the 6-digit verification code.");
+      router.replace(`/verify-email?email=${encodeURIComponent(form.email.trim().toLowerCase())}`);
     } catch (err: any) {
       setError(err?.message || "Failed to create account. Please try again.");
     } finally {

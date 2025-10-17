@@ -76,7 +76,7 @@ const clearCookies = async () => {
   cookieStore.delete("userData");
 };
 
-/** ========= Auth Actions ========= **/
+
 export async function loginUser(data: {
   identifier: string; // email OR phone
   password: string;
@@ -155,7 +155,7 @@ export async function refreshAccessToken() {
   }
 }
 
-/** ========= Forgot / Reset Password ========= **/
+
 export async function forgotPassword(email: string) {
   try {
     // Your backend returns 200 with a generic message (recommended)
@@ -183,7 +183,7 @@ export async function resetPassword(args: {
   }
 }
 
-/** ========= Helpers for other API calls ========= **/
+
 async function getAuthHeaderFromCookies() {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("accessToken")?.value;
