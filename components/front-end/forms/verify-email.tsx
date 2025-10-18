@@ -207,8 +207,13 @@ export default function VerifyEmailForm() {
         toast.error(res.error || "Verification failed");
         return;
       }
-      toast.success("Email verified! You can now sign in.");
-      router.replace("/login?verified=1");
+        localStorage.setItem(
+      "onboardingUser",
+      JSON.stringify({ id: res.userId, email: res.email })
+    );
+      // inside onSubmit success branch
+     toast.success("Email verified! Let's finish your onboarding.");
+     router.replace("/onboarding");
     } finally {
       setLoading(false);
     }

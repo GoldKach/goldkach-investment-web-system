@@ -215,23 +215,23 @@ export async function createUser(data: any) {
   }
 }
 
-export async function verifyEmailAction(params: { email: string; token: string }) {
-  try {
-    await api.post("/auth/verify-email", params);
-    return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e?.response?.data?.error || "Verification failed." };
-  }
-}
+// export async function verifyEmailAction(params: { email: string; token: string }) {
+//   try {
+//     await api.post("/auth/verify-email", params);
+//     return { success: true };
+//   } catch (e: any) {
+//     return { success: false, error: e?.response?.data?.error || "Verification failed." };
+//   }
+// }
 
-export async function resendVerificationAction(email: string) {
-  try {
-    await api.post("/auth/resend-verification", { email });
-    return { success: true };
-  } catch {
-    return { success: true }; // don't leak
-  }
-}
+// export async function resendVerificationAction(email: string) {
+//   try {
+//     await api.post("/auth/resend-verification", { email });
+//     return { success: true };
+//   } catch {
+//     return { success: true }; // don't leak
+//   }
+// }
 
 export async function deleteUser(userId: string) {
   try {
@@ -254,5 +254,27 @@ export async function fetchMe() {
   } catch (error) {
     console.error("fetchMe error:", error);
     return null;
+  }
+}
+
+
+// app/actions/auth.ts (server)
+export async function verifyEmailAction(args: { email: string; token: string }) {
+  try {
+    // Backend now returns { ok: true, userId, email }
+    const { data } = await api.post("/auth/verify-email", args);
+    return { success: true, userId: data.userId as string, email: data.email as string };
+  } catch (e: any) {
+    return { success: false, error: e?.response?.data?.error || "Verification failed" };
+  }
+}
+
+export async function resendVerificationAction(email: string) {
+  try {
+    await api.post("/auth/resend-verification", { email });
+    // Always report success to the UI (avoids email enumeration)
+    return { success: true };
+  } catch {
+    return { success: true };
   }
 }
