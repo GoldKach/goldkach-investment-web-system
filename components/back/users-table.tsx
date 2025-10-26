@@ -27,94 +27,16 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Search, MoreVertical, Eye, Edit, Trash2, UserCheck, UserX, Mail, Phone, CreditCard } from "lucide-react"
 
-// Mock data based on the Prisma schema
-const mockUsers = [
-  {
-    id: "1",
-    name: "John Doe",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    phone: "+1234567890",
-    image: "/professional-businessman.png",
-    isActive: true,
-    isApproved: true,
-    emailVerified: true,
-    accountNumber: "ACC-2024-001",
-    createdAt: "2024-01-15",
-    roles: ["USER"],
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane.smith@example.com",
-    phone: "+1234567891",
-    image: "/professional-businesswoman.png",
-    isActive: true,
-    isApproved: true,
-    emailVerified: true,
-    accountNumber: "ACC-2024-002",
-    createdAt: "2024-01-20",
-    roles: ["USER", "MANAGER"],
-  },
-  {
-    id: "3",
-    name: "Robert Johnson",
-    firstName: "Robert",
-    lastName: "Johnson",
-    email: "robert.j@example.com",
-    phone: "+1234567892",
-    image: null,
-    isActive: false,
-    isApproved: true,
-    emailVerified: false,
-    accountNumber: "ACC-2024-003",
-    createdAt: "2024-02-01",
-    roles: ["USER"],
-  },
-  {
-    id: "4",
-    name: "Emily Davis",
-    firstName: "Emily",
-    lastName: "Davis",
-    email: "emily.davis@example.com",
-    phone: "+1234567893",
-    image: "/professional-woman-portrait.png",
-    isActive: true,
-    isApproved: false,
-    emailVerified: true,
-    accountNumber: "ACC-2024-004",
-    createdAt: "2024-02-10",
-    roles: ["USER"],
-  },
-  {
-    id: "5",
-    name: "Michael Brown",
-    firstName: "Michael",
-    lastName: "Brown",
-    email: "michael.b@example.com",
-    phone: "+1234567894",
-    image: "/professional-executive.png",
-    isActive: true,
-    isApproved: true,
-    emailVerified: true,
-    accountNumber: "ACC-2024-005",
-    createdAt: "2024-02-15",
-    roles: ["ADMIN"],
-  },
-]
 
-export function UsersTable() {
-  const [users, setUsers] = useState(mockUsers)
+export function UsersTable({allUsers}:{allUsers:any}) {
+  const [users, setUsers] = useState(allUsers)
   const [searchQuery, setSearchQuery] = useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   // Filter users based on search query
   const filteredUsers = users.filter(
-    (user) =>
+    (user:any) =>
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.accountNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -128,7 +50,7 @@ export function UsersTable() {
 
   const confirmDelete = () => {
     if (selectedUserId) {
-      setUsers(users.filter((user) => user.id !== selectedUserId))
+      setUsers(users.filter((user:any) => user.id !== selectedUserId))
       setDeleteDialogOpen(false)
       setSelectedUserId(null)
     }
@@ -145,7 +67,7 @@ export function UsersTable() {
   }
 
   const toggleUserStatus = (userId: string) => {
-    setUsers(users.map((user) => (user.id === userId ? { ...user, isActive: !user.isActive } : user)))
+    setUsers(users.map((user:any) => (user.id === userId ? { ...user, isActive: !user.isActive } : user)))
   }
 
   return (
@@ -181,7 +103,7 @@ export function UsersTable() {
               <CardHeader className="pb-2">
                 <CardDescription>Active Users</CardDescription>
                 <CardTitle className="text-3xl font-bold text-green-600 dark:text-green-400">
-                  {users.filter((u) => u.isActive).length}
+                  {users.filter((u:any) => u.isActive).length}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -189,7 +111,7 @@ export function UsersTable() {
               <CardHeader className="pb-2">
                 <CardDescription>Pending Approval</CardDescription>
                 <CardTitle className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-                  {users.filter((u) => !u.isApproved).length}
+                  {users.filter((u:any) => !u.isApproved).length}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -197,7 +119,7 @@ export function UsersTable() {
               <CardHeader className="pb-2">
                 <CardDescription>Inactive Users</CardDescription>
                 <CardTitle className="text-3xl font-bold text-red-600 dark:text-red-400">
-                  {users.filter((u) => !u.isActive).length}
+                  {users.filter((u:any) => !u.isActive).length}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -213,7 +135,6 @@ export function UsersTable() {
                   <TableHead className="font-semibold">Phone</TableHead>
                   <TableHead className="font-semibold">Account Number</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold">Roles</TableHead>
                   <TableHead className="text-right font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -228,12 +149,12 @@ export function UsersTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => (
+                  filteredUsers.map((user:any) => (
                     <TableRow key={user.id} className="group transition-colors hover:bg-muted/50">
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10 border-2 border-primary/20">
-                            <AvatarImage src={user.image || undefined} alt={user.name} />
+                            <AvatarImage src={user.imageUrl || undefined} alt={user.name} />
                             <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                               {user.firstName[0]}
                               {user.lastName[0]}
@@ -247,7 +168,6 @@ export function UsersTable() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">{user.email}</span>
                           {user.emailVerified && (
                             <Badge
@@ -261,13 +181,11 @@ export function UsersTable() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm">{user.phone}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-muted-foreground" />
                           <span className="font-mono text-sm">{user.accountNumber}</span>
                         </div>
                       </TableCell>
@@ -303,15 +221,7 @@ export function UsersTable() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles.map((role) => (
-                            <Badge key={role} variant="outline" className="text-xs">
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
+                     
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

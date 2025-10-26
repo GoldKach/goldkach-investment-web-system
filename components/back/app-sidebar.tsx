@@ -465,15 +465,22 @@ export default function AppSidebar({ user }: { user: any }) {
         { title: "Active Sessions", url: "/dashboard/active-sessions" },
       ],
     },
+     {
+      title: "Assets Management",
+      url: "/investments",
+      icon: TrendingUp,
+      items: [
+        { title: "Assets", url: "/dashboard/assets" },
+        { title: "Portfolios", url: "/dashboard/portfolios" },
+      ],
+    },
     {
       title: "Portfolio Management",
       url: "/portfolio",
       icon: Briefcase,
       items: [
-        { title: "My Portfolios", url: "/portfolio/my-portfolios" },
-        { title: "Assets", url: "/portfolio/assets" },
-        { title: "Allocations", url: "/portfolio/allocations" },
-        { title: "Portfolio Summary", url: "/portfolio/summary" },
+        { title: "Portfolios", url: "/dashboard/portfolios" },
+        { title: "Portfolio allocation", url: "/dashboard/portfolioallocation" },
       ],
     },
     {
@@ -487,17 +494,7 @@ export default function AppSidebar({ user }: { user: any }) {
         { title: "Transaction History", url: "/wallet/history" },
       ],
     },
-    {
-      title: "Investments",
-      url: "/investments",
-      icon: TrendingUp,
-      items: [
-        { title: "Available Portfolios", url: "/investments/portfolios" },
-        { title: "Asset Explorer", url: "/investments/assets" },
-        { title: "Market Overview", url: "/investments/market" },
-        { title: "Risk Analysis", url: "/investments/risk" },
-      ],
-    },
+   
     {
       title: "Onboarding & KYC",
       url: "/onboarding",
