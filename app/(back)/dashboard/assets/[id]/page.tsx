@@ -74,7 +74,6 @@ export default async function AssetDetailPage({
     const id = (await params).id;
    const assetData = await getAsset(id);
    const asset = assetData.data;
-  console.log(asset);
 
   if (!asset) {
     notFound()

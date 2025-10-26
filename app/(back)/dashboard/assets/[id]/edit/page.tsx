@@ -51,8 +51,6 @@ export default async function EditAssetPage({
     const id = (await params).id;
        const assetData = await getAsset(id);
        const asset = assetData.data;
-      console.log(asset);
-
   if (!asset) {
     notFound()
   }
