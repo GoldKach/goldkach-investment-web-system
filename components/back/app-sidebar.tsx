@@ -480,6 +480,7 @@ export default function AppSidebar({ user }: { user: any }) {
       icon: Briefcase,
       items: [
         { title: "Portfolios", url: "/dashboard/portfolios" },
+        { title: "Assets allocation", url: "/dashboard/portfolioassets" },
         { title: "Portfolio allocation", url: "/dashboard/portfolioallocation" },
       ],
     },
@@ -488,22 +489,8 @@ export default function AppSidebar({ user }: { user: any }) {
       url: "/wallet",
       icon: Wallet,
       items: [
-        { title: "My Wallet", url: "/wallet" },
-        { title: "Deposits", url: "/wallet/deposits" },
-        { title: "Withdrawals", url: "/wallet/withdrawals" },
-        { title: "Transaction History", url: "/wallet/history" },
-      ],
-    },
-   
-    {
-      title: "Onboarding & KYC",
-      url: "/onboarding",
-      icon: FileText,
-      items: [
-        { title: "Entity Onboarding", url: "/onboarding/entity" },
-        { title: "KYC Verification", url: "/onboarding/kyc" },
-        { title: "Document Upload", url: "/onboarding/documents" },
-        { title: "Approval Status", url: "/onboarding/status" },
+        { title: "Deposits", url: "/dashboard/deposits" },
+        { title: "Withdrawals", url: "/dashboard/withdrawals" },
       ],
     },
     {

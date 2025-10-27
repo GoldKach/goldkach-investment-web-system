@@ -278,3 +278,92 @@ export async function resendVerificationAction(email: string) {
     return { success: true };
   }
 }
+
+// export async function getUserById(userId: string) {
+//   if (!userId) throw new Error("User ID is required");
+
+//   const doRequest = async () => {
+//     const headers = await getAuthHeaderFromCookies();
+//     if (!("Authorization" in headers)) {
+//       throw new Error("Unauthorized: No access token found");
+//     }
+//     const res = await api.get(`/users/${encodeURIComponent(userId)}`, { headers });
+//     return res.data; // keep same shape as your other actions (res.data)
+//   };
+
+//   try {
+//     return await doRequest();
+//   } catch (err: any) {
+//     // If token expired, refresh once and retry
+//     if (err?.response?.status === 401) {
+//       const refreshed = await refreshAccessToken(); // this will redirect on failure
+//       if (refreshed?.success) {
+//         return await doRequest();
+//       }
+//     }
+//     console.error("getUserById error:", err?.response?.data || err);
+//     throw err;
+//   }
+// }
+
+
+export async function getUserById(userId: string) {
+  if (!userId) throw new Error("User ID is required");
+
+  try {
+    const res = await api.get(`/users/${encodeURIComponent(userId)}`);
+    return res.data; // { data, error } per your controller
+  } catch (err: any) {
+    console.error("getUserById error:", err?.response?.data || err);
+    // Surface a cleaner message while preserving throw behavior like your other actions
+    throw new Error(err?.response?.data?.error || "Failed to fetch user");
+  }
+}
+
+
+
+export type UserStatus =
+  | "ACTIVE"
+  | "INACTIVE"
+  | "PENDING"
+  | "SUSPENDED"
+  | "DEACTIVATED"
+  | "BANNED";
+
+export type UpdateUserPayload = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  status?: UserStatus;     // ← enum value
+  imageUrl?: string;
+  emailVerified?: boolean; // ← persisted by your controller
+  isApproved?: boolean;    // ← persisted by your controller
+  password?: string;       // optional
+};
+
+function pruneUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
+export async function updateUserById(userId: string, updates: UpdateUserPayload) {
+  if (!userId) throw new Error("User ID is required");
+
+  try {
+    const body = pruneUndefined(updates);
+    const res = await api.put(`/users/${encodeURIComponent(userId)}`, body);
+
+    // keep UI in sync (adjust paths to your routes)
+    revalidatePath(`/dashboard/users/${userId}`);
+    revalidatePath(`/dashboard/users`);
+
+    return res.data; // { data, error }
+  } catch (err: any) {
+    console.error("updateUserById error:", err?.response?.data || err);
+    throw new Error(err?.response?.data?.error || "Failed to update user");
+  }
+}
+

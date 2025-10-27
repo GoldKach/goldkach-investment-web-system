@@ -8,7 +8,7 @@ export default async function UsersPage() {
 
   console.log(users)
   return (
-    <div className="container mx-auto py-8">
+    <div className="container px-4 md:px-8 mx-auto py-8">
       <UsersTable allUsers={users} />
     </div>
   )
