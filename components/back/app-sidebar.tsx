@@ -471,7 +471,7 @@ export default function AppSidebar({ user }: { user: any }) {
       icon: TrendingUp,
       items: [
         { title: "Assets", url: "/dashboard/assets" },
-        { title: "Portfolios", url: "/dashboard/portfolios" },
+        // { title: "Portfolios", url: "/dashboard/portfolios" },
       ],
     },
     {
@@ -481,7 +481,7 @@ export default function AppSidebar({ user }: { user: any }) {
       items: [
         { title: "Portfolios", url: "/dashboard/portfolios" },
         { title: "Assets allocation", url: "/dashboard/portfolioassets" },
-        { title: "Portfolio allocation", url: "/dashboard/portfolioallocation" },
+        { title: "Portfolio allocation", url: "/dashboard/user-portfolios" },
       ],
     },
     {

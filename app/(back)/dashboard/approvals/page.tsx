@@ -11,7 +11,7 @@ export default async function PendingApprovalsPage() {
   );
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto px-8 py-8">
       <PendingApprovals users={pendingOnly} />
     </div>
   );
