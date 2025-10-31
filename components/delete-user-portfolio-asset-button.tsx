@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Trash2 } from "lucide-react"
+import { deletePortfolioAsset } from "@/actions/portfolioassets"
 
 interface DeleteUserPortfolioAssetButtonProps {
   userPortfolioAssetId: string
@@ -36,6 +37,7 @@ export function DeleteUserPortfolioAssetButton({
     setIsDeleting(true)
 
     // Simulate API call
+    await deletePortfolioAsset( userPortfolioAssetId)
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     // Replace with actual API call
