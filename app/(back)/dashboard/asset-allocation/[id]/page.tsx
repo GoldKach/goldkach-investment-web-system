@@ -256,7 +256,7 @@ export default async function UserPortfolioAssetDetailPage({
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <Button variant="ghost" asChild className="mb-4">
-          <Link href="/dashboard/portfolio-assets">
+          <Link href="/dashboard/asset-allocation">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Portfolio Assets
           </Link>

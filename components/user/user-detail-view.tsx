@@ -629,10 +629,11 @@ export function UserDetailView({ user: initialUser }: { user: UserDetail | null 
           {user.userPortfolios && user.userPortfolios.length > 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Portfolio Assets</CardTitle>
+                <CardTitle>{user.userPortfolios[0].portfolio.name}</CardTitle>
                 <CardDescription>User's investment portfolio breakdown</CardDescription>
               </CardHeader>
               <CardContent>
+
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -645,7 +646,7 @@ export function UserDetailView({ user: initialUser }: { user: UserDetail | null 
                   </TableHeader>
                   <TableBody>
                     {user.userPortfolios.map((portfolio: any) =>
-                      portfolio.userPortfolioAssets?.map((asset: any) => (
+                      portfolio.userAssets?.map((asset: any) => (
                         <TableRow key={asset.id}>
                           <TableCell className="font-medium">{asset.portfolioAsset?.name || "N/A"}</TableCell>
                           <TableCell className="text-right">${Number(asset.costPrice ?? 0).toLocaleString()}</TableCell>

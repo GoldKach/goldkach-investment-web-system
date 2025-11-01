@@ -1,9 +1,10 @@
+import { DashboardContent } from '@/components/user/dashbaord-content'
 import React from 'react'
 
 export default function Page() {
   return (
     <div>
-      <h2>User dashboard</h2>
+      <DashboardContent/>
     </div>
   )
 }
