@@ -13,7 +13,7 @@ const statusColors = {
   failed: "bg-red-500/20 text-red-400",
 }
 
-export function DepositList({ deposits }: { deposits: Deposit[] }) {
+export function DepositList({ deposits }: { deposits: any[] }) {
   return (
     <div className="space-y-3">
       {deposits.map((deposit) => (
@@ -24,7 +24,7 @@ export function DepositList({ deposits }: { deposits: Deposit[] }) {
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <p className="text-white font-semibold">{deposit.amount}</p>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[deposit.status]}`}>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium`}>
                 {deposit.status.charAt(0).toUpperCase() + deposit.status.slice(1)}
               </span>
             </div>

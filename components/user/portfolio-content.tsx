@@ -976,6 +976,7 @@ import {
   YAxis,
 } from "recharts"
 import { ArrowDownIcon, ArrowUpIcon, TrendingDown, TrendingUp, Wallet } from "lucide-react"
+import Link from "next/link"
 
 interface UserPortfolioAsset {
   id: string
@@ -1033,6 +1034,7 @@ export function PortfolioContent({ userPortfolios }: PortfolioContentProps) {
     return {
       id: up.portfolio!.id,
       name: up.portfolio!.name,
+      userPortfolioId: up.id, // ADD THIS LINE - This is the UserPortfolio.id
       description: up.portfolio!.description || "No description",
       totalValue: totalValue,
       totalCost: totalCost,
@@ -1322,9 +1324,10 @@ export function PortfolioContent({ userPortfolios }: PortfolioContentProps) {
                     </div>
 
                     <div className="pt-4 border-t">
+                     <Link href={`/user/portfolio/${portfolio.userPortfolioId}`}>
                       <Button className="w-full" onClick={() => console.log(`Viewing details for portfolio: ${portfolio.name}`)}>
                         View Details
-                      </Button>
+                      </Button></Link>
                     </div>
                   </CardContent>
                 </Card>
