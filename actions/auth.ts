@@ -259,25 +259,25 @@ export async function fetchMe() {
 
 
 // app/actions/auth.ts (server)
-export async function verifyEmailAction(args: { email: string; token: string }) {
-  try {
-    // Backend now returns { ok: true, userId, email }
-    const { data } = await api.post("/auth/verify-email", args);
-    return { success: true, userId: data.userId as string, email: data.email as string };
-  } catch (e: any) {
-    return { success: false, error: e?.response?.data?.error || "Verification failed" };
-  }
-}
+// export async function verifyEmailAction(args: { email: string; token: string }) {
+//   try {
+//     // Backend now returns { ok: true, userId, email }
+//     const { data } = await api.post("/auth/verify-email", args);
+//     return { success: true, userId: data.userId as string, email: data.email as string };
+//   } catch (e: any) {
+//     return { success: false, error: e?.response?.data?.error || "Verification failed" };
+//   }
+// }
 
-export async function resendVerificationAction(email: string) {
-  try {
-    await api.post("/auth/resend-verification", { email });
-    // Always report success to the UI (avoids email enumeration)
-    return { success: true };
-  } catch {
-    return { success: true };
-  }
-}
+// export async function resendVerificationAction(email: string) {
+//   try {
+//     await api.post("/auth/resend-verification", { email });
+//     // Always report success to the UI (avoids email enumeration)
+//     return { success: true };
+//   } catch {
+//     return { success: true };
+//   }
+// }
 
 // export async function getUserById(userId: string) {
 //   if (!userId) throw new Error("User ID is required");
@@ -317,6 +317,57 @@ export async function getUserById(userId: string) {
     console.error("getUserById error:", err?.response?.data || err);
     // Surface a cleaner message while preserving throw behavior like your other actions
     throw new Error(err?.response?.data?.error || "Failed to fetch user");
+  }
+}
+
+export async function verifyEmailAction(args: { email: string; token: string }) {
+  try {
+    console.log("[verifyEmailAction] Starting verification");
+    console.log("[verifyEmailAction] Email:", args.email);
+    console.log("[verifyEmailAction] Token:", args.token);
+    console.log("[verifyEmailAction] Token type:", typeof args.token);
+    console.log("[verifyEmailAction] Token length:", args.token?.length);
+    
+    // Normalize the data
+    const payload = {
+      email: args.email.trim(),
+      token: String(args.token).trim(),
+    };
+    
+    console.log("[verifyEmailAction] Normalized payload:", payload);
+    
+    // The axios interceptor will log the full URL
+    const { data } = await api.post("/auth/verify-email", payload);
+    
+    console.log("[verifyEmailAction] Success! Response data:", data);
+    
+    return { 
+      success: true, 
+      userId: data.userId as string, 
+      email: data.email as string 
+    };
+  } catch (e: any) {
+    console.error("[verifyEmailAction] Error occurred");
+    console.error("[verifyEmailAction] Error response:", e?.response?.data);
+    console.error("[verifyEmailAction] Error status:", e?.response?.status);
+    console.error("[verifyEmailAction] Error message:", e?.message);
+    
+    return { 
+      success: false, 
+      error: e?.response?.data?.error || "Verification failed" 
+    };
+  }
+}
+
+export async function resendVerificationAction(email: string) {
+  try {
+    console.log("[resendVerificationAction] Resending code to:", email);
+    await api.post("/auth/resend-verification", { email });
+    console.log("[resendVerificationAction] Success");
+    return { success: true };
+  } catch (error) {
+    console.error("[resendVerificationAction] Error:", error);
+    return { success: true }; // Don't leak user existence
   }
 }
 
