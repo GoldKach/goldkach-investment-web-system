@@ -74,6 +74,8 @@ export function DepositsPageContent({walletId, deposits,user, userId }: Deposits
         method: data.method,
         transactionId: data.transactionId,
         transactionStatus: "PENDING",
+        AccountNo:user.wallet.accountNumber,
+        referenceNo:user.wallet.accountNumber
       })
 
       if (result.success) {

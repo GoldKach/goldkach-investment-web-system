@@ -192,10 +192,10 @@ export function DepositDetailsModal({
                 <span className="text-slate-400">Method:</span>
                 <span className="text-white">{deposit.method || "N/A"}</span>
               </div>
-              <div className="flex justify-between">
+              {/* <div className="flex justify-between">
                 <span className="text-slate-400">Mobile No:</span>
                 <span className="text-white">{deposit.mobileNo || "N/A"}</span>
-              </div>
+              </div> */}
               <div className="flex justify-between">
                 <span className="text-slate-400">Account No:</span>
                 <span className="text-white">{deposit.AccountNo || "N/A"}</span>
