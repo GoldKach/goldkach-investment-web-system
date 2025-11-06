@@ -23,6 +23,7 @@ type WithdrawalItem = {
   bankBranch?: string
   method?: string
   description?: string
+  accountNo?: string
 }
 
 const statusConfig: Record<WithdrawalStatus, {
@@ -108,9 +109,9 @@ export function WithdrawalList({ withdrawals }: { withdrawals: WithdrawalItem[] 
               </div>
 
               {/* Description if available */}
-              {withdrawal.description && (
+              {withdrawal.accountNo && (
                 <p className="text-slate-500 text-xs italic px-3">
-                  {withdrawal.description}
+                  A/C N0:  {withdrawal.accountNo}
                 </p>
               )}
 
