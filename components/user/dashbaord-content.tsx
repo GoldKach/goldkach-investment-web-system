@@ -751,7 +751,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
     .slice(0, 12)
 
   // ---------- KPIs ----------
-  const totalBalance = Number(wallet.balance ?? wallet.netAssetValue ?? 0)
+  const totalBalance = Number(wallet.netAssetValue ?? 0)
   const netAssetValue = Number(wallet.netAssetValue ?? 0)
   const totalDeposits = deposits.reduce((s, d) => s + d.amount, 0)
   const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0)
@@ -798,7 +798,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-5 lg:w-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+          {/* <TabsTrigger value="portfolio">Portfolio</TabsTrigger> */}
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
