@@ -1,28 +1,8 @@
-// import { getSession } from "@/actions/auth";
-// import { getUserPortfolioById, listUserPortfolios } from "@/actions/user-portfolios";
-// import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-// import { PortfolioContent } from "@/components/user/portfolio-content"
-
-// export default async function PortfolioPage() {
-//    const session = await getSession();
-//       const user = session?.user;
-//       const id=user.id
-//       const portfolios= await listUserPortfolios();
-//       const userPortfolios = portfolios.data?.filter(portfolio => portfolio.userId === id);
-//       console.log(userPortfolios);
-
-//   return (
-//    <div className="">
-//   <PortfolioContent userPortfolios={userPortfolios} />
-//    </div>
-//   )
-// }
-
 
 import { getSession } from "@/actions/auth";
 import { listUserPortfolios } from "@/actions/user-portfolios";
-import { PortfolioContent } from "@/components/user/portfolio-content";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PortfolioList } from "@/components/user/portfolio-content";
 import { redirect } from "next/navigation";
 
 export default async function PortfolioPage() {
@@ -61,7 +41,7 @@ export default async function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PortfolioContent userPortfolios={userPortfolios} />
+      <PortfolioList userPortfolios={userPortfolios} />
     </div>
   );
 }

@@ -89,7 +89,7 @@ import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { PortfolioDetailPage } from "../components/detailed";
+import { UserPortfolioDetail } from "@/components/user-portfolio-detail";
 
 interface PortfolioDetailPageParams {
   params: Promise<{ id: string }>;
@@ -159,5 +159,5 @@ export default async function PortfolioDetail({ params }: PortfolioDetailPagePar
     );
   }
 
-  return <PortfolioDetailPage portfolioData={result.data} />;
+  return <UserPortfolioDetail userPortfolio={result.data} />;
 }

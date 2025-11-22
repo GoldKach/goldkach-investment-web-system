@@ -1,4 +1,5 @@
 
+
 // "use client";
 
 // import * as React from "react";
@@ -10,12 +11,26 @@
 // import { Input } from "@/components/ui/input";
 // import { Label } from "@/components/ui/label";
 // import { Checkbox } from "@/components/ui/checkbox";
-// import { loginUser } from "@/actions/auth";
+// import { loginUser } from "@/actions/auth"; // your server action
+
+// type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN" | string;
+
+// function routeForRole(role: UserRole) {
+//   switch (role) {
+//     case "USER":
+//       return "/user";
+//     case "ADMIN":
+//     case "SUPER_ADMIN":
+//       return "/dashboard";
+//     default:
+//       return "/dashboard";
+//   }
+// }
 
 // export function LoginForm() {
 //   const router = useRouter();
 //   const params = useSearchParams();
-//   const next = params.get("next") || "/dashboard";
+//   const nextParam = params.get("next"); // optional override
 
 //   const [identifier, setIdentifier] = useState("");
 //   const [password, setPassword] = useState("");
@@ -32,10 +47,18 @@
 //       if (!res.success) {
 //         setError(res.error || "Login failed");
 //         return;
-//         // (Optional) If you want to use rememberMe to extend cookie life,
-//         // add a `rememberMe` param to your server action and handle maxAge there.
 //       }
-//       router.replace(next);
+
+//       // res.data.user.role is set by your backend controller
+//       const userRole = res.data?.user?.role as UserRole | undefined;
+
+//       // If ?next= is present, it wins; else route by role
+//       const target = nextParam || routeForRole(userRole ?? "USER");
+
+//       // (Optional) Use rememberMe to adjust cookie maxAge in your server action
+//       // if (rememberMe) { await extendCookieLifetimeServerAction(); }
+
+//       router.replace(target);
 //     });
 //   };
 
@@ -126,6 +149,9 @@
 
 
 
+
+
+
 "use client";
 
 import * as React from "react";
@@ -137,6 +163,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Eye, EyeOff } from "lucide-react";
 import { loginUser } from "@/actions/auth"; // your server action
 
 type UserRole = "USER" | "ADMIN" | "SUPER_ADMIN" | string;
@@ -161,6 +188,7 @@ export function LoginForm() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -226,14 +254,29 @@ export function LoginForm() {
               Forgot password?
             </Link>
           </div>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center space-x-2">
