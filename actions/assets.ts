@@ -32,6 +32,7 @@ export interface Asset {
   description: string;
   sector: string;
   allocationPercentage: number;
+  assetClass?: "EQUITIES" | "ETFS" | "REITS" | "BONDS" | "CASH" | "OTHERS";
   costPerShare: number;
   closePrice: number;
   createdAt: string;
@@ -44,6 +45,7 @@ export interface AssetCreateInput {
   sector: string;
   allocationPercentage?: number;
   costPerShare?: number;
+  assetClass?: "EQUITIES" | "ETFS" | "REITS" | "BONDS" | "CASH" | "OTHERS";
   closePrice?: number;
 }
 
@@ -51,6 +53,7 @@ export interface AssetUpdateInput {
   symbol?: string;
   description?: string;
   sector?: string;
+  assetClass?: "EQUITIES" | "ETFS" | "REITS" | "BONDS" | "CASH" | "OTHERS";
   allocationPercentage?: number;
   costPerShare?: number;
   closePrice?: number;
@@ -88,6 +91,7 @@ export async function createAsset(input: AssetCreateInput) {
       symbol: input.symbol.trim().toUpperCase(),
       description: input.description.trim(),
       sector: input.sector.trim(),
+      assetClass: input.assetClass, // <- include assetClass
       allocationPercentage: input.allocationPercentage ?? 0,
       costPerShare: input.costPerShare ?? 0,
       closePrice: input.closePrice ?? 0,
