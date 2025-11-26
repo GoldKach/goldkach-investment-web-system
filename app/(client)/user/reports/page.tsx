@@ -1,10 +1,8 @@
 
 
 
-
-
 // // app/reports/page.tsx (Server Component)
-// import { fetchMe, getSession } from "@/actions/auth"
+// import { fetchMe, getAllUsers, getSession } from "@/actions/auth"
 // import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
 // import { listUserPortfolios } from "@/actions/user-portfolios"
 // import ReportsClient from "@/components/front-end/reports-client"
@@ -16,50 +14,57 @@
 //   const me = await fetchMe()
 //   const user = me?.data ?? session?.user
 
-//   // Fetch user's portfolios
-//   const portfolios = await listUserPortfolios();
-//   const userPortfolios = portfolios?.data?.filter(
-//     (portfolio) => portfolio.userId === userId
-//   );
+//   // 🔥 Simplified approach - separate variables with proper defaults
+//   let initialReports: PortfolioPerformanceReport[] = [];
+//   let initialError: string | null = null;
+//   let portfolioId: string | null = null;
 
-//   const portfolio = userPortfolios && userPortfolios.length > 0 ? userPortfolios[0] : null;
-
-//   // 🔥 Fix: Use nullish coalescing to ensure data is always an array
-//   let reportsData: {
-//     data: PortfolioPerformanceReport[]
-//     error: string | null
-//   } = {
-//     data: [],
-//     error: portfolio ? null : "No portfolio found"
-//   };
-
-//   if (portfolio?.id) {
-//     const reports = await listPerformanceReports({
-//       userPortfolioId: portfolio.id,
-//       period: "daily"
+//   try {
+//     // Fetch user's portfolios with full details
+//     const portfoliosResult = await listUserPortfolios({
+//       userId,
+//       include: { 
+//         portfolio: true, 
+//         userAssets: true 
+//       }
 //     });
 
-//     if (reports.success) {
-//       reportsData = {
-//         data: reports.data ?? [], // 🔥 Add ?? [] to handle undefined
-//         error: null
-//       };
-//       console.log("Loaded reports:", reports.data?.length ?? 0);
+//     if (!portfoliosResult.success || !portfoliosResult.data || portfoliosResult.data.length === 0) {
+//       initialError = "No portfolios found. Please create a portfolio first.";
 //     } else {
-//       reportsData = {
-//         data: [],
-//         error: reports.error || "Failed to load reports"
-//       };
-//       console.error("Failed to load reports:", reports.error);
+//       const portfolio = portfoliosResult.data[0];
+//       portfolioId = portfolio.id;
+
+//       // Fetch portfolio performance reports
+//       const reportsResult = await listPerformanceReports({
+//         userPortfolioId: portfolio.id,
+//         period: "daily"
+//       });
+
+//       if (reportsResult.success && reportsResult.data) {
+//         initialReports = reportsResult.data;
+//         console.log(`✅ Loaded ${reportsResult.data.length} portfolio reports`);
+//       } else {
+//         initialError = reportsResult.error || "Failed to load portfolio reports";
+//         console.error("❌ Failed to load reports:", reportsResult.error);
+//       }
 //     }
+//   } catch (error: any) {
+//     console.error("❌ Error in ReportsPage:", error);
+//     initialError = error.message || "An unexpected error occurred";
 //   }
 
+//  const r = await getAllUsers();
+//   const users = r.data;
+
+//   const activeUser = users.filter((x:any)=>x.id==user.id)
+//   console.log(activeUser);
 //   return (
 //     <ReportsClient 
-//       user={user} 
-//       initialReports={reportsData.data}
-//       initialPortfolioId={portfolio?.id || null}
-//       initialError={reportsData.error}
+//       user={activeUser} 
+//       initialReports={initialReports}
+//       initialPortfolioId={portfolioId}
+//       initialError={initialError}
 //     />
 //   )
 // }
@@ -67,9 +72,8 @@
 
 
 
-
 // app/reports/page.tsx (Server Component)
-import { fetchMe, getSession } from "@/actions/auth"
+import { fetchMe, getAllUsers, getSession } from "@/actions/auth"
 import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
 import { listUserPortfolios } from "@/actions/user-portfolios"
 import ReportsClient from "@/components/front-end/reports-client"
@@ -121,9 +125,18 @@ export default async function ReportsPage() {
     initialError = error.message || "An unexpected error occurred";
   }
 
+  // Fetch full user details with wallet information
+  const r = await getAllUsers();
+  const users = r.data;
+
+  const activeUserArray = users?.filter((x: any) => x.id === userId) || [];
+  const activeUser = activeUserArray.length > 0 ? activeUserArray[0] : user;
+
+  console.log("Active User with Wallet:", activeUser);
+
   return (
     <ReportsClient 
-      user={user} 
+      user={activeUser} 
       initialReports={initialReports}
       initialPortfolioId={portfolioId}
       initialError={initialError}

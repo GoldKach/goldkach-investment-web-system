@@ -14,6 +14,34 @@ import { listUserPortfolios } from "@/actions/user-portfolios"
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+
+// At the top of reports-client.tsx, update the interface
+interface ReportsClientProps {
+  user: {
+    id: string
+    firstName?: string
+    lastName?: string
+    name?: string
+    email?: string
+    wallet?: {
+      id: string
+      accountNumber: string
+      balance: number
+      bankFee: number
+      transactionFee: number
+      totalFees: number
+      feeAtBank: number
+      netAssetValue: number
+      status: string
+      createdAt?: string
+    } | null
+  } | null
+  initialReports: PortfolioPerformanceReport[]
+  initialPortfolioId: string | null
+  initialError?: string | null
+}
+
+
 interface Report {
   id: string
   date: string
@@ -60,12 +88,7 @@ const sampleReports: Report[] = [
 
 type TabType = "financial" | "portfolio"
 
-interface ReportsClientProps {
-  user: any
-  initialReports: PortfolioPerformanceReport[]
-  initialPortfolioId: string | null
-  initialError?: string | null
-}
+
 
 export default function ReportsClient({ 
   user, 
@@ -137,97 +160,66 @@ export default function ReportsClient({
     }).format(value)
   }
 
-  // const generatePDF = (report: PortfolioPerformanceReport) => {
-  //   const doc = new jsPDF()
-    
-  //   // Title
-  //   doc.setFontSize(20)
-  //   doc.text('Portfolio Performance Report', 14, 22)
-    
-  //   // Portfolio Info
-  //   doc.setFontSize(12)
-  //   doc.text(`Portfolio: ${report.userPortfolio?.portfolio?.name || 'N/A'}`, 14, 32)
-  //   doc.text(`Report Date: ${formatDate(report.reportDate)}`, 14, 39)
-  //   doc.text(`Generated: ${formatDate(report.createdAt || '')}`, 14, 46)
-    
-  //   // Performance Summary
-  //   doc.setFontSize(14)
-  //   doc.text('Performance Summary', 14, 60)
-    
-  //   const summaryData = [
-  //     ['Cost Price', formatCurrency(report.totalCostPrice)],
-  //     ['Current Value', formatCurrency(report.totalCloseValue)],
-  //     ['Gain/Loss', formatCurrency(report.totalLossGain)],
-  //     ['Return %', `${report.totalPercentage >= 0 ? '+' : ''}${report.totalPercentage.toFixed(2)}%`],
-  //   ]
-    
-  //   autoTable(doc, {
-  //     startY: 65,
-  //     head: [['Metric', 'Value']],
-  //     body: summaryData,
-  //     theme: 'grid',
-  //     headStyles: { fillColor: [41, 128, 185] },
-  //   })
-    
-  //   // Asset Breakdown
-  //   if (report.assetBreakdown && report.assetBreakdown.length > 0) {
-  //     const finalY = (doc as any).lastAutoTable.finalY || 100
-      
-  //     doc.setFontSize(14)
-  //     doc.text('Asset Breakdown', 14, finalY + 15)
-      
-  //     const assetData = report.assetBreakdown
-  //       .filter(asset => asset.totalCashValue > 0) // Only show assets with value
-  //       .map(asset => [
-  //         asset.assetClass,
-  //         asset.holdings.toString(),
-  //         formatCurrency(asset.totalCashValue),
-  //         `${asset.percentage.toFixed(2)}%`,
-  //       ])
-      
-  //     if (assetData.length > 0) {
-  //       autoTable(doc, {
-  //         startY: finalY + 20,
-  //         head: [['Asset Class', 'Holdings', 'Total Value', 'Percentage']],
-  //         body: assetData,
-  //         theme: 'grid',
-  //         headStyles: { fillColor: [41, 128, 185] },
-  //       })
-  //     }
-  //   }
-    
-  //   // Footer
-  //   const pageCount = doc.getNumberOfPages()
-  //   for (let i = 1; i <= pageCount; i++) {
-  //     doc.setPage(i)
-  //     doc.setFontSize(10)
-  //     doc.text(
-  //       `Page ${i} of ${pageCount}`,
-  //       doc.internal.pageSize.getWidth() / 2,
-  //       doc.internal.pageSize.getHeight() - 10,
-  //       { align: 'center' }
-  //     )
-  //   }
-    
-  //   return doc
-  // }
 
 const generatePDF = (report: PortfolioPerformanceReport) => {
-  const doc = new jsPDF('landscape') // Use landscape for more space
+  const doc = new jsPDF('landscape')
+  
+  // Extract wallet information with correct field mappings
+   const walletData = user?.wallet
+  const bankFee = walletData?.bankFee ?? 0           // Bank Costs
+  const transactionFee = walletData?.transactionFee ?? 0  // Transaction Cost
+  const feeAtBank = walletData?.feeAtBank ?? 0       // Cash at Bank
+  const totalFees = walletData?.totalFees ?? 0       // Total Fees
+  const accountNumber = walletData?.accountNumber ?? report.userPortfolio?.id?.slice(-8).toUpperCase() ?? 'N/A'
+  const netAssetValue = walletData?.netAssetValue ?? 0
+  
   
   // Title
   doc.setFontSize(20)
   doc.setFont('helvetica', 'bold')
   doc.text('Portfolio Performance Report', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
   
-  // Portfolio Info
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Portfolio: ${report.userPortfolio?.portfolio?.name || 'N/A'}`, 14, 25)
-  doc.text(`Report Date: ${formatDate(report.reportDate)}`, 14, 31)
-  doc.text(`Generated: ${formatDate(report.createdAt || '')}`, 14, 37)
+  // Client name - combine firstName and lastName if name is not available
+  const clientName = user?.name || 
+                     (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : '') ||
+                     user?.firstName || 
+                     'N/A'
   
-  let currentY = 45
+  const portfolioName = report.userPortfolio?.portfolio?.name || 'N/A'
+  const reportDateFormatted = formatDate(report.reportDate)
+  const generatedDate = formatDate(report.createdAt || new Date().toISOString())
+  
+  // Portfolio Info Section
+  doc.setFontSize(11)
+  
+  // Left column
+  doc.setFont('helvetica', 'bold')
+  doc.text('Client Name:', 14, 27)
+  doc.setFont('helvetica', 'normal')
+  doc.text(clientName, 50, 27)
+  
+  doc.setFont('helvetica', 'bold')
+  doc.text('Portfolio:', 14, 33)
+  doc.setFont('helvetica', 'normal')
+  doc.text(portfolioName, 50, 33)
+  
+  doc.setFont('helvetica', 'bold')
+  doc.text('Account Number:', 14, 39)
+  doc.setFont('helvetica', 'normal')
+  doc.text(accountNumber, 50, 39)
+  
+  // Right column
+  doc.setFont('helvetica', 'bold')
+  doc.text('Report Date:', doc.internal.pageSize.getWidth() - 100, 27)
+  doc.setFont('helvetica', 'normal')
+  doc.text(reportDateFormatted, doc.internal.pageSize.getWidth() - 100, 33)
+  
+  doc.setFont('helvetica', 'bold')
+  doc.text('Generated On:', doc.internal.pageSize.getWidth() - 100, 39)
+  doc.setFont('helvetica', 'normal')
+  doc.text(generatedDate, doc.internal.pageSize.getWidth() - 100, 45)
+  
+  let currentY = 55
 
   // Performance Summary Section
   doc.setFontSize(14)
@@ -271,7 +263,6 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
   currentY += 10
 
   if (report.assetBreakdown && report.assetBreakdown.length > 0) {
-    // Filter out assets with 0 value and add them to the data
     const assetAllocationData = report.assetBreakdown
       .map(asset => [
         asset.assetClass,
@@ -280,7 +271,6 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
         `${asset.percentage.toFixed(2)}%`,
       ])
 
-    // Add total row
     const totalHoldings = report.assetBreakdown.reduce((sum, a) => sum + a.holdings, 0)
     const totalValue = report.assetBreakdown.reduce((sum, a) => sum + a.totalCashValue, 0)
     assetAllocationData.push(['Total', totalHoldings.toString(), formatCurrency(totalValue), '100.00%'])
@@ -294,7 +284,6 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
       styles: { fontSize: 9 },
       margin: { left: 14, right: 14 },
       didParseCell: function(data) {
-        // Make last row (Total) bold with different background
         if (data.row.index === assetAllocationData.length - 1 && data.section === 'body') {
           data.cell.styles.fontStyle = 'bold'
           data.cell.styles.fillColor = [230, 230, 230]
@@ -312,14 +301,13 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
     doc.setFillColor(41, 128, 185)
     doc.rect(14, currentY, doc.internal.pageSize.getWidth() - 28, 8, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.text(`${report.userPortfolio?.portfolio?.name || 'Portfolio'} Open Positions`, 16, currentY + 5.5)
+    doc.text(`${portfolioName} Open Positions`, 16, currentY + 5.5)
     doc.setTextColor(0, 0, 0)
     
     currentY += 10
 
-    const positionsData = report.userPortfolio.userAssets.map((userAsset: any) => {
+    const positionsData = report.userPortfolio.userAssets.map((userAsset) => {
       const asset = userAsset.portfolioAsset?.asset
-      const portfolioAsset = userAsset.portfolioAsset
       
       return [
         asset?.symbol || 'N/A',
@@ -335,10 +323,9 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
       ]
     })
 
-    // Add subtotal row
-    const subTotalCostPrice = report.userPortfolio.userAssets.reduce((sum: number, a: any) => sum + a.costPrice, 0)
-    const subTotalCloseValue = report.userPortfolio.userAssets.reduce((sum: number, a: any) => sum + a.closeValue, 0)
-    const subTotalGainLoss = report.userPortfolio.userAssets.reduce((sum: number, a: any) => sum + a.lossGain, 0)
+    const subTotalCostPrice = report.userPortfolio.userAssets.reduce((sum, a) => sum + a.costPrice, 0)
+    const subTotalCloseValue = report.userPortfolio.userAssets.reduce((sum, a) => sum + a.closeValue, 0)
+    const subTotalGainLoss = report.userPortfolio.userAssets.reduce((sum, a) => sum + a.lossGain, 0)
     
     positionsData.push([
       'Sub Total',
@@ -390,7 +377,6 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
       },
       margin: { left: 14, right: 14 },
       didParseCell: function(data) {
-        // Make subtotal row bold
         if (data.row.index === positionsData.length - 1 && data.section === 'body') {
           data.cell.styles.fontStyle = 'bold'
           data.cell.styles.fillColor = [230, 230, 230]
@@ -400,17 +386,17 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
     
     currentY = (doc as any).lastAutoTable.finalY + 10
 
-    // Bank Costs and Total Section
-    // Calculate totals from user portfolio
-    const totalFees = 65 // Bank costs + Transaction + Cash at Bank as shown in your image
+    // Bank Costs and Total Section - Using actual wallet data
+    // Calculate the final total: Portfolio Value + Total Fees
     const portfolioValue = report.userPortfolio?.portfolioValue || 0
+    const finalTotal = portfolioValue + totalFees
     
     const costsData = [
-      ['Bank Costs', '$30'],
-      ['Transaction Cost', '$15'],
-      ['Cash at Bank', '$20'],
-      ['Sub Total', '$65.00'],
-      ['Total', formatCurrency(portfolioValue + totalFees)],
+      ['Bank Costs', formatCurrency(bankFee)],
+      ['Transaction Cost', formatCurrency(transactionFee)],
+      ['Cash at Bank', formatCurrency(feeAtBank)],
+      ['Sub Total', formatCurrency(totalFees)],
+      ['Total', formatCurrency(finalTotal)],
     ]
 
     autoTable(doc, {
@@ -424,13 +410,11 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
       },
       margin: { left: 14 },
       didParseCell: function(data) {
-        // Make last row (Total) bold with different color
         if (data.row.index === costsData.length - 1) {
           data.cell.styles.fontStyle = 'bold'
           data.cell.styles.fillColor = [41, 128, 185]
           data.cell.styles.textColor = [255, 255, 255]
         }
-        // Make Sub Total row bold
         if (data.row.index === costsData.length - 2) {
           data.cell.styles.fontStyle = 'bold'
           data.cell.styles.fillColor = [230, 230, 230]
@@ -439,41 +423,55 @@ const generatePDF = (report: PortfolioPerformanceReport) => {
     })
   }
   
-  // Footer with page numbers
+  // Footer with page numbers and client info
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFontSize(9)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(128, 128, 128)
+    
+    // Left footer - Client info
+    doc.text(
+      `${clientName} | Account: ${accountNumber}`,
+      14,
+      doc.internal.pageSize.getHeight() - 10
+    )
+    
+    // Center footer - Page numbers
     doc.text(
       `Page ${i} of ${pageCount}`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 10,
       { align: 'center' }
     )
-    // Add generation timestamp
+    
+    // Right footer - Generation date
     doc.text(
-      `Generated on ${new Date().toLocaleString()}`,
-      14,
-      doc.internal.pageSize.getHeight() - 10
+      `Generated: ${new Date().toLocaleDateString()}`,
+      doc.internal.pageSize.getWidth() - 14,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'right' }
     )
   }
   
   return doc
 }
-  const handleViewPDF = (report: PortfolioPerformanceReport) => {
-    const doc = generatePDF(report)
-    const pdfBlob = doc.output('blob')
-    const pdfUrl = URL.createObjectURL(pdfBlob)
-    window.open(pdfUrl, '_blank')
-  }
 
-  const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
-    const doc = generatePDF(report)
-    const fileName = `portfolio-report-${report.userPortfolio?.portfolio?.name || 'portfolio'}-${new Date(report.reportDate).toISOString().split('T')[0]}.pdf`
-    doc.save(fileName)
-  }
+const handleViewPDF = (report: PortfolioPerformanceReport) => {
+  const doc = generatePDF(report)
+  const pdfBlob = doc.output('blob')
+  const pdfUrl = URL.createObjectURL(pdfBlob)
+  window.open(pdfUrl, '_blank')
+}
+
+const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
+  const doc = generatePDF(report)
+  const userName = report.userPortfolio?.user?.name?.replace(/\s+/g, '-') || 'client'
+  const reportDate = new Date(report.reportDate).toISOString().split('T')[0]
+  const fileName = `portfolio-report-${userName}-${reportDate}.pdf`
+  doc.save(fileName)
+}
 
   const filteredReports = reports.filter((report) => {
     if (selectedType !== "all" && report.type !== selectedType) return false
