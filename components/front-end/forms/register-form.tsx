@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { ScrollArea } from "@/components/ui/scroll-area"; // if not present, replace with a div
 import { createUser as createUserAction } from "@/actions/auth";
 import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export function RegisterForm() {
 
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
   // Dialog control
   const [openTos, setOpenTos] = React.useState(false);
@@ -143,7 +146,7 @@ export function RegisterForm() {
         </div>
        </div>
 
-        <div className="space-y-2">
+        {/* <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <Input
             id="password"
@@ -156,9 +159,11 @@ export function RegisterForm() {
             minLength={8}
           />
           <p className="text-xs text-muted-foreground">At least 8 characters.</p>
-        </div>
+        </div> */}
+
+
         
-        <div className="space-y-2">
+        {/* <div className="space-y-2">
           <Label htmlFor="confirmPassword">Confirm password</Label>
           <Input
             id="confirmPassword"
@@ -170,7 +175,62 @@ export function RegisterForm() {
             required
             minLength={8}
           />
-        </div>
+        </div> */}
+
+
+     {/* Password field */}
+<div className="space-y-2">
+  <Label htmlFor="password">Password</Label>
+  <div className="relative">
+    <Input
+      id="password"
+      name="password"
+      type={showPassword ? "text" : "password"}
+      placeholder="••••••••"
+      value={form.password}
+      onChange={onChange}
+      required
+      minLength={8}
+      className="pr-10"
+    />
+    <button
+      type="button"
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+      onClick={() => setShowPassword((v) => !v)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  </div>
+  <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+</div>
+
+{/* Confirm Password field */}
+<div className="space-y-2">
+  <Label htmlFor="confirmPassword">Confirm password</Label>
+  <div className="relative">
+    <Input
+      id="confirmPassword"
+      name="confirmPassword"
+      type={showConfirmPassword ? "text" : "password"}
+      placeholder="••••••••"
+      value={form.confirmPassword}
+      onChange={onChange}
+      required
+      minLength={8}
+      className="pr-10"
+    />
+    <button
+      type="button"
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+       onClick={() => setShowConfirmPassword((v) => !v)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  </div>
+</div>
+
         </div>
 
 
@@ -322,3 +382,8 @@ export function RegisterForm() {
     </div>
   );
 }
+
+
+
+
+
