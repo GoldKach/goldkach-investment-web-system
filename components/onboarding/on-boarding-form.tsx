@@ -3092,7 +3092,7 @@ export default function OnboardingForm({ user }: Props) {
               </div>
 
               {/* Profile Photo */}
-              <div className="flex flex-col items-center space-y-3 pt-4 border-t">
+              {/* <div className="flex flex-col items-center space-y-3 pt-4 border-t">
                 <div className="relative">
                   {formData.avatarUrl ? (
                     <img
@@ -3106,22 +3106,7 @@ export default function OnboardingForm({ user }: Props) {
                     </div>
                   )}
                 </div>
-                <Label className="text-sm font-medium">Profile Picture (Optional)</Label>
-                <UploadDropzone
-                  endpoint="imageUploader"
-                  onClientUploadComplete={(res) => {
-                    const url = res?.[0]?.url
-                    if (url) {
-                      updateFormData("avatarUrl", url)
-                      toast.success("Profile picture uploaded!")
-                    }
-                  }}
-                  onUploadError={(error: Error) => {
-                    toast.error(`Upload failed: ${error.message}`)
-                  }}
-                  className="mt-2"
-                />
-              </div>
+              </div> */}
             </div>
           )}
 
@@ -3514,7 +3499,7 @@ export default function OnboardingForm({ user }: Props) {
                   required
                   value={formData.nationalIdUrl}
                   field="nationalIdUrl"
-                  endpoint="documentUploader"
+                  endpoint="idUrl"
                 />
 
                 <DocumentUploadCard
@@ -3522,28 +3507,24 @@ export default function OnboardingForm({ user }: Props) {
                   required
                   value={formData.bankStatementUrl}
                   field="bankStatementUrl"
-                  endpoint="documentUploader"
+                  endpoint="statementUrl"
                 />
 
                 <div className="border-t pt-6 mt-6">
-                  <h4 className="font-semibold mb-4">Optional Documents</h4>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    These documents can help speed up your application review.
-                  </p>
 
                   <div className="grid grid-cols-1 gap-6">
                     <DocumentUploadCard
                       label="Passport Photo"
                       value={formData.passportPhotoUrl}
                       field="passportPhotoUrl"
-                      endpoint="imageUploader"
+                      endpoint="passportUrl"
                     />
 
                     <DocumentUploadCard
                       label="TIN Certificate"
                       value={formData.tinCertificateUrl}
                       field="tinCertificateUrl"
-                      endpoint="documentUploader"
+                      endpoint="tinUrl"
                     />
                   </div>
                 </div>

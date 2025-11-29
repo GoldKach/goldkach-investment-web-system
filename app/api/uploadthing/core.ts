@@ -12,7 +12,32 @@ export const ourFileRouter = {
       return { uploadedBy: "ADMIN" };
     }
   ),
-  imageUploader: f({ image: { maxFileSize: "4MB" } }).onUploadComplete(
+  imageUploader: f({ image: { maxFileSize: "4MB" } })
+  .onUploadComplete(
+    async ({ metadata, file }) => {
+      console.log("file url", file.url);
+      return { uploadedBy: "ADMIN" };
+    }
+  ),
+  tinUrl: f({ pdf: { maxFileSize: "4MB" } }).onUploadComplete(
+    async ({ metadata, file }) => {
+      console.log("file url", file.url);
+      return { uploadedBy: "ADMIN" };
+    }
+  ),
+  statementUrl: f({ pdf: { maxFileSize: "8MB" } }).onUploadComplete(
+    async ({ metadata, file }) => {
+      console.log("file url", file.url);
+      return { uploadedBy: "ADMIN" };
+    }
+  ),
+  passportUrl: f({ image: { maxFileSize: "4MB" } }).onUploadComplete(
+    async ({ metadata, file }) => {
+      console.log("file url", file.url);
+      return { uploadedBy: "ADMIN" };
+    }
+  ),
+  idUrl: f({ pdf: { maxFileSize: "4MB" } }).onUploadComplete(
     async ({ metadata, file }) => {
       console.log("file url", file.url);
       return { uploadedBy: "ADMIN" };
