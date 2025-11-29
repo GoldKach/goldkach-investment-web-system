@@ -1,38 +1,3 @@
-// // import { getSession } from "@/actions/auth";
-// // import OnboardingForm from "@/components/onboarding/on-boarding-form";
-
-// // export default async function OnboardingPage() {
-// //   const session = await getSession(); 
-// //   return (
-// //     <div className="max-w-3xl mx-auto p-6">
-// //       <OnboardingForm user={{ email: session?.user?.email, emailVerified: session?.user?.emailVerified }} />
-// //     </div>
-// //   );
-// // }
-
-
-// // app/onboarding/page.tsx
-// import { getSession } from "@/actions/auth";
-// import OnboardingForm from "@/components/onboarding/on-boarding-form";
-// import { redirect } from "next/navigation";
-
-// export default async function OnboardingPage() {
-//   const session = await getSession();
-//     // if (!session) redirect("/login");
-//   return (
-//     <OnboardingForm
-//       user={{
-//         id: session?.user?.id,
-//         email: session?.user?.email,
-//         emailVerified: session?.user?.emailVerified,
-//         firstName: session?.user?.firstName,
-//         lastName: session?.user?.lastName,
-//         phone: session?.user?.phone,
-//       }}
-//     />
-//   );
-// }
-
 
 
 
