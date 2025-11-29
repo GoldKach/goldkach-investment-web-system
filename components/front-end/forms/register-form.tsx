@@ -553,20 +553,23 @@
 
 
 
-
 "use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createUser as createUserAction } from "@/actions/auth";
 import { toast } from "sonner";
-import { Eye, EyeOff, FileText, CreditCard, UserCircle, Shield, FileCheck, X } from "lucide-react";
+import { Eye, EyeOff, FileText, CreditCard, UserCircle, Shield, FileCheck, X, Check, ChevronsUpDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export function RegisterForm() {
@@ -579,6 +582,77 @@ export function RegisterForm() {
     phone: "",
     password: "",
     confirmPassword: "",
+  });
+
+  const [countryCode, setCountryCode] = React.useState("+256"); // Default to Uganda
+  const [countrySearchTerm, setCountrySearchTerm] = React.useState("");
+  const [openCountrySelect, setOpenCountrySelect] = React.useState(false);
+
+  // African countries with their codes
+  const africanCountries = [
+    { code: "+213", country: "Algeria", flag: "🇩🇿" },
+    { code: "+244", country: "Angola", flag: "🇦🇴" },
+    { code: "+229", country: "Benin", flag: "🇧🇯" },
+    { code: "+267", country: "Botswana", flag: "🇧🇼" },
+    { code: "+226", country: "Burkina Faso", flag: "🇧🇫" },
+    { code: "+257", country: "Burundi", flag: "🇧🇮" },
+    { code: "+237", country: "Cameroon", flag: "🇨🇲" },
+    { code: "+238", country: "Cape Verde", flag: "🇨🇻" },
+    { code: "+236", country: "Central African Republic", flag: "🇨🇫" },
+    { code: "+235", country: "Chad", flag: "🇹🇩" },
+    { code: "+269", country: "Comoros", flag: "🇰🇲" },
+    { code: "+243", country: "Congo (DRC)", flag: "🇨🇩" },
+    { code: "+242", country: "Congo (Republic)", flag: "🇨🇬" },
+    { code: "+225", country: "Côte d'Ivoire", flag: "🇨🇮" },
+    { code: "+253", country: "Djibouti", flag: "🇩🇯" },
+    { code: "+20", country: "Egypt", flag: "🇪🇬" },
+    { code: "+240", country: "Equatorial Guinea", flag: "🇬🇶" },
+    { code: "+291", country: "Eritrea", flag: "🇪🇷" },
+    { code: "+268", country: "Eswatini", flag: "🇸🇿" },
+    { code: "+251", country: "Ethiopia", flag: "🇪🇹" },
+    { code: "+241", country: "Gabon", flag: "🇬🇦" },
+    { code: "+220", country: "Gambia", flag: "🇬🇲" },
+    { code: "+233", country: "Ghana", flag: "🇬🇭" },
+    { code: "+224", country: "Guinea", flag: "🇬🇳" },
+    { code: "+245", country: "Guinea-Bissau", flag: "🇬🇼" },
+    { code: "+254", country: "Kenya", flag: "🇰🇪" },
+    { code: "+266", country: "Lesotho", flag: "🇱🇸" },
+    { code: "+231", country: "Liberia", flag: "🇱🇷" },
+    { code: "+218", country: "Libya", flag: "🇱🇾" },
+    { code: "+261", country: "Madagascar", flag: "🇲🇬" },
+    { code: "+265", country: "Malawi", flag: "🇲🇼" },
+    { code: "+223", country: "Mali", flag: "🇲🇱" },
+    { code: "+222", country: "Mauritania", flag: "🇲🇷" },
+    { code: "+230", country: "Mauritius", flag: "🇲🇺" },
+    { code: "+212", country: "Morocco", flag: "🇲🇦" },
+    { code: "+258", country: "Mozambique", flag: "🇲🇿" },
+    { code: "+264", country: "Namibia", flag: "🇳🇦" },
+    { code: "+227", country: "Niger", flag: "🇳🇪" },
+    { code: "+234", country: "Nigeria", flag: "🇳🇬" },
+    { code: "+250", country: "Rwanda", flag: "🇷🇼" },
+    { code: "+239", country: "São Tomé and Príncipe", flag: "🇸🇹" },
+    { code: "+221", country: "Senegal", flag: "🇸🇳" },
+    { code: "+248", country: "Seychelles", flag: "🇸🇨" },
+    { code: "+232", country: "Sierra Leone", flag: "🇸🇱" },
+    { code: "+252", country: "Somalia", flag: "🇸🇴" },
+    { code: "+27", country: "South Africa", flag: "🇿🇦" },
+    { code: "+211", country: "South Sudan", flag: "🇸🇸" },
+    { code: "+249", country: "Sudan", flag: "🇸🇩" },
+    { code: "+255", country: "Tanzania", flag: "🇹🇿" },
+    { code: "+228", country: "Togo", flag: "🇹🇬" },
+    { code: "+216", country: "Tunisia", flag: "🇹🇳" },
+    { code: "+256", country: "Uganda", flag: "🇺🇬" },
+    { code: "+260", country: "Zambia", flag: "🇿🇲" },
+    { code: "+263", country: "Zimbabwe", flag: "🇿🇼" },
+  ];
+
+  // Filter countries based on search term
+  const filteredCountries = africanCountries.filter((country) => {
+    const searchLower = countrySearchTerm.toLowerCase();
+    return (
+      country.country.toLowerCase().includes(searchLower) ||
+      country.code.includes(searchLower)
+    );
   });
 
   const [error, setError] = React.useState<string | null>(null);
@@ -626,7 +700,7 @@ export function RegisterForm() {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email: form.email.trim().toLowerCase(),
-        phone: form.phone.trim(),
+        phone: `${countryCode}${form.phone.trim()}`, // Combine country code with phone number
         password: form.password,
       });
       toast.success("Account created! Check your email for the 6-digit verification code.");
@@ -716,19 +790,20 @@ export function RegisterForm() {
                         <p className="text-xs text-muted-foreground">Last 6 months of statements from your primary bank</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                      <FileText className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">TIN Certificate</p>
-                        <p className="text-xs text-muted-foreground">Valid and Active TIN Certificate</p>
-                      </div>
-                    </div>
 
                     <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
                       <UserCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="font-medium text-sm">Passport Photo</p>
                         <p className="text-xs text-muted-foreground">Recent passport-size photograph (white background)</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                      <FileCheck className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-sm">Valid and Active TIN Certificate</p>
+                        <p className="text-xs text-muted-foreground">Tax Identification Number certificate issued by Uganda Revenue Authority</p>
                       </div>
                     </div>
                   </div>
@@ -896,15 +971,69 @@ export function RegisterForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone number</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="+2567…"
-                value={form.phone}
-                onChange={onChange}
-                required
-              />
+              <div className="flex gap-2">
+                <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openCountrySelect}
+                      className="w-[160px] justify-between"
+                    >
+                      <span className="truncate">
+                        {africanCountries.find((c) => c.code === countryCode)?.flag}{" "}
+                        {countryCode}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[280px] p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search country..." 
+                        value={countrySearchTerm}
+                        onValueChange={setCountrySearchTerm}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No country found.</CommandEmpty>
+                        <CommandGroup>
+                          {filteredCountries.map((country) => (
+                            <CommandItem
+                              key={country.code}
+                              value={`${country.country} ${country.code}`}
+                              onSelect={() => {
+                                setCountryCode(country.code);
+                                setOpenCountrySelect(false);
+                                setCountrySearchTerm("");
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  countryCode === country.code ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="mr-2">{country.flag}</span>
+                              <span className="flex-1">{country.country}</span>
+                              <span className="text-muted-foreground">{country.code}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="712345678"
+                  value={form.phone}
+                  onChange={onChange}
+                  required
+                  className="flex-1"
+                />
+              </div>
             </div>
           </div>
 
