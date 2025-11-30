@@ -28,7 +28,6 @@ export default async function PortfolioDetail({ params }: PortfolioDetailPagePar
 
   // Fetch specific portfolio
   const result = await getUserPortfolioById(id);
-  console.log(result);
 
   // Handle errors
   if (result.error || !result.data) {

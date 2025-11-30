@@ -60,7 +60,6 @@ export function AssetForm({ asset, mode }: AssetFormProps) {
         closePrice: Number.parseFloat(formData.closePrice || "0") || 0,
       };
 
-      console.log(payload)
 
       if (!payload.symbol || !payload.description || !payload.sector || !payload.assetClass) {
         toast.error("Please fill in symbol, description, sector and asset class.");
