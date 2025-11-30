@@ -11,7 +11,6 @@ export default async function Page() {
      const users = r.data;
 
      const user =users.find((u:any)=>u.id==loggedIn?.id);
-     console.log(user);
    
   return (
     <div>

@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { Spinner } from "@/components/ui/spinner"
-import { UserDetailView } from "@/components/user/user-detail-view"
 import { getUserById } from "@/actions/auth"
+import { UserDetailPreview } from "@/components/user/user-detail-view";
 
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -10,7 +10,6 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
 
   const user= u.data;
 
-  console.log( "userds", user)
 
   return (
     <div className="container px-4 mx-auto px-4 py-8">
@@ -21,7 +20,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           </div>
         }
       >
-        <UserDetailView user={user} />
+        < UserDetailPreview user={user} />
       </Suspense>
     </div>
   )
