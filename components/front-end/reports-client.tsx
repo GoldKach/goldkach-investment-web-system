@@ -1434,25 +1434,25 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 p-8">
+   <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-8 transition-colors duration-200">
       <div className="max-w-6xl mx-auto">
         <div className="space-y-8">
           {/* Header */}
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Reports</h1>
-            <p className="text-slate-400">
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">Reports</h1>
+            <p className="text-slate-600 dark:text-slate-400">
               Welcome back, {user?.name || user?.firstName || "User"}! Generate and view your financial reports
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 border-b border-slate-700">
+          <div className="flex gap-2 border-b border-slate-300 dark:border-slate-700">
             <button
               onClick={() => setActiveTab("financial")}
               className={`px-6 py-3 font-medium transition-colors relative ${
                 activeTab === "financial"
-                  ? "text-blue-400"
-                  : "text-slate-400 hover:text-slate-300"
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -1460,15 +1460,15 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                 Financial Reports
               </div>
               {activeTab === "financial" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
               )}
             </button>
             <button
               onClick={() => setActiveTab("portfolio")}
               className={`px-6 py-3 font-medium transition-colors relative ${
                 activeTab === "portfolio"
-                  ? "text-blue-400"
-                  : "text-slate-400 hover:text-slate-300"
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300"
               }`}
             >
               <div className="flex items-center gap-2">
@@ -1476,7 +1476,7 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                 Portfolio Performance
               </div>
               {activeTab === "portfolio" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
               )}
             </button>
           </div>
@@ -1485,15 +1485,15 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
           {activeTab === "financial" && (
             <>
               {/* Generate Report Section */}
-              <div className="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
-                <h2 className="text-white font-semibold mb-4">Generate Financial Report</h2>
+              <div className="border border-slate-300 dark:border-slate-700 rounded-lg p-6 bg-white dark:bg-slate-900/50 shadow-sm dark:shadow-none">
+                <h2 className="text-slate-900 dark:text-white font-semibold mb-4">Generate Financial Report</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Report Type</label>
+                    <label className="text-sm text-slate-600 dark:text-slate-400">Report Type</label>
                     <select
                       value={selectedType}
                       onChange={(e) => setSelectedType(e.target.value as any)}
-                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="all">Select Type</option>
                       <option value="daily">Daily</option>
@@ -1503,12 +1503,12 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Date</label>
+                    <label className="text-sm text-slate-600 dark:text-slate-400">Date</label>
                     <input
                       type="date"
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
@@ -1522,7 +1522,7 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                   <div className="flex items-end">
                     <Button
                       variant="outline"
-                      className="w-full border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 bg-transparent"
+                      className="w-full border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-transparent"
                       onClick={() => (window.location.href = "/")}
                     >
                       Back to Home
@@ -1533,28 +1533,28 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
 
               {/* Financial Reports List */}
               <div className="space-y-4">
-                <h2 className="text-white font-semibold text-lg">Available Financial Reports</h2>
+                <h2 className="text-slate-900 dark:text-white font-semibold text-lg">Available Financial Reports</h2>
                 <div className="grid grid-cols-1 gap-4">
                   {filteredReports.map((report) => (
                     <div
                       key={report.id}
-                      className="border border-slate-700 rounded-lg p-6 bg-slate-900/50 hover:bg-slate-900/70 transition-colors"
+                      className="border border-slate-300 dark:border-slate-700 rounded-lg p-6 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/70 transition-colors shadow-sm dark:shadow-none"
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-white font-semibold text-lg">{report.date}</h3>
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                            <h3 className="text-slate-900 dark:text-white font-semibold text-lg">{report.date}</h3>
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400">
                               {report.type.charAt(0).toUpperCase() + report.type.slice(1)}
                             </span>
                           </div>
-                          <p className="text-slate-400 text-sm">Generated on {report.createdAt}</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm">Generated on {report.createdAt}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 bg-transparent"
+                            className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-transparent"
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             View PDF
@@ -1562,7 +1562,7 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 bg-transparent"
+                            className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-transparent"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download
@@ -1570,24 +1570,24 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-700">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-300 dark:border-slate-700">
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Total Deposits</p>
-                          <p className="text-white font-semibold text-lg">${report.totalDeposits.toLocaleString()}</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Total Deposits</p>
+                          <p className="text-slate-900 dark:text-white font-semibold text-lg">${report.totalDeposits.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Total Withdrawals</p>
-                          <p className="text-white font-semibold text-lg">${report.totalWithdrawals.toLocaleString()}</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Total Withdrawals</p>
+                          <p className="text-slate-900 dark:text-white font-semibold text-lg">${report.totalWithdrawals.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Net Flow</p>
-                          <p className={`font-semibold text-lg ${report.netFlow >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Net Flow</p>
+                          <p className={`font-semibold text-lg ${report.netFlow >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                             ${report.netFlow.toLocaleString()}
                           </p>
                         </div>
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Transactions</p>
-                          <p className="text-white font-semibold text-lg">{report.transactionCount}</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Transactions</p>
+                          <p className="text-slate-900 dark:text-white font-semibold text-lg">{report.transactionCount}</p>
                         </div>
                       </div>
                     </div>
@@ -1603,11 +1603,11 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
               {/* Filter and Refresh Section */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-white font-semibold text-lg">Portfolio Performance Reports</h2>
+                  <h2 className="text-slate-900 dark:text-white font-semibold text-lg">Portfolio Performance Reports</h2>
                   <select
                     value={selectedPeriod}
                     onChange={(e) => setSelectedPeriod(e.target.value as "daily" | "weekly" | "monthly")}
-                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -1615,13 +1615,13 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                   </select>
                 </div>
                 <div className="flex items-center gap-3">
-                  <p className="text-slate-400 text-sm">Auto-generated every 2 minutes</p>
+                  <p className="text-slate-600 dark:text-slate-400 text-sm">Auto-generated every 2 minutes</p>
                   <Button
                     onClick={fetchPortfolioReports}
                     disabled={loading}
                     size="sm"
                     variant="outline"
-                    className="border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 bg-transparent"
+                    className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-transparent"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1635,24 +1635,24 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
 
               {/* Error Message */}
               {error && (
-                <div className="border border-red-700 rounded-lg p-4 bg-red-900/20">
-                  <p className="text-red-400 text-sm">{error}</p>
+                <div className="border border-red-300 dark:border-red-700 rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
+                  <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
                 </div>
               )}
 
               {/* Loading State */}
               {loading && portfolioReports.length === 0 && (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+                  <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
                 </div>
               )}
 
               {/* No Reports Message */}
               {!loading && portfolioReports.length === 0 && !error && (
-                <div className="border border-slate-700 rounded-lg p-12 bg-slate-900/50 text-center">
-                  <TrendingUp className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-white font-semibold text-lg mb-2">No Reports Yet</h3>
-                  <p className="text-slate-400 text-sm">
+                <div className="border border-slate-300 dark:border-slate-700 rounded-lg p-12 bg-white dark:bg-slate-900/50 text-center shadow-sm dark:shadow-none">
+                  <TrendingUp className="w-12 h-12 text-slate-400 dark:text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-slate-900 dark:text-white font-semibold text-lg mb-2">No Reports Yet</h3>
+                  <p className="text-slate-600 dark:text-slate-400 text-sm">
                     Portfolio performance reports will appear here once generated.
                   </p>
                 </div>
@@ -1664,30 +1664,30 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                   {portfolioReports.map((report) => (
                     <div
                       key={report.id}
-                      className="border border-slate-700 rounded-lg p-6 bg-slate-900/50 hover:bg-slate-900/70 transition-colors"
+                      className="border border-slate-300 dark:border-slate-700 rounded-lg p-6 bg-white dark:bg-slate-900/50 hover:bg-slate-50 dark:hover:bg-slate-900/70 transition-colors shadow-sm dark:shadow-none"
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-white font-semibold text-lg">
+                            <h3 className="text-slate-900 dark:text-white font-semibold text-lg">
                               {report.userPortfolio?.portfolio?.name || "Portfolio"}
                             </h3>
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                               report.totalLossGain >= 0 
-                                ? "bg-green-500/20 text-green-400" 
-                                : "bg-red-500/20 text-red-400"
+                                ? "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400" 
+                                : "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400"
                             }`}>
                               {report.totalPercentage >= 0 ? "+" : ""}{report.totalPercentage.toFixed(2)}%
                             </span>
                           </div>
-                          <p className="text-slate-400 text-sm">{formatDate(report.reportDate)}</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm">{formatDate(report.reportDate)}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
                             onClick={() => handleViewPDF(report)}
                             variant="outline"
                             size="sm"
-                            className="border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 bg-transparent"
+                            className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-transparent"
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             View PDF
@@ -1696,7 +1696,7 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                             onClick={() => handleDownloadPDF(report)}
                             variant="outline"
                             size="sm"
-                            className="border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 bg-transparent"
+                            className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-transparent"
                           >
                             <Download className="w-4 h-4 mr-2" />
                             Download
@@ -1704,27 +1704,27 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-700 mb-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-300 dark:border-slate-700 mb-4">
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Net Asset Value</p>
-                          <p className="text-white font-semibold text-lg">{formatCurrency(report.totalCostPrice)}</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Net Asset Value</p>
+                          <p className="text-slate-900 dark:text-white font-semibold text-lg">{formatCurrency(report.totalCostPrice)}</p>
                         </div>
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Current Value</p>
-                          <p className="text-white font-semibold text-lg">{formatCurrency(report.totalCloseValue)}</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Current Value</p>
+                          <p className="text-slate-900 dark:text-white font-semibold text-lg">{formatCurrency(report.totalCloseValue)}</p>
                         </div>
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Gain/Loss</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Gain/Loss</p>
                           <p className={`font-semibold text-lg ${
-                            report.totalLossGain >= 0 ? "text-green-400" : "text-red-400"
+                            report.totalLossGain >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                           }`}>
                             {formatCurrency(report.totalLossGain)}
                           </p>
                         </div>
                         <div>
-                          <p className="text-slate-400 text-sm mb-1">Return %</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Return %</p>
                           <p className={`font-semibold text-lg ${
-                            report.totalPercentage >= 0 ? "text-green-400" : "text-red-400"
+                            report.totalPercentage >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                           }`}>
                             {report.totalPercentage >= 0 ? "+" : ""}{report.totalPercentage.toFixed(2)}%
                           </p>
@@ -1733,16 +1733,16 @@ const handleDownloadPDF = (report: PortfolioPerformanceReport) => {
 
                       {/* Asset Breakdown */}
                       {report.assetBreakdown && report.assetBreakdown.length > 0 && (
-                        <div className="pt-4 border-t border-slate-700">
-                          <h4 className="text-white text-sm font-semibold mb-3">Asset Breakdown</h4>
+                        <div className="pt-4 border-t border-slate-300 dark:border-slate-700">
+                          <h4 className="text-slate-900 dark:text-white text-sm font-semibold mb-3">Asset Breakdown</h4>
                           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                             {report.assetBreakdown
-                              .filter(asset => asset.totalCashValue > 0) // Only show assets with value
-                              .map((asset) => (
-                              <div key={asset.assetClass} className="bg-slate-800/50 rounded-lg p-3">
-                                <p className="text-slate-400 text-xs mb-1">{asset.assetClass}</p>
-                                <p className="text-white font-semibold">{formatCurrency(asset.totalCashValue)}</p>
-                                <p className="text-slate-400 text-xs mt-1">
+                              .filter((asset: any) => asset.totalCashValue > 0)
+                              .map((asset: any) => (
+                              <div key={asset.assetClass} className="bg-slate-100 dark:bg-slate-800/50 rounded-lg p-3">
+                                <p className="text-slate-600 dark:text-slate-400 text-xs mb-1">{asset.assetClass}</p>
+                                <p className="text-slate-900 dark:text-white font-semibold">{formatCurrency(asset.totalCashValue)}</p>
+                                <p className="text-slate-600 dark:text-slate-400 text-xs mt-1">
                                   {asset.holdings} holdings • {asset.percentage.toFixed(1)}%
                                 </p>
                               </div>
