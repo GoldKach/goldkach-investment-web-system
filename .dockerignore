@@ -1,0 +1,17 @@
+
+Make sure your `.dockerignore` includes:
+```
+node_modules
+.next
+.git
+.env
+.env.local
+.env*.local
+pnpm-debug.log
+npm-debug.log
+.DS_Store
+README.md
+.vscode
+dist
+build
+.pnpm-store
