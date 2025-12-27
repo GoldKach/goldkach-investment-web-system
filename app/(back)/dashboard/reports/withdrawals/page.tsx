@@ -1,0 +1,590 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { format } from "date-fns";
+import {
+  CalendarIcon,
+  Download,
+  RefreshCw,
+  Search,
+  ArrowUpIcon,
+  TrendingDown,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Building,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  getWithdrawalsReport,
+  exportWithdrawalsReport,
+  WithdrawalsReportData,
+  TransactionStatus,
+} from "@/actions/financialReports";
+import { toast } from "sonner";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: "bg-yellow-100 text-yellow-800",
+  APPROVED: "bg-green-100 text-green-800",
+  REJECTED: "bg-red-100 text-red-800",
+};
+
+const PIE_COLORS = ["#22c55e", "#eab308", "#ef4444"];
+const BANK_COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f97316", "#06b6d4", "#84cc16"];
+
+export default function WithdrawalsReportPage() {
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [report, setReport] = useState<WithdrawalsReportData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+
+  const fetchReport = async () => {
+    setLoading(true);
+    setError(null);
+
+    const filters: any = {};
+    if (dateRange.from) filters.startDate = dateRange.from.toISOString();
+    if (dateRange.to) filters.endDate = dateRange.to.toISOString();
+    if (statusFilter !== "ALL") filters.status = statusFilter;
+
+    const result = await getWithdrawalsReport(
+      Object.keys(filters).length > 0 ? filters : undefined
+    );
+
+    if (result.success && result.data) {
+      setReport(result.data);
+    } else {
+      setError(result.error || "Failed to load report");
+      toast.error(result.error || "Failed to load report");
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchReport();
+  }, []);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const filters: any = {};
+      if (dateRange.from) filters.startDate = dateRange.from.toISOString();
+      if (dateRange.to) filters.endDate = dateRange.to.toISOString();
+      if (statusFilter !== "ALL") filters.status = statusFilter;
+
+      const result = await exportWithdrawalsReport(
+        Object.keys(filters).length > 0 ? filters : undefined
+      );
+
+      if (result.success && result.blob) {
+        const url = window.URL.createObjectURL(result.blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = result.filename || "withdrawals_report.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        toast.success("Report exported successfully");
+      } else {
+        toast.error(result.error || "Failed to export report");
+      }
+    } catch (err) {
+      toast.error("Failed to export report");
+    }
+    setExporting(false);
+  };
+
+  const handleApplyFilter = () => {
+    fetchReport();
+  };
+
+  // Filter withdrawals by search term
+  const filteredWithdrawals = report?.withdrawals.filter((withdrawal:any) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      withdrawal.user.firstName.toLowerCase().includes(term) ||
+      withdrawal.user.lastName.toLowerCase().includes(term) ||
+      withdrawal.user.email.toLowerCase().includes(term) ||
+      withdrawal.user.phone.includes(term) ||
+      withdrawal.referenceNo.toLowerCase().includes(term) ||
+      withdrawal.bankName.toLowerCase().includes(term) ||
+      withdrawal.bankAccountName.toLowerCase().includes(term)
+    );
+  });
+
+  // Prepare chart data
+  const statusChartData = report
+    ? [
+        { name: "Approved", value: report.summary.approved.count, amount: report.summary.approved.amount },
+        { name: "Pending", value: report.summary.pending.count, amount: report.summary.pending.amount },
+        { name: "Rejected", value: report.summary.rejected.count, amount: report.summary.rejected.amount },
+      ]
+    : [];
+
+  const bankChartData = report
+    ? Object.entries(report.byBank)
+        .map(([bank, data]) => ({
+          bank,
+          count: data.count,
+          amount: data.amount,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 6)
+    : [];
+
+  const dailyChartData = report
+    ? Object.entries(report.dailyBreakdown)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-14)
+        .map(([date, data]) => ({
+          date: format(new Date(date), "MMM dd"),
+          count: data.count,
+          amount: data.amount,
+        }))
+    : [];
+
+  if (loading) {
+    return <ReportSkeleton />;
+  }
+
+  if (error || !report) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <AlertCircle className="h-12 w-12 text-red-500" />
+        <h2 className="text-xl font-semibold">Failed to Load Report</h2>
+        <p className="text-muted-foreground">{error}</p>
+        <Button onClick={fetchReport}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 space-y-6 p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <ArrowUpIcon className="h-8 w-8 text-red-500" />
+            Withdrawals Report
+          </h1>
+          <p className="text-muted-foreground">
+            Detailed analysis of all withdrawal transactions
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={fetchReport}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button onClick={handleExport} disabled={exporting}>
+            <Download className="mr-2 h-4 w-4" />
+            {exporting ? "Exporting..." : "Export Excel"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            {/* Date Range */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "LLL dd, y")} -{" "}
+                        {format(dateRange.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>Select date range</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange.from}
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(range) =>
+                    setDateRange({ from: range?.from, to: range?.to })
+                  }
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {/* Status Filter */}
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as TransactionStatus | "ALL")}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Status</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button onClick={handleApplyFilter}>Apply Filters</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Withdrawals</CardTitle>
+            <TrendingDown className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{report.summary.totalCount}</div>
+            <p className="text-xs text-muted-foreground">
+              {report.summary.totalAmountFormatted}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {report.summary.approved.count}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              UGX {report.summary.approved.amount.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">
+              {report.summary.pending.count}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              UGX {report.summary.pending.amount.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Withdrawal</CardTitle>
+            <ArrowUpIcon className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              UGX {Math.round(report.summary.averageWithdrawal).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Per transaction</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Status Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Withdrawals by Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {statusChartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value, name, props) => [
+                      `Count: ${value}, Amount: UGX ${props.payload.amount.toLocaleString()}`,
+                      name,
+                    ]}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bank Distribution Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building className="h-5 w-5" />
+              Top Banks by Volume
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={bankChartData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" fontSize={12} />
+                  <YAxis dataKey="bank" type="category" fontSize={11} width={100} />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      name === "count"
+                        ? `${value} withdrawals`
+                        : `UGX ${Number(value).toLocaleString()}`,
+                      name === "count" ? "Count" : "Amount",
+                    ]}
+                  />
+                  <Bar dataKey="amount" fill="#ef4444" name="amount" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Daily Trend Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily Withdrawals (Last 14 Days)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dailyChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" fontSize={12} />
+                <YAxis fontSize={12} />
+                <Tooltip
+                  formatter={(value, name) => [
+                    name === "count"
+                      ? `${value} withdrawals`
+                      : `UGX ${Number(value).toLocaleString()}`,
+                    name === "count" ? "Count" : "Amount",
+                  ]}
+                />
+                <Bar dataKey="count" fill="#ef4444" name="count" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Withdrawals Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <CardTitle>Withdrawal Transactions</CardTitle>
+            <div className="relative w-full md:w-[300px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, bank, reference..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Bank</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredWithdrawals && filteredWithdrawals.length > 0 ? (
+                  filteredWithdrawals.slice(0, 50).map((withdrawal:any) => (
+                    <TableRow key={withdrawal.id}>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(withdrawal.createdAt), "MMM dd, yyyy HH:mm")}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">
+                            {withdrawal.user.firstName} {withdrawal.user.lastName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {withdrawal.user.email}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium text-red-600">
+                        UGX {withdrawal.amount.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{withdrawal.bankName}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {withdrawal.bankBranch}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {withdrawal.bankAccountName}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {withdrawal.referenceNo}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={cn(
+                            STATUS_COLORS[withdrawal.transactionStatus]
+                          )}
+                        >
+                          {withdrawal.transactionStatus}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      No withdrawals found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {filteredWithdrawals && filteredWithdrawals.length > 50 && (
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              Showing 50 of {filteredWithdrawals.length} withdrawals. Export to Excel for full data.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ReportSkeleton() {
+  return (
+    <div className="flex-1 space-y-6 p-6">
+      <div className="flex justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-[250px]" />
+          <Skeleton className="h-4 w-[350px]" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-[100px]" />
+          <Skeleton className="h-10 w-[150px]" />
+        </div>
+      </div>
+      <Skeleton className="h-[100px] w-full" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} className="h-[100px]" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-[350px]" />
+        <Skeleton className="h-[350px]" />
+      </div>
+      <Skeleton className="h-[400px]" />
+    </div>
+  );
+}

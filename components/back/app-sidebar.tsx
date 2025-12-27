@@ -122,13 +122,13 @@ export default function AppSidebar({ user }: { user: any }) {
     },
     {
       title: "Reports & Analytics",
-      url: "/reports",
+      url: "/financial-reports",
       icon: PieChart,
       items: [
-        { title: "Financial Reports", url: "/reports/financial" },
-        { title: "Activity Logs", url: "/reports/activity" },
-        { title: "User Analytics", url: "/reports/users" },
-        { title: "Custom Reports", url: "/reports/custom" },
+        { title: "Financial Reports", url: "/dashboard/reports" },
+        // { title: "Activity Logs", url: "/dashboard/reports/activity" },
+        // { title: "User Analytics", url: "/reports/users" },
+        // { title: "Custom Reports", url: "/reports/custom" },
       ],
     },
     {
@@ -136,9 +136,9 @@ export default function AppSidebar({ user }: { user: any }) {
       url: "/activity",
       icon: History,
       items: [
-        { title: "Recent Activity", url: "/activity/recent" },
-        { title: "Audit Trail", url: "/activity/audit" },
-        { title: "System Logs", url: "/activity/system" },
+        { title: "Recent Activity", url: "/dashboard/activity/recent" },
+        { title: "Audit Trail", url: "/dashboard/activity/audit" },
+        { title: "System Logs", url: "/dashboard/activity/system" },
       ],
     },
     {
@@ -146,10 +146,7 @@ export default function AppSidebar({ user }: { user: any }) {
       url: "/settings",
       icon: Settings,
       items: [
-        { title: "Account Settings", url: "/settings/account" },
-        { title: "Security", url: "/settings/security" },
-        { title: "Notifications", url: "/settings/notifications" },
-        { title: "System Configuration", url: "/settings/system" },
+        { title: "Account Settings", url: "/dashboard/settings" },
       ],
     },
   ];
