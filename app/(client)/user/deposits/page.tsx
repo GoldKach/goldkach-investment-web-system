@@ -29,7 +29,7 @@ export default async function DepositsPage() {
   // Handle errors
   if (!result.success || !result.data) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-screen">
+      <div className="p-6 flex bg-white dark:bg-slate-950 items-center justify-center min-h-screen">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Error Loading Deposits</CardTitle>

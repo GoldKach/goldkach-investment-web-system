@@ -124,3 +124,75 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+
+/* UploadThing styling fixes for light/dark mode */
+.ut-button {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  font-weight: 500 !important;
+}
+
+.ut-button:hover {
+  background-color: hsl(var(--primary) / 0.9) !important;
+}
+
+.ut-label {
+  color: hsl(var(--foreground)) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+.ut-allowed-content {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 0.75rem !important;
+}
+
+.ut-uploading,
+.ut-readying {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Fix for upload container background */
+.ut-upload-icon {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+
+/* UploadThing comprehensive styling fixes - CORRECTED */
+button[data-ut-element="button"],
+.ut-button,
+[class*="uploadthing"] button:not([role="checkbox"]) {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  font-weight: 500 !important;
+  border: none !important;
+}
+
+button[data-ut-element="button"]:hover,
+.ut-button:hover,
+[class*="uploadthing"] button:not([role="checkbox"]):hover {
+  background-color: hsl(var(--primary) / 0.9) !important;
+}
+
+/* Label and text fixes */
+label[data-ut-element="label"],
+.ut-label {
+  color: hsl(var(--foreground)) !important;
+}
+
+div[data-ut-element="allowed-content"],
+.ut-allowed-content {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Complete UploadThing container override */
+.uploadthing-container * {
+  color: hsl(var(--foreground)) !important;
+}
+
+.uploadthing-container button {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}

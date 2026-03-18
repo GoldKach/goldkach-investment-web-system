@@ -1,48 +1,38 @@
 
 
-// "use client";
-// import * as React from "react";
-
-// import { useEffect, useState } from "react";
-// import { useRouter } from "next/navigation";
-// import AppSidebar from "@/components/back/app-sidebar";
-// import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-// import DashboardNav from "@/components/back/dashboard-nav";
-
-// export default function DashboardLayout({children}:{children:React.ReactNode}) {
-
-//     return (
-//         <SidebarProvider>
-//             <AppSidebar/>
-//             <SidebarInset>
-//                 <div className="md:ml-[220px] lg:ml-[225px]">
-//                 <DashboardNav/>
-//                  <div className="">
-//                  {children}
-//                  </div>
-//                 </div>
-//             </SidebarInset>
-//         </SidebarProvider>
-//     )
-// }
 
 
 
-
-
-// app/dashboard/layout.tsx  (SERVER COMPONENT)
+// app/(back)/dashboard/layout.tsx (SERVER COMPONENT)
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import DashboardShell from "@/components/back/dashboard-shell"; // client shell
-import { fetchMe, getSession } from "@/actions/auth";
+import { getAllUsers, getSession } from "@/actions/auth";
+import UserDashboardShell from "@/components/back/user-dashboard-shell";
+import AdminDashboard from "@/components/back/super-admin-dashboard";
+import DashboardShell from "@/components/back/dashboard-shell";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  // 1. Session check first
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/login?returnTo=/dashboard");
 
-  const me = await fetchMe(); // returns { data: user } or null
-  const user = me?.data ?? session.user;
+  // 2. Get full user data
+  const r = await getAllUsers();
+  const users = r?.data;
+  const user = users?.find((u: any) => u.id === session.user?.id) ?? session.user;
 
+  // 3. Authorize by role
+  const hasSuperAdminRole =
+  typeof user?.role === "string"
+    ? user.role === "SUPER_ADMIN"
+    : Array.isArray(user?.roles) &&
+      user.roles.some((r: any) => r?.roleName === "SUPER_ADMIN" || r === "SUPER_ADMIN");
+
+if (!hasSuperAdminRole) {
+  redirect("/unauthorized?reason=role");
+}
 
   return <DashboardShell user={user}>{children}</DashboardShell>;
 }

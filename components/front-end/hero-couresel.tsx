@@ -16,7 +16,7 @@ export const banners = [
     title: "Invest in Your Future Today",
     subtitle: "Secure Growth, Smart Decisions",
     description:
-      "Join InvestPro and take control of your financial future. Our platform empowers you to invest confidently with expert insights, real-time analytics, and trusted security.",
+      "Join Goldkach and take control of your financial future. Our platform empowers you to invest confidently with expert insights, real-time analytics, and trusted security.",
     url: "/banners/WhatsApp Image 2025-09-24 at 09.53.05_b88fddef.jpg",
     icon: TrendingUp,
     primaryAction: "Start Investing",
@@ -29,7 +29,7 @@ export const banners = [
     title: "Smart Portfolios for Smart Investors",
     subtitle: "Diversify, Optimize, Prosper",
     description:
-      "Our AI-driven investment portfolios help you balance risk and return—designed to meet your goals, whether you're saving for retirement or growing wealth.",
+      "Our  investment portfolios help you balance risk and return—designed to meet your goals, whether you're saving for retirement or growing wealth.",
     url: "/banners/WhatsApp Image 2025-09-24 at 09.53.07_23949db7.jpg",
     icon: BarChart3,
     primaryAction: "View Plans",

@@ -1,4 +1,7 @@
 
+
+
+
 // app/user/withdraws/components/withdraw-page-content.tsx
 "use client"
 
@@ -80,6 +83,7 @@ export function WithdrawalsPageContent({ withdrawals, user }: WithdrawalsPageCon
       bankBranch: withdrawal.bankBranch,
       method: withdrawal.method || "Bank Transfer",
       description: withdrawal.description || undefined,
+      accountNo: withdrawal.AccountNo,
     }
   })
 
@@ -98,7 +102,7 @@ export function WithdrawalsPageContent({ withdrawals, user }: WithdrawalsPageCon
         bankName: data.bankName,
         bankAccountName: data.bankAccountName,
         bankBranch: data.bankBranch,
-        AccountNo: data.AccountNo || user.accountNumber, // Use wallet account number as default
+        AccountNo: data.AccountNo || user.accountNumber,
         AccountName: data.AccountName,
         description: data.description,
       })
@@ -118,12 +122,12 @@ export function WithdrawalsPageContent({ withdrawals, user }: WithdrawalsPageCon
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 p-8">
+    <main className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-slate-950 dark:to-slate-900 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="space-y-8">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Withdrawals</h1>
-            <p className="text-slate-400">View and manage your withdrawal history</p>
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">Withdrawals</h1>
+            <p className="text-slate-600 dark:text-slate-400">View and manage your withdrawal history</p>
           </div>
 
           <div className="flex gap-4">
@@ -136,7 +140,7 @@ export function WithdrawalsPageContent({ withdrawals, user }: WithdrawalsPageCon
             <Link href="/user/deposits">
               <Button
                 variant="outline"
-                className="border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 bg-transparent"
+                className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Back to Deposits
               </Button>
@@ -144,49 +148,49 @@ export function WithdrawalsPageContent({ withdrawals, user }: WithdrawalsPageCon
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 border border-slate-700 rounded-lg p-6 bg-slate-900/50">
-              <h2 className="text-white font-semibold mb-4">Withdrawal History</h2>
+            <div className="lg:col-span-2 border border-slate-200 dark:border-slate-700 rounded-lg p-6 bg-white dark:bg-slate-900/50 shadow-sm">
+              <h2 className="text-slate-900 dark:text-white font-semibold mb-4">Withdrawal History</h2>
               <WithdrawalList withdrawals={formattedWithdrawals} />
             </div>
 
-            <div className="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
-              <h2 className="text-white font-semibold mb-4">Withdrawal Summary</h2>
+            <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-6 bg-white dark:bg-slate-900/50 shadow-sm">
+              <h2 className="text-slate-900 dark:text-white font-semibold mb-4">Withdrawal Summary</h2>
               
               {/* Account Info */}
-              <div className="mb-6 pb-6 border-b border-slate-700">
-                <p className="text-slate-400 text-xs mb-1">Account Number</p>
-                <p className="text-white font-mono text-sm">{user.accountNumber}</p>
+              <div className="mb-6 pb-6 border-b border-slate-200 dark:border-slate-700">
+                <p className="text-slate-600 dark:text-slate-400 text-xs mb-1">Account Number</p>
+                <p className="text-slate-900 dark:text-white font-mono text-sm">{user.accountNumber}</p>
               </div>
 
-              <p className="text-3xl font-bold text-blue-400">${totalWithdrawn}</p>
-              <p className="text-slate-400 text-sm mt-2">
+              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">${totalWithdrawn}</p>
+              <p className="text-slate-600 dark:text-slate-400 text-sm mt-2">
                 {withdrawals.filter((w) => w.transactionStatus === "APPROVED").length} approved withdrawals
               </p>
-              <div className="mt-6 pt-6 border-t border-slate-700">
+              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Available Balance:</span>
-                    <span className="text-green-400 font-semibold">
+                    <span className="text-slate-600 dark:text-slate-400">Available Balance:</span>
+                    <span className="text-green-600 dark:text-green-400 font-semibold">
                       ${user.availableBalance.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Total Balance:</span>
-                    <span className="text-white font-semibold">
+                    <span className="text-slate-600 dark:text-slate-400">Total Balance:</span>
+                    <span className="text-slate-900 dark:text-white font-semibold">
                       ${user.totalBalance.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Pending:</span>
-                    <span className="text-yellow-400">${pendingAmount}</span>
+                    <span className="text-slate-600 dark:text-slate-400">Pending:</span>
+                    <span className="text-yellow-600 dark:text-yellow-400">${pendingAmount}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Rejected:</span>
-                    <span className="text-red-400">${rejectedAmount}</span>
+                    <span className="text-slate-600 dark:text-slate-400">Rejected:</span>
+                    <span className="text-red-600 dark:text-red-400">${rejectedAmount}</span>
                   </div>
-                  <div className="flex justify-between text-sm pt-2 border-t border-slate-700">
-                    <span className="text-slate-400">Total Withdrawals:</span>
-                    <span className="text-white font-semibold">{withdrawals.length}</span>
+                  <div className="flex justify-between text-sm pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-600 dark:text-slate-400">Total Withdrawals:</span>
+                    <span className="text-slate-900 dark:text-white font-semibold">{withdrawals.length}</span>
                   </div>
                 </div>
               </div>

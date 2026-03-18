@@ -1,104 +1,3 @@
-// "use client"
-
-// import type React from "react"
-
-// import { useState } from "react"
-// import { useRouter } from "next/navigation"
-// import { Button } from "@/components/ui/button"
-// import { Input } from "@/components/ui/input"
-// import { Label } from "@/components/ui/label"
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-// // Mock data - replace with actual database queries
-// const mockUsers = [
-//   { id: "1", name: "John Doe", email: "john@example.com" },
-//   { id: "2", name: "Jane Smith", email: "jane@example.com" },
-//   { id: "3", name: "Bob Johnson", email: "bob@example.com" },
-// ]
-
-// const mockPortfolios = [
-//   { id: "1", name: "Growth Portfolio" },
-//   { id: "2", name: "Balanced Portfolio" },
-//   { id: "3", name: "Conservative Portfolio" },
-// ]
-
-// interface UserPortfolioFormProps {
-//   userPortfolio?: {
-//     id: string
-//     userId: string
-//     portfolioId: string
-//     portfolioValue: number
-//   }
-// }
-
-// export function UserPortfolioForm({ userPortfolio }: UserPortfolioFormProps) {
-//   const router = useRouter()
-//   const [userId, setUserId] = useState(userPortfolio?.userId || "")
-//   const [portfolioId, setPortfolioId] = useState(userPortfolio?.portfolioId || "")
-//   const [portfolioValue, setPortfolioValue] = useState(userPortfolio?.portfolioValue.toString() || "0")
-
-//   const handleSubmit = (e: React.FormEvent) => {
-//     e.preventDefault()
-
-//     // TODO: Replace with actual API call to create/update user portfolio
-//     console.log("Submitting user portfolio:", {
-//       userId,
-//       portfolioId,
-//       portfolioValue: Number.parseFloat(portfolioValue),
-//     })
-
-//     // Redirect back to user portfolios list
-//     router.push("/dashboard/user-portfolios")
-//   }
-
-//   return (
-//     <form onSubmit={handleSubmit} className="space-y-6">
-//       <div className="space-y-2">
-//         <Label htmlFor="userId">User *</Label>
-//         <Select value={userId} onValueChange={setUserId} disabled={!!userPortfolio} required>
-//           <SelectTrigger id="userId">
-//             <SelectValue placeholder="Select a user" />
-//           </SelectTrigger>
-//           <SelectContent>
-//             {mockUsers.map((user) => (
-//               <SelectItem key={user.id} value={user.id}>
-//                 {user.name} ({user.email})
-//               </SelectItem>
-//             ))}
-//           </SelectContent>
-//         </Select>
-//         {userPortfolio && <p className="text-sm text-muted-foreground">User cannot be changed after creation</p>}
-//       </div>
-
-//       <div className="space-y-2">
-//         <Label htmlFor="portfolioId">Portfolio *</Label>
-//         <Select value={portfolioId} onValueChange={setPortfolioId} disabled={!!userPortfolio} required>
-//           <SelectTrigger id="portfolioId">
-//             <SelectValue placeholder="Select a portfolio" />
-//           </SelectTrigger>
-//           <SelectContent>
-//             {mockPortfolios.map((portfolio) => (
-//               <SelectItem key={portfolio.id} value={portfolio.id}>
-//                 {portfolio.name}
-//               </SelectItem>
-//             ))}
-//           </SelectContent>
-//         </Select>
-//         {userPortfolio && <p className="text-sm text-muted-foreground">Portfolio cannot be changed after creation</p>}
-//       </div>
-//       <div className="flex gap-4">
-//         <Button type="submit" className="flex-1">
-//           {userPortfolio ? "Update User Portfolio" : "Create User Portfolio"}
-//         </Button>
-//         <Button type="button" variant="outline" onClick={() => router.back()}>
-//           Cancel
-//         </Button>
-//       </div>
-//     </form>
-//   )
-// }
-
-
 // components/back/user-portfolio-form.tsx
 "use client";
 
@@ -151,6 +50,7 @@ export function UserPortfolioForm({ users, portfolios, userPortfolio }: UserPort
         const res = await createUserPortfolio({
           userId,
           portfolioId,
+          assetAllocations: [], // ✅ Required: empty array initially, assets added separately
           include: { user: true, portfolio: true, userAssets: true },
         });
 
@@ -160,7 +60,7 @@ export function UserPortfolioForm({ users, portfolios, userPortfolio }: UserPort
           return;
         }
 
-        toast.success("User portfolio created!");
+        toast.success("User portfolio created! You can now add asset allocations.");
         router.push("/dashboard/user-portfolios");
         router.refresh();
       }
@@ -206,6 +106,14 @@ export function UserPortfolioForm({ users, portfolios, userPortfolio }: UserPort
         </Select>
         {userPortfolio && <p className="text-sm text-muted-foreground">Portfolio cannot be changed after creation</p>}
       </div>
+
+      {!userPortfolio && (
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            <strong>Note:</strong> After creating the user portfolio, you'll be able to add asset allocations with custom percentages and cost basis for each asset's position in the portfolio.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <Button type="submit" className="flex-1" disabled={isSubmitting}>

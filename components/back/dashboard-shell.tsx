@@ -28,7 +28,7 @@ export default function DashboardShell({
     <SidebarProvider>
       <AppSidebar user={user} />
       <SidebarInset>
-        <div className="md:ml-[220px] lg:ml-[225px]">
+        <div className="md:ml-[210px] lg:ml-[260px]">
           <DashboardNav user={user} />
           <div>{children}</div>
         </div>

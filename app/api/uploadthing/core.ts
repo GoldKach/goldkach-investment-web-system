@@ -68,6 +68,11 @@ export const ourFileRouter = {
     console.log("file url", file.url);
     return { uploadedBy: "ADMIN" };
   }),
+  documentUploader: f({ pdf: { maxFileSize: "8MB" }, image: { maxFileSize: "8MB" } })
+  .onUploadComplete(async ({ metadata, file }) => {
+    console.log("file url", file.url);
+    return { uploadedBy: "ADMIN" };
+  }),
   mailAttachments: f({
     image: { maxFileSize: "1MB", maxFileCount: 4 },
     pdf: { maxFileSize: "1MB", maxFileCount: 4 },

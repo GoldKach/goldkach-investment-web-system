@@ -1,50 +1,3 @@
-// import type { Metadata } from "next";
-// import { Geist, Geist_Mono } from "next/font/google";
-// import "./globals.css";
-// import { Toaster } from "sonner";
-// import { Header } from "@/components/front-end/header";
-// import { Footer } from "@/components/front-end/footer";
-
-
-
-// const geistSans = Geist({
-//   variable: "--font-geist-sans",
-//   subsets: ["latin"],
-// });
-
-// const geistMono = Geist_Mono({
-//   variable: "--font-geist-mono",
-//   subsets: ["latin"],
-// });
-
-// export const metadata: Metadata = {
-//   title: "School-Guru",
-//   description: "School Management System",
-// };
-
-// export default function RootLayout({
-//   children,
-// }: Readonly<{
-//   children: React.ReactNode;
-// }>) {
-//   return (
-//     <html lang="en">
-//       <body
-//         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-//       >
-//          {/* <NextSSRPlugin
-//           routerConfig={extractRouterConfig(ourFileRouter)}
-//         /> */}
-//         <Toaster 
-// />
-// <Header/>
-//         {children}
-//         <Footer/>
-//       </body>
-
-//     </html>
-//   );
-// }
 
 
 import type { Metadata } from "next";
@@ -52,6 +5,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { InactivityProvider } from "@/components/providers/InactivityProvider";
+import { ZustandHydration } from "@/components/providers/zustand-hydration";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -65,14 +20,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-           <ThemeProvider
+        <ZustandHydration>
+               <ThemeProvider
           attribute="class"
           defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         ></ThemeProvider>
         <Toaster />
-        {children}
+         <InactivityProvider timeout={60 * 60 * 1000}> {/* 1 hour */}
+         {children}
+       </InactivityProvider>
+
+        </ZustandHydration>
+      
+        
       </body>
     </html>
   );

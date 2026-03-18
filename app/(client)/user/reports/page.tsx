@@ -1,11 +1,9 @@
-
-
 // app/reports/page.tsx (Server Component)
 import { fetchMe, getAllUsers, getSession } from "@/actions/auth"
-import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
+import { listPerformanceReports, PortfolioPerformanceReport } from "@/actions/portfolioPerformanceReports";
 import { listUserPortfolios } from "@/actions/user-portfolios"
 import ReportsClient from "@/components/front-end/reports-client"
-import type { PortfolioPerformanceReport } from "@/actions/portfolioPerformanceReports"
+
 
 export default async function ReportsPage() {
   const session = await getSession();
@@ -13,19 +11,15 @@ export default async function ReportsPage() {
   const me = await fetchMe()
   const user = me?.data ?? session?.user
 
-  // 🔥 Simplified approach - separate variables with proper defaults
+  // Initialize with proper defaults
   let initialReports: PortfolioPerformanceReport[] = [];
   let initialError: string | null = null;
   let portfolioId: string | null = null;
 
   try {
-    // Fetch user's portfolios with full details
+    // Fetch user's portfolios - the backend should include relations automatically
     const portfoliosResult = await listUserPortfolios({
-      userId,
-      include: { 
-        portfolio: true, 
-        userAssets: true 
-      }
+      userId
     });
 
     if (!portfoliosResult.success || !portfoliosResult.data || portfoliosResult.data.length === 0) {

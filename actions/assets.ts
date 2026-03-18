@@ -1,3 +1,5 @@
+
+
 // app/(app)/actions/assets.ts
 "use server";
 
@@ -31,9 +33,10 @@ export interface Asset {
   symbol: string;
   description: string;
   sector: string;
-  allocationPercentage: number;
+  // ✅ UPDATED: Renamed fields for new schema
+  defaultAllocationPercentage: number;
+  defaultCostPerShare: number;
   assetClass?: "EQUITIES" | "ETFS" | "REITS" | "BONDS" | "CASH" | "OTHERS";
-  costPerShare: number;
   closePrice: number;
   createdAt: string;
   updatedAt: string;
@@ -43,8 +46,9 @@ export interface AssetCreateInput {
   symbol: string;
   description: string;
   sector: string;
-  allocationPercentage?: number;
-  costPerShare?: number;
+  // ✅ UPDATED: Renamed fields
+  defaultAllocationPercentage?: number;
+  defaultCostPerShare?: number;
   assetClass?: "EQUITIES" | "ETFS" | "REITS" | "BONDS" | "CASH" | "OTHERS";
   closePrice?: number;
 }
@@ -54,8 +58,9 @@ export interface AssetUpdateInput {
   description?: string;
   sector?: string;
   assetClass?: "EQUITIES" | "ETFS" | "REITS" | "BONDS" | "CASH" | "OTHERS";
-  allocationPercentage?: number;
-  costPerShare?: number;
+  // ✅ UPDATED: Renamed fields
+  defaultAllocationPercentage?: number;
+  defaultCostPerShare?: number;
   closePrice?: number;
 }
 
@@ -91,9 +96,10 @@ export async function createAsset(input: AssetCreateInput) {
       symbol: input.symbol.trim().toUpperCase(),
       description: input.description.trim(),
       sector: input.sector.trim(),
-      assetClass: input.assetClass, // <- include assetClass
-      allocationPercentage: input.allocationPercentage ?? 0,
-      costPerShare: input.costPerShare ?? 0,
+      assetClass: input.assetClass,
+      // ✅ UPDATED: Use new field names
+      defaultAllocationPercentage: input.defaultAllocationPercentage ?? 0,
+      defaultCostPerShare: input.defaultCostPerShare ?? 0,
       closePrice: input.closePrice ?? 0,
     };
     const res = await api.post("/assets", payload, { headers });
@@ -128,5 +134,25 @@ export async function deleteAsset(id: string) {
     return { success: true, data: res.data?.data as Asset };
   } catch (e: any) {
     return { success: false, error: msg(e, "Failed to delete asset") };
+  }
+}
+
+/**
+ * ✅ NEW: Batch update asset prices
+ * POST /assets/batch-update-prices
+ */
+export async function batchUpdateAssetPrices(
+  updates: Array<{ assetId: string; closePrice: number }>
+) {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/assets/batch-update-prices", { updates }, { headers });
+    return { 
+      success: true, 
+      data: res.data?.data as Asset[],
+      message: res.data?.message,
+    };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to batch update asset prices") };
   }
 }

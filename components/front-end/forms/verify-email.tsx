@@ -207,9 +207,12 @@ export default function VerifyEmailForm() {
         toast.error(res.error || "Verification failed");
         return;
       }
+      const entityType = params.get("entityType"); // params already exists from useSearchParams()
+
         localStorage.setItem(
       "onboardingUser",
-      JSON.stringify({ id: res.userId, email: res.email })
+      JSON.stringify({ id: res.userId, email: res.email,    entityType: entityType ?? "individual",
+ })
     );
       // inside onSubmit success branch
      toast.success("Email verified! Let's finish your onboarding.");

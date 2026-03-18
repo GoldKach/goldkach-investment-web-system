@@ -1,58 +1,11 @@
-// "use server";
-
-// import axios from "axios";
-// import { cookies } from "next/headers";
-
-// const BASE_API_URL = process.env.API_URL || "";
-// const api = axios.create({
-//   baseURL: BASE_API_URL,
-//   timeout: 12000,
-//   headers: { "Content-Type": "application/json" },
-// });
-
-// async function authHeaderFromCookies() {
-//   const cookieStore = await cookies();
-//   const token = cookieStore.get("accessToken")?.value;
-//   return token ? { Authorization: `Bearer ${token}` } : {};
-// }
-
-// // Submit onboarding
-// export async function submitOnboarding(form: any) {
-//   try {
-//     const headers = await authHeaderFromCookies();
-//     if (!headers.Authorization) {
-//       return { success: false, error: "Not authenticated." };
-//     }
-//     const res = await api.post("/onboarding", form, { headers });
-//     return { success: true, data: res.data.data };
-//   } catch (e: any) {
-//     const msg = e?.response?.data?.error || "Failed to submit onboarding.";
-//     return { success: false, error: msg };
-//   }
-// }
-
-// // Optionally load existing (to prefill/lock)
-// export async function fetchMyOnboarding() {
-//   try {
-//     const headers = await authHeaderFromCookies();
-//     if (!headers.Authorization) return { success: true, data: null };
-
-//     const res = await api.get("/onboarding/me", { headers });
-//     return { success: true, data: res.data.data };
-//   } catch {
-//     return { success: false, error: "Failed to load onboarding." };
-//   }
-// }
-
-
-
-// app/(whatever)/actions/onboarding.ts
+// app/(app)/actions/onboarding.ts
 "use server";
 
 import axios from "axios";
+import { cookies } from "next/headers";
 
 const BASE_API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||"http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_API_URL,
@@ -60,38 +13,144 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Submit onboarding (expects userId passed in)
-export async function submitOnboarding(form: any, userId: string) {
-  if (!userId) return { success: false, error: "Missing userId." };
-  try {
-    const res = await api.post("/onboarding", { ...form, userId });
-    return { success: true, data: res.data?.data };
-  } catch (e: any) {
-    const msg = e?.response?.data?.error || "Failed to submit onboarding.";
-    return { success: false, error: msg };
-  }
+function msg(e: any, fallback = "Request failed") {
+  return e?.response?.data?.error || e?.message || fallback;
 }
 
-// Load my onboarding (expects userId passed in)
-export async function fetchMyOnboarding(userId: string) {
-  if (!userId) return { success: true, data: null };
-  try {
-    const res = await api.get("/onboarding/me", { params: { userId } });
-    return { success: true, data: res.data?.data };
-  } catch (e: any) {
-    const msg = e?.response?.data?.error || "Failed to load onboarding.";
-    return { success: false, error: msg };
-  }
+async function authHeaderFromCookies() {
+  const jar = await cookies();
+  const token = jar.get("accessToken")?.value;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Validate TIN (optional helper)
+// ─────────────────────────────────────────────
+// Shared
+// ─────────────────────────────────────────────
+
+/** POST /onboarding/validate-tin */
 export async function validateTin(tin: string, userId?: string) {
   if (!tin) return { success: false, error: "TIN is required." };
   try {
-    const res = await api.post("/onboarding/validate-tin", { tin, userId });
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/onboarding/validate-tin", { tin, userId }, { headers });
     return { success: true, isUnique: !!res.data?.isUnique };
   } catch (e: any) {
-    const msg = e?.response?.data?.error || "Failed to validate TIN.";
-    return { success: false, error: msg };
+    return { success: false, error: msg(e, "Failed to validate TIN.") };
+  }
+}
+
+// ─────────────────────────────────────────────
+// Individual onboarding
+// ─────────────────────────────────────────────
+
+/** POST /onboarding/individual */
+export async function submitIndividualOnboarding(form: any, userId: string) {
+  if (!userId) return { success: false, error: "Missing userId." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/onboarding/individual", { ...form, userId }, { headers });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to submit individual onboarding.") };
+  }
+}
+
+/** GET /onboarding/individual/me?userId=... */
+export async function fetchMyIndividualOnboarding(userId: string) {
+  if (!userId) return { success: true, data: null };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get("/onboarding/individual/me", {
+      headers,
+      params: { userId },
+    });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to load individual onboarding.") };
+  }
+}
+
+// ─────────────────────────────────────────────
+// Company onboarding
+// ─────────────────────────────────────────────
+
+/** POST /onboarding/company */
+export async function submitCompanyOnboarding(form: any, userId: string) {
+  if (!userId) return { success: false, error: "Missing userId." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/onboarding/company", { ...form, userId }, { headers });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to submit company onboarding.") };
+  }
+}
+
+/** GET /onboarding/company/me?userId=... */
+export async function fetchMyCompanyOnboarding(userId: string) {
+  if (!userId) return { success: true, data: null };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get("/onboarding/company/me", {
+      headers,
+      params: { userId },
+    });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to load company onboarding.") };
+  }
+}
+
+/** PUT /onboarding/company/directors */
+export async function updateCompanyDirectors(directors: any[], userId: string) {
+  if (!userId) return { success: false, error: "Missing userId." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.put("/onboarding/company/directors", { directors, userId }, { headers });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to update directors.") };
+  }
+}
+
+/** GET /onboarding/company/directors?userId=... */
+export async function fetchCompanyDirectors(userId: string) {
+  if (!userId) return { success: true, data: [] };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get("/onboarding/company/directors", {
+      headers,
+      params: { userId },
+    });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to load directors.") };
+  }
+}
+
+/** PUT /onboarding/company/ubos */
+export async function updateCompanyUBOs(ubos: any[], userId: string) {
+  if (!userId) return { success: false, error: "Missing userId." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.put("/onboarding/company/ubos", { ubos, userId }, { headers });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to update UBOs.") };
+  }
+}
+
+/** GET /onboarding/company/ubos?userId=... */
+export async function fetchCompanyUBOs(userId: string) {
+  if (!userId) return { success: true, data: [] };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get("/onboarding/company/ubos", {
+      headers,
+      params: { userId },
+    });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to load UBOs.") };
   }
 }

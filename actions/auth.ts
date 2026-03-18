@@ -1,4 +1,6 @@
 
+
+
 // app/actions/auth.ts
 "use server";
 
@@ -39,6 +41,17 @@ interface LoginResponse {
   error?: string;
 }
 
+interface InitiateLoginResponse {
+  success: boolean;
+  data?: {
+    userId: string;
+    email: string;
+    requiresVerification: boolean;
+    expiresAt: string;
+  };
+  error?: string;
+}
+
 /** ========= Cookie Helpers ========= **/
 const setCookies = async (
   accessToken: string,
@@ -76,23 +89,114 @@ const clearCookies = async () => {
   cookieStore.delete("userData");
 };
 
+/** ========= 2FA LOGIN FLOW ========= **/
 
-export async function loginUser(data: {
+/**
+ * STEP 1: Initiate Login - Send verification code
+ */
+export async function initiateLogin(data: {
   identifier: string; // email OR phone
   password: string;
-}): Promise<LoginResponse> {
+}): Promise<InitiateLoginResponse> {
   try {
-    const res = await api.post("/login", data);
-    const { user, accessToken, refreshToken } = res.data.data as LoginSuccessPayload;
-    await setCookies(accessToken, refreshToken, user);
-    return { success: true, data: { user, accessToken, refreshToken } };
+    const res = await api.post("/auth/login", data);
+    
+    if (!res.data.success) {
+      return {
+        success: false,
+        error: res.data.error || res.data.message || "Login failed",
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        userId: res.data.data.userId,
+        email: res.data.data.email,
+        requiresVerification: res.data.data.requiresVerification,
+        expiresAt: res.data.data.expiresAt,
+      },
+    };
   } catch (error: any) {
-    console.error("Login error:", error?.response?.data || error);
+    console.error("Initiate login error:", error?.response?.data || error);
     return {
       success: false,
       error: error?.response?.data?.error || "Login failed. Please try again.",
     };
   }
+}
+
+/**
+ * STEP 2: Verify Login Code - Complete login and get tokens
+ */
+export async function verifyLoginCode(data: {
+  userId: string;
+  code: string;
+}): Promise<LoginResponse> {
+  try {
+    const res = await api.post("/auth/login/verify", data);
+    
+    if (!res.data.success) {
+      return {
+        success: false,
+        error: res.data.error || res.data.message || "Verification failed",
+      };
+    }
+
+    const { user, accessToken, refreshToken } = res.data.data as LoginSuccessPayload;
+    await setCookies(accessToken, refreshToken, user);
+    
+    return { 
+      success: true, 
+      data: { user, accessToken, refreshToken } 
+    };
+  } catch (error: any) {
+    console.error("Verify login code error:", error?.response?.data || error);
+    return {
+      success: false,
+      error: error?.response?.data?.error || "Verification failed. Please try again.",
+    };
+  }
+}
+
+/**
+ * Resend Login Verification Code
+ */
+export async function resendLoginCode(data: {
+  userId: string;
+}): Promise<{ success: boolean; data?: { expiresAt: string }; error?: string }> {
+  try {
+    const res = await api.post("/auth/login/resend-code", data);
+    
+    if (!res.data.success) {
+      return {
+        success: false,
+        error: res.data.error || res.data.message || "Failed to resend code",
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        expiresAt: res.data.data.expiresAt,
+      },
+    };
+  } catch (error: any) {
+    console.error("Resend login code error:", error?.response?.data || error);
+    return {
+      success: false,
+      error: error?.response?.data?.error || "Failed to resend code. Please try again.",
+    };
+  }
+}
+
+/** ========= OLD LOGIN (Deprecated - use initiateLogin instead) ========= **/
+export async function loginUser(data: {
+  identifier: string;
+  password: string;
+}): Promise<InitiateLoginResponse> {
+  // Redirect to 2FA flow
+  return initiateLogin(data);
 }
 
 export async function logoutUser() {
@@ -201,37 +305,66 @@ export async function getAllUsers() {
   }
 }
 
-export async function createUser(data: any) {
+// export async function createUser(data: any) {
+//   try {
+//     const res = await api.post("/register", data);
+//     revalidatePath("/dashboard/users");
+//     return res.data;
+//   } catch (error: any) {
+//     if (axios.isAxiosError(error)) {
+//       const message = error.response?.data?.message || "Failed to create user";
+//       throw new Error(message);
+//     }
+//     throw error;
+//   }
+// }
+
+
+export async function createUser(data: {
+  firstName: string;
+  lastName?: string;
+  email: string;
+  entityType?: "individual" | "company" | null; // ← ADD THIS
+  phone: string;
+  password: string;
+  recaptchaToken?: string; // ✅ NEW
+  website?: string; // ✅ NEW: Honeypot
+}) {
   try {
-    const res = await api.post("/register", data);
+    const res = await api.post("/register", {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      password: data.password,
+      recaptchaToken: data.recaptchaToken, // ✅ NEW: Send to backend
+      website: data.website, // ✅ NEW: Send honeypot to backend
+    });
+
     revalidatePath("/dashboard/users");
     return res.data;
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
-      const message = error.response?.data?.message || "Failed to create user";
+      const response = error.response;
+      
+      // ✅ NEW: Rate limiting error
+      if (response?.status === 429) {
+        const message = response.data?.message || "Too many registration attempts. Please try again later.";
+        throw new Error(message);
+      }
+      
+      // ✅ NEW: reCAPTCHA verification error
+      if (response?.status === 400 && response.data?.errors?.recaptcha) {
+        throw new Error(response.data.errors.recaptcha);
+      }
+      
+      // General error with message from backend
+      const message = response?.data?.message || "Failed to create user";
       throw new Error(message);
     }
     throw error;
   }
 }
-
-// export async function verifyEmailAction(params: { email: string; token: string }) {
-//   try {
-//     await api.post("/auth/verify-email", params);
-//     return { success: true };
-//   } catch (e: any) {
-//     return { success: false, error: e?.response?.data?.error || "Verification failed." };
-//   }
-// }
-
-// export async function resendVerificationAction(email: string) {
-//   try {
-//     await api.post("/auth/resend-verification", { email });
-//     return { success: true };
-//   } catch {
-//     return { success: true }; // don't leak
-//   }
-// }
 
 export async function deleteUser(userId: string) {
   try {
@@ -256,56 +389,6 @@ export async function fetchMe() {
     return null;
   }
 }
-
-
-// app/actions/auth.ts (server)
-// export async function verifyEmailAction(args: { email: string; token: string }) {
-//   try {
-//     // Backend now returns { ok: true, userId, email }
-//     const { data } = await api.post("/auth/verify-email", args);
-//     return { success: true, userId: data.userId as string, email: data.email as string };
-//   } catch (e: any) {
-//     return { success: false, error: e?.response?.data?.error || "Verification failed" };
-//   }
-// }
-
-// export async function resendVerificationAction(email: string) {
-//   try {
-//     await api.post("/auth/resend-verification", { email });
-//     // Always report success to the UI (avoids email enumeration)
-//     return { success: true };
-//   } catch {
-//     return { success: true };
-//   }
-// }
-
-// export async function getUserById(userId: string) {
-//   if (!userId) throw new Error("User ID is required");
-
-//   const doRequest = async () => {
-//     const headers = await getAuthHeaderFromCookies();
-//     if (!("Authorization" in headers)) {
-//       throw new Error("Unauthorized: No access token found");
-//     }
-//     const res = await api.get(`/users/${encodeURIComponent(userId)}`, { headers });
-//     return res.data; // keep same shape as your other actions (res.data)
-//   };
-
-//   try {
-//     return await doRequest();
-//   } catch (err: any) {
-//     // If token expired, refresh once and retry
-//     if (err?.response?.status === 401) {
-//       const refreshed = await refreshAccessToken(); // this will redirect on failure
-//       if (refreshed?.success) {
-//         return await doRequest();
-//       }
-//     }
-//     console.error("getUserById error:", err?.response?.data || err);
-//     throw err;
-//   }
-// }
-
 
 export async function getUserById(userId: string) {
   if (!userId) throw new Error("User ID is required");
@@ -371,8 +454,6 @@ export async function resendVerificationAction(email: string) {
   }
 }
 
-
-
 export type UserStatus =
   | "ACTIVE"
   | "INACTIVE"
@@ -417,4 +498,3 @@ export async function updateUserById(userId: string, updates: UpdateUserPayload)
     throw new Error(err?.response?.data?.error || "Failed to update user");
   }
 }
-
