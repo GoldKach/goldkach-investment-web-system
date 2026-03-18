@@ -179,6 +179,8 @@ const RELATION_OPTIONS = [
   { value: "SPOUSE", label: "Spouse" },
   { value: "CHILD", label: "Child" },
   { value: "PARENT", label: "Parent" },
+  { value: "BROTHER", label: "Brother" },
+  { value: "SISTER", label: "Sister" },
   { value: "SIBLING", label: "Sibling" },
   { value: "OTHER", label: "Other" },
 ]
