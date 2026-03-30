@@ -6,7 +6,7 @@
 // const BASE_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "";
 // const api = axios.create({
 //   baseURL: BASE_API_URL,
-//   timeout: 12000,
+//   timeout: 60000,
 //   headers: { "Content-Type": "application/json" },
 // });
 
@@ -211,7 +211,7 @@ const BASE_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "
 
 const api = axios.create({
   baseURL: BASE_API_URL,
-  timeout: 12000,
+  timeout: 60000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -230,7 +230,8 @@ async function authHeaderFromCookies() {
 /* -------------------------------------------------------------------------- */
 
 export type TransactionStatus = "PENDING" | "APPROVED" | "REJECTED";
-export type DepositTarget = "MASTER" | "PORTFOLIO";
+/** MASTER = external deposit into master wallet; ALLOCATION = internal transfer master→portfolio */
+export type DepositTarget = "MASTER" | "ALLOCATION";
 
 export type DepositInclude =
   | "user"
@@ -262,6 +263,8 @@ export interface Deposit {
   accountNo?:        string | null;  // camelCase (was AccountNo)
   method?:           string | null;
   description?:      string | null;
+  proofUrl?:         string | null;
+  proofFileName?:    string | null;
 
   // Staff who created the deposit request
   createdById?:      string | null;
@@ -297,6 +300,7 @@ export interface Deposit {
     id:             string;
     accountNumber?: string | null;
     netAssetValue?: number | null;
+    balance?:       number | null;
   } | null;
   userPortfolio?: {
     id:          string;
@@ -306,16 +310,20 @@ export interface Deposit {
 }
 
 export interface DepositCreateInput {
-  userId:          string;
-  userPortfolioId: string;   // replaces walletId
-  amount:          number;
-  depositTarget?:  DepositTarget; // defaults to PORTFOLIO
-  transactionId?:  string | null;
-  mobileNo?:       string | null;
-  referenceNo?:    string | null;
-  accountNo?:      string | null;
-  method?:         string | null;
-  description?:    string | null;
+  userId:           string;
+  /** Required only for ALLOCATION deposits (master → portfolio transfer) */
+  userPortfolioId?: string;
+  amount:           number;
+  /** MASTER = external deposit into master wallet; ALLOCATION = internal master→portfolio transfer. Defaults to MASTER. */
+  depositTarget?:   DepositTarget;
+  transactionId?:   string | null;
+  mobileNo?:        string | null;
+  referenceNo?:     string | null;
+  accountNo?:       string | null;
+  method?:          string | null;
+  description?:     string | null;
+  proofUrl?:        string | null;
+  proofFileName?:   string | null;
 }
 
 export interface DepositUpdateInput {
@@ -397,7 +405,10 @@ export async function getPortfolioDeposits(
   return listDeposits({ ...params, userPortfolioId });
 }
 
-/** POST /deposits — always starts as PENDING, created by staff */
+/**
+ * POST /deposits — external deposit landing on master wallet (MASTER target).
+ * Always starts as PENDING; staff approves to credit master wallet balance.
+ */
 export async function createDeposit(
   input: DepositCreateInput,
   opts?: { include?: DepositInclude | DepositInclude[] }
@@ -406,22 +417,25 @@ export async function createDeposit(
   if (!Number.isFinite(amount) || amount <= 0) {
     return { success: false, error: "Amount must be a positive number." };
   }
-  if (!input.userPortfolioId) {
-    return { success: false, error: "userPortfolioId is required." };
+  const target = input.depositTarget ?? "MASTER";
+  if (target === "ALLOCATION" && !input.userPortfolioId) {
+    return { success: false, error: "userPortfolioId is required for ALLOCATION deposits." };
   }
   try {
     const headers = await authHeaderFromCookies();
     const payload: DepositCreateInput = {
       userId:          input.userId,
-      userPortfolioId: input.userPortfolioId,
+      ...(input.userPortfolioId ? { userPortfolioId: input.userPortfolioId } : {}),
       amount,
-      depositTarget:   input.depositTarget   ?? "PORTFOLIO",
+      depositTarget:   target,
       transactionId:   input.transactionId   ?? null,
       mobileNo:        input.mobileNo        ?? null,
       referenceNo:     input.referenceNo     ?? null,
       accountNo:       input.accountNo       ?? null,
       method:          input.method          ?? null,
       description:     input.description     ?? null,
+      proofUrl:        input.proofUrl        ?? null,
+      proofFileName:   input.proofFileName   ?? null,
     };
     const res = await api.post("/deposits", payload, {
       headers,
@@ -431,6 +445,18 @@ export async function createDeposit(
   } catch (e: any) {
     return { success: false, error: msg(e, "Failed to create deposit") };
   }
+}
+
+/**
+ * POST /deposits — internal allocation from master wallet → portfolio wallet.
+ * Convenience wrapper around createDeposit with depositTarget: "ALLOCATION".
+ * Approval deducts master wallet balance and triggers top-up / SubPortfolio logic.
+ */
+export async function createAllocation(
+  input: Omit<DepositCreateInput, "depositTarget"> & { userPortfolioId: string },
+  opts?: { include?: DepositInclude | DepositInclude[] }
+) {
+  return createDeposit({ ...input, depositTarget: "ALLOCATION" }, opts);
 }
 
 /** PATCH /deposits/:id — only while PENDING */
@@ -469,6 +495,8 @@ export async function updateDeposit(
 export async function approveDeposit(
   id:       string,
   approver: { approvedById?: string; approvedByName?: string },
+  /** For ALLOCATION (top-up) deposits: map of assetId → { costPerShare, closePrice } at approval time */
+  assetPrices?: Record<string, { costPerShare: number; closePrice: number }>,
   opts?:    { include?: DepositInclude | DepositInclude[] }
 ) {
   if (!id) return { success: false, error: "Missing id." };
@@ -479,6 +507,7 @@ export async function approveDeposit(
       {
         approvedById:   approver.approvedById   ?? null,
         approvedByName: approver.approvedByName ?? null,
+        assetPrices:    assetPrices ?? null,
       },
       { headers, params: { include: toIncludeParam(opts?.include) } }
     );
@@ -490,7 +519,9 @@ export async function approveDeposit(
 
 /**
  * POST /deposits/:id/reverse
- * Undoes an approved deposit — decrements PortfolioWallet + MasterWallet.
+ * Undoes an approved deposit:
+ *   MASTER     → decrements masterWallet.balance + totalDeposited
+ *   ALLOCATION → refunds masterWallet.balance, decrements portfolioWallet
  */
 export async function reverseDeposit(
   id:       string,

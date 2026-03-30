@@ -1,73 +1,36 @@
-
-
-// app/user/withdraws/page.tsx
-import { getAllUsers, getSession } from "@/actions/auth";
+import { getSession } from "@/actions/auth";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
 import { listWithdrawals } from "@/actions/withdraws";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
 import { WithdrawalsPageContent } from "./components/withdraw-page-content";
-import { listUserPortfolios } from "@/actions/user-portfolios";
+
+export const dynamic = "force-dynamic";
 
 export default async function WithdrawalsPage() {
   const session = await getSession();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  const users = await getAllUsers();
-  const user = users.data?.find((u: any) => u.id === session?.user?.id);
-
-  if (!user || !user.wallet) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Wallet Not Found</CardTitle>
-            <CardDescription>
-              No wallet found for your account. Please contact support.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  if (!session?.user) redirect("/login");
 
   const userId = session.user.id;
 
-  // Fetch user portfolios to calculate total loss/gain
-  const portfolios = await listUserPortfolios();
-  const userPortfolios = portfolios?.data?.filter(
-    (portfolio: any) => portfolio.userId === userId
-  );
+  const [walletRes, withdrawalsRes] = await Promise.all([
+    getMasterWalletByUser(userId),
+    listWithdrawals({
+      userId,
+      sortBy:   "createdAt",
+      order:    "desc",
+      pageSize: 100,
+    }),
+  ]);
 
-  // Calculate total loss/gain across all portfolios
-  const totalLossGain = userPortfolios?.reduce((sum: number, up: any) => {
-    const portfolioLossGain = (up.userAssets ?? []).reduce(
-      (assetSum: number, asset: any) => assetSum + (asset.lossGain ?? 0),
-      0
-    );
-    return sum + portfolioLossGain;
-  }, 0) ?? 0;
-
-  const wallet = user.wallet;
-
-  // Available balance = netAssetValue + total portfolio gain/loss
-  const availableBalance = (wallet.netAssetValue ?? 0) + totalLossGain;
-
-  const result = await listWithdrawals({
-    userId: userId,
-    include: ["user", "wallet"],
-  });
-
-  if (!result.success || !result.data) {
+  if (!walletRes.success || !walletRes.data?.masterWallet) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md border-border bg-card">
           <CardHeader>
-            <CardTitle>Error Loading Withdrawals</CardTitle>
+            <CardTitle>Wallet Not Found</CardTitle>
             <CardDescription>
-              {result.error || "Unable to load withdrawal data. Please try again later."}
+              {walletRes.error ?? "No master wallet found for your account. Please contact support."}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -75,15 +38,23 @@ export default async function WithdrawalsPage() {
     );
   }
 
-  const userData = {
-    id: userId,
-    walletId: wallet.id,
-    accountNumber: wallet.accountNumber,
-    availableBalance,            // netAssetValue + lossGain
-    totalBalance: wallet.balance ?? 0,
-    netAssetValue: wallet.netAssetValue ?? 0,
-    totalLossGain,               // exposed in case the UI wants to show it separately
-  };
+  const wallet      = walletRes.data.masterWallet;
+  const allWithdrawals = withdrawalsRes.success ? (withdrawalsRes.data ?? []) : [];
 
-  return <WithdrawalsPageContent withdrawals={result.data} user={userData} />;
+  // Only show HARD_WITHDRAWALs on this page (redemptions are shown on portfolio pages)
+  const withdrawals = allWithdrawals.filter((w) => w.withdrawalType === "HARD_WITHDRAWAL");
+
+  return (
+    <WithdrawalsPageContent
+      withdrawals={withdrawals}
+      wallet={{
+        id:             wallet.id,
+        accountNumber:  wallet.accountNumber,
+        balance:        wallet.balance,
+        netAssetValue:  wallet.netAssetValue,
+        totalWithdrawn: wallet.totalWithdrawn,
+      }}
+      userId={userId}
+    />
+  );
 }

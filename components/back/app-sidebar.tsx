@@ -142,6 +142,13 @@ const sidebarLinks = [
       { title: "Data Migration",       url: "/dashboard/migrations" },
     ],
   },
+  {
+    title: "Communications",
+    icon: LineChart,
+    items: [
+      { title: "Contacts & Messaging", url: "/dashboard/communications" },
+    ],
+  },
 ];
 
 /* -------------------------------------------------------------------------- */

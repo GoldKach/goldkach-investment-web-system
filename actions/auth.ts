@@ -89,6 +89,10 @@ const clearCookies = async () => {
   cookieStore.delete("userData");
 };
 
+export async function clearOnboardingSession() {
+  await clearCookies();
+}
+
 /** ========= 2FA LOGIN FLOW ========= **/
 
 /**
@@ -225,7 +229,7 @@ export async function getSession() {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("accessToken");
   const userData = cookieStore.get("userData");
-  if (!accessToken || !userData) return null;
+  if (!accessToken || !userData?.value) return null;
 
   try {
     return { user: JSON.parse(userData.value), accessToken: accessToken.value };
@@ -299,9 +303,9 @@ export async function getAllUsers() {
     const headers = await getAuthHeaderFromCookies();
     const res = await api.get("/users", { headers });
     return res.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("getAllUsers error:", error);
-    throw error;
+    return { data: [], error: error?.response?.data?.error || error?.message || "Failed to fetch users" };
   }
 }
 
@@ -368,13 +372,31 @@ export async function createUser(data: {
 
 export async function deleteUser(userId: string) {
   try {
-    const headers = await getAuthHeaderFromCookies();
+    let headers = await getAuthHeaderFromCookies();
     if (!headers.Authorization) throw new Error("Unauthorized: No access token found");
-    await api.delete(`/users/${userId}`, { headers });
+
+    try {
+      await api.delete(`/users/${userId}`, { headers });
+    } catch (err: any) {
+      if (axios.isAxiosError(err) && err.response?.status === 403) {
+        // Token expired — refresh and retry once
+        await refreshAccessToken();
+        headers = await getAuthHeaderFromCookies();
+        await api.delete(`/users/${userId}`, { headers });
+      } else {
+        throw err;
+      }
+    }
+
     revalidatePath("/dashboard/users");
     return { success: true, message: "User deleted successfully" };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Delete user error:", error);
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data;
+      const message = data?.message || data?.error || "Failed to delete user";
+      throw new Error(message);
+    }
     throw error;
   }
 }
@@ -405,39 +427,49 @@ export async function getUserById(userId: string) {
 
 export async function verifyEmailAction(args: { email: string; token: string }) {
   try {
-    console.log("[verifyEmailAction] Starting verification");
-    console.log("[verifyEmailAction] Email:", args.email);
-    console.log("[verifyEmailAction] Token:", args.token);
-    console.log("[verifyEmailAction] Token type:", typeof args.token);
-    console.log("[verifyEmailAction] Token length:", args.token?.length);
-    
-    // Normalize the data
     const payload = {
       email: args.email.trim(),
       token: String(args.token).trim(),
     };
-    
-    console.log("[verifyEmailAction] Normalized payload:", payload);
-    
-    // The axios interceptor will log the full URL
+
     const { data } = await api.post("/auth/verify-email", payload);
-    
-    console.log("[verifyEmailAction] Success! Response data:", data);
-    
-    return { 
-      success: true, 
-      userId: data.userId as string, 
-      email: data.email as string 
+
+    // Store tokens so the user can submit onboarding immediately
+    if (data.accessToken && data.refreshToken) {
+      const cookieStore = await cookies();
+      cookieStore.set("accessToken", data.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+      cookieStore.set("refreshToken", data.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+      cookieStore.set("userData", JSON.stringify({
+        id: data.userId,
+        email: data.email,
+        role: "USER",
+      }), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
+
+    return {
+      success: true,
+      userId: data.userId as string,
+      email: data.email as string,
     };
   } catch (e: any) {
-    console.error("[verifyEmailAction] Error occurred");
-    console.error("[verifyEmailAction] Error response:", e?.response?.data);
-    console.error("[verifyEmailAction] Error status:", e?.response?.status);
-    console.error("[verifyEmailAction] Error message:", e?.message);
-    
-    return { 
-      success: false, 
-      error: e?.response?.data?.error || "Verification failed" 
+    return {
+      success: false,
+      error: e?.response?.data?.error || "Verification failed",
     };
   }
 }

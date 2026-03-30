@@ -63,6 +63,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { getSession } from "@/actions/auth";
 import CompanyOnboardingForm from "./components/company-onboarding";
 import IndividualOnboardingForm from "./components/individual-onboarding";
 
@@ -81,29 +83,42 @@ export default function OnboardingPage() {
   const [bootstrap, setBootstrap] = useState<OnboardingUser | null>(null);
 
   useEffect(() => {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("onboardingUser") : null;
-    if (!raw) {
-      router.replace("/login");
-      return;
-    }
-    try {
-      const parsed = JSON.parse(raw) as OnboardingUser | null;
-      if (!parsed?.id || !parsed?.email) {
-        router.replace("/login");
+    const alert = searchParams.get("alert");
+    if (alert) toast.warning(alert);
+  }, [searchParams]);
+
+  useEffect(() => {
+    async function init() {
+      const entityTypeFromQuery = searchParams.get("entityType") as "individual" | "company" | null;
+
+      // 1. Try localStorage first (new registration flow)
+      const raw = typeof window !== "undefined" ? localStorage.getItem("onboardingUser") : null;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as OnboardingUser | null;
+          if (parsed?.id && parsed?.email) {
+            setBootstrap({ ...parsed, entityType: parsed.entityType ?? entityTypeFromQuery ?? "individual" });
+            return;
+          }
+        } catch {}
+      }
+
+      // 2. Fall back to session (existing USER redirected from dashboard)
+      const session = await getSession();
+      if (session?.user?.id && session?.user?.email) {
+        setBootstrap({
+          id: session.user.id,
+          email: session.user.email,
+          entityType: entityTypeFromQuery ?? "individual",
+        });
         return;
       }
 
-      // entityType can come from:
-      // 1. localStorage (set during registration)
-      // 2. ?entityType= query param (appended to verify-email redirect)
-      const entityTypeFromQuery = searchParams.get("entityType") as "individual" | "company" | null;
-      setBootstrap({
-        ...parsed,
-        entityType: parsed.entityType ?? entityTypeFromQuery ?? "individual",
-      });
-    } catch {
+      // 3. No session at all — send to login
       router.replace("/login");
     }
+
+    init();
   }, [router, searchParams]);
 
   if (!bootstrap) return null;

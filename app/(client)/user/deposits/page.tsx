@@ -1,20 +1,14 @@
 
 
 // app/user/deposits/page.tsx (or wherever your deposits page is)
-import { getAllUsers, getSession } from "@/actions/auth";
+import { getSession, getUserById } from "@/actions/auth";
 import { getUserDeposits } from "@/actions/deposits";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
 import { DepositsPageContent } from "./components/deposit-content";
 
 export default async function DepositsPage() {
-  // Get session and handle authentication
   const session = await getSession();
-  const r = await getAllUsers();
-    const users = r.data;
-  
-  const user = users?.find((u:any) => u.id === session?.user?.id);  
-  const walletId= user?.wallet.id;
 
   if (!session?.user) {
     redirect("/login");
@@ -22,11 +16,12 @@ export default async function DepositsPage() {
 
   const userId = session.user.id;
 
+  const [userResponse, result] = await Promise.all([
+    getUserById(userId),
+    getUserDeposits(userId),
+  ]);
+  const user = userResponse?.data ?? userResponse;
 
-  // Fetch user's deposits
-  const result = await getUserDeposits(userId);
-
-  // Handle errors
   if (!result.success || !result.data) {
     return (
       <div className="p-6 flex bg-white dark:bg-slate-950 items-center justify-center min-h-screen">
@@ -42,5 +37,5 @@ export default async function DepositsPage() {
     );
   }
 
-  return <DepositsPageContent walletId={walletId} user={user} deposits={result.data} userId={userId} />;
+  return <DepositsPageContent deposits={result.data} user={user} />;
 }

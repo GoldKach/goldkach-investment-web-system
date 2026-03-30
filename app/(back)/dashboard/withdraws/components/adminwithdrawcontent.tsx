@@ -297,6 +297,7 @@ export function AdminWithdrawalsContent({
 }: AdminWithdrawalsContentProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
@@ -307,31 +308,37 @@ export function AdminWithdrawalsContent({
     return withdrawals.filter((w) => {
       const matchesSearch =
         (w.transactionId?.toLowerCase().includes(q) ?? false) ||
-        (w.user?.name?.toLowerCase().includes(q) ?? false) ||
+        (w.user?.firstName?.toLowerCase().includes(q) ?? false) ||
+        (w.user?.lastName?.toLowerCase().includes(q) ?? false) ||
         (w.user?.email?.toLowerCase().includes(q) ?? false) ||
         w.id.toLowerCase().includes(q) ||
         (w.referenceNo?.toLowerCase().includes(q) ?? false);
 
       const matchesStatus = statusFilter === "all" || w.transactionStatus === statusFilter;
+      const matchesType   = typeFilter   === "all" || w.withdrawalType    === typeFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesType;
     });
-  }, [withdrawals, searchQuery, statusFilter]);
+  }, [withdrawals, searchQuery, statusFilter, typeFilter]);
 
   // Stats
   const stats = useMemo(() => {
-    const pending = withdrawals.filter((d) => d.transactionStatus === "PENDING");
-    const approved = withdrawals.filter((d) => d.transactionStatus === "APPROVED");
-    const rejected = withdrawals.filter((d) => d.transactionStatus === "REJECTED");
+    const pending    = withdrawals.filter((d) => d.transactionStatus === "PENDING");
+    const approved   = withdrawals.filter((d) => d.transactionStatus === "APPROVED");
+    const rejected   = withdrawals.filter((d) => d.transactionStatus === "REJECTED");
+    const hardW      = withdrawals.filter((d) => d.withdrawalType === "HARD_WITHDRAWAL");
+    const redemption = withdrawals.filter((d) => d.withdrawalType === "REDEMPTION");
 
     return {
       total: withdrawals.length,
       pending: pending.length,
       approved: approved.length,
       rejected: rejected.length,
-      totalAmount: withdrawals.reduce((sum, d) => sum + d.amount, 0),
+      hardWithdrawalCount: hardW.length,
+      redemptionCount:     redemption.length,
+      totalAmount:    withdrawals.reduce((sum, d) => sum + d.amount, 0),
       approvedAmount: approved.reduce((sum, d) => sum + d.amount, 0),
-      pendingAmount: pending.reduce((sum, d) => sum + d.amount, 0),
+      pendingAmount:  pending.reduce((sum, d) => sum + d.amount, 0),
     };
   }, [withdrawals]);
 
@@ -388,17 +395,34 @@ export function AdminWithdrawalsContent({
         </div>
 
         {/* Statistics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
           <Card className="bg-slate-900/50 border-slate-700">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-400">Total Withdrawals</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-400">Total</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-white">{stats.total}</div>
               <p className="text-xs text-slate-500 mt-1">${stats.totalAmount.toLocaleString()}</p>
             </CardContent>
           </Card>
-
+          <Card className="bg-slate-900/50 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-slate-400">Hard Withdrawals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-400">{stats.hardWithdrawalCount}</div>
+              <p className="text-xs text-slate-500 mt-1">Master → Bank</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-900/50 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-slate-400">Redemptions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-cyan-400">{stats.redemptionCount}</div>
+              <p className="text-xs text-slate-500 mt-1">Portfolio → Master</p>
+            </CardContent>
+          </Card>
           <Card className="bg-slate-900/50 border-slate-700">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-400">Pending</CardTitle>
@@ -408,7 +432,6 @@ export function AdminWithdrawalsContent({
               <p className="text-xs text-slate-500 mt-1">${stats.pendingAmount.toLocaleString()}</p>
             </CardContent>
           </Card>
-
           <Card className="bg-slate-900/50 border-slate-700">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-400">Approved</CardTitle>
@@ -418,7 +441,6 @@ export function AdminWithdrawalsContent({
               <p className="text-xs text-slate-500 mt-1">${stats.approvedAmount.toLocaleString()}</p>
             </CardContent>
           </Card>
-
           <Card className="bg-slate-900/50 border-slate-700">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-400">Rejected</CardTitle>
@@ -455,6 +477,16 @@ export function AdminWithdrawalsContent({
                   <SelectItem value="REJECTED">Rejected</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full md:w-48 bg-slate-800 border-slate-700 text-white">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="HARD_WITHDRAWAL">Hard Withdrawal</SelectItem>
+                  <SelectItem value="REDEMPTION">Redemption</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -485,20 +517,29 @@ export function AdminWithdrawalsContent({
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
                       <div>
                         <p className="text-xs text-slate-500">User</p>
-                        <p className="text-white font-medium">{w.user?.name || "N/A"}</p>
+                        <p className="text-white font-medium">
+                          {[w.user?.firstName, w.user?.lastName].filter(Boolean).join(" ") || "N/A"}
+                        </p>
                         <p className="text-xs text-slate-400">{w.user?.email || ""}</p>
                       </div>
 
                       <div>
                         <p className="text-xs text-slate-500">Amount</p>
-                        <p className="text-white font-bold text-lg">
-                          ${w.amount.toLocaleString()}
-                        </p>
+                        <p className="text-white font-bold text-lg">${w.amount.toLocaleString()}</p>
                       </div>
 
                       <div>
-                        <p className="text-xs text-slate-500">Method</p>
-                        <p className="text-white">{w.method || "N/A"}</p>
+                        <p className="text-xs text-slate-500 mb-1">Type</p>
+                        <Badge
+                          variant="outline"
+                          className={
+                            w.withdrawalType === "HARD_WITHDRAWAL"
+                              ? "bg-orange-500/20 text-orange-400 border-orange-500/30"
+                              : "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
+                          }
+                        >
+                          {w.withdrawalType === "HARD_WITHDRAWAL" ? "Hard W/D" : "Redemption"}
+                        </Badge>
                       </div>
 
                       <div>

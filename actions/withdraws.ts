@@ -13,7 +13,7 @@
 
 // const api = axios.create({
 //   baseURL: BASE_API_URL,
-//   timeout: 12000,
+//   timeout: 60000,
 //   headers: { "Content-Type": "application/json" },
 // });
 
@@ -341,7 +341,7 @@ const BASE_API_URL =
 
 const api = axios.create({
   baseURL: BASE_API_URL,
-  timeout: 12000,
+  timeout: 60000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -379,26 +379,31 @@ function toIncludeParam(include?: WithdrawalInclude | WithdrawalInclude[]) {
 /* -------------------------------------------------------------------------- */
 
 export type TxStatus = "PENDING" | "APPROVED" | "REJECTED";
+/** HARD_WITHDRAWAL = cash out master wallet → client bank; REDEMPTION = portfolio → master wallet */
+export type WithdrawalType = "HARD_WITHDRAWAL" | "REDEMPTION";
 
 export interface Withdrawal {
   id:                string;
   userId:            string;
-  userPortfolioId:   string;
-  portfolioWalletId: string;
+  /** Only populated for REDEMPTION withdrawals */
+  userPortfolioId?:  string | null;
+  portfolioWalletId?: string | null;
   masterWalletId:    string;
+  withdrawalType:    WithdrawalType;
   amount:            number;
   transactionStatus: TxStatus;
 
   // renamed from AccountNo/AccountName (camelCase in new schema)
   accountNo?:        string | null;
   accountName?:      string | null;
-  referenceNo:       string;
+  referenceNo?:      string | null;
   transactionId?:    string | null;
   method?:           string | null;
 
-  bankName:          string;
-  bankAccountName:   string;
-  bankBranch:        string;
+  /** Only applicable for HARD_WITHDRAWAL */
+  bankName?:         string | null;
+  bankAccountName?:  string | null;
+  bankBranch?:       string | null;
   description?:      string | null;
 
   // Staff who created the withdrawal request
@@ -435,6 +440,7 @@ export interface Withdrawal {
     id:             string;
     accountNumber?: string | null;
     netAssetValue?: number | null;
+    balance?:       number | null;
   };
   userPortfolio?: {
     id:          string;
@@ -444,18 +450,21 @@ export interface Withdrawal {
 }
 
 export interface WithdrawalCreateInput {
-  userId:          string;
-  userPortfolioId: string; // replaces walletId — identifies which portfolio to deduct from
-  amount:          number;
-  referenceNo:     string;
-  method?:         string | null;
-  accountNo?:      string | null;   // camelCase (was AccountNo)
-  accountName?:    string | null;   // camelCase (was AccountName)
-  bankName:        string;
-  bankAccountName: string;
-  bankBranch:      string;
-  description?:    string | null;
-  transactionId?:  string | null;
+  userId:           string;
+  withdrawalType:   WithdrawalType;
+  amount:           number;
+  /** Required for REDEMPTION — identifies which portfolio to deduct from */
+  userPortfolioId?: string | null;
+  referenceNo?:     string | null;
+  method?:          string | null;
+  accountNo?:       string | null;
+  accountName?:     string | null;
+  /** Required for HARD_WITHDRAWAL */
+  bankName?:        string | null;
+  bankAccountName?: string | null;
+  bankBranch?:      string | null;
+  description?:     string | null;
+  transactionId?:   string | null;
 }
 
 export interface WithdrawalUpdateInput {
@@ -464,9 +473,9 @@ export interface WithdrawalUpdateInput {
   method?:         string | null;
   accountNo?:      string | null;
   accountName?:    string | null;
-  bankName?:       string;
-  bankAccountName?: string;
-  bankBranch?:     string;
+  bankName?:       string | null;
+  bankAccountName?: string | null;
+  bankBranch?:     string | null;
   description?:    string | null;
 }
 
@@ -541,23 +550,29 @@ export async function createWithdrawal(
     if (!Number.isFinite(amount) || amount <= 0) {
       return { success: false, error: "Amount must be a positive number" };
     }
-    if (!input.userPortfolioId) {
-      return { success: false, error: "userPortfolioId is required" };
+    if (input.withdrawalType === "HARD_WITHDRAWAL") {
+      if (!input.bankName?.trim())        return { success: false, error: "bankName is required for HARD_WITHDRAWAL" };
+      if (!input.bankAccountName?.trim()) return { success: false, error: "bankAccountName is required for HARD_WITHDRAWAL" };
+      if (!input.bankBranch?.trim())      return { success: false, error: "bankBranch is required for HARD_WITHDRAWAL" };
+    }
+    if (input.withdrawalType === "REDEMPTION" && !input.userPortfolioId) {
+      return { success: false, error: "userPortfolioId is required for REDEMPTION" };
     }
 
     const payload: WithdrawalCreateInput = {
-      userId:          input.userId,
-      userPortfolioId: input.userPortfolioId,
+      userId:           input.userId,
+      withdrawalType:   input.withdrawalType,
       amount,
-      referenceNo:     input.referenceNo.trim(),
-      method:          input.method          ?? null,
-      accountNo:       input.accountNo       ?? null,
-      accountName:     input.accountName     ?? null,
-      bankName:        input.bankName.trim(),
-      bankAccountName: input.bankAccountName.trim(),
-      bankBranch:      input.bankBranch.trim(),
-      description:     input.description     ?? null,
-      transactionId:   input.transactionId   ?? null,
+      ...(input.userPortfolioId ? { userPortfolioId: input.userPortfolioId } : {}),
+      referenceNo:      input.referenceNo     ?? null,
+      method:           input.method          ?? null,
+      accountNo:        input.accountNo       ?? null,
+      accountName:      input.accountName     ?? null,
+      bankName:         input.bankName        ?? null,
+      bankAccountName:  input.bankAccountName ?? null,
+      bankBranch:       input.bankBranch      ?? null,
+      description:      input.description     ?? null,
+      transactionId:    input.transactionId   ?? null,
     };
 
     const include = toIncludeParam(opts?.include);
@@ -620,24 +635,27 @@ export async function deleteWithdrawal(id: string) {
 
 /* -------------------------------------------------------------------------- */
 /*  POST /withdrawals/:id/approve                                               */
-/*  Deducts from PortfolioWallet, syncs MasterWallet, marks APPROVED           */
+/*  HARD_WITHDRAWAL: deducts masterWallet.balance, records bank transaction    */
+/*  REDEMPTION:      deducts portfolioWallet, credits masterWallet.balance     */
 /* -------------------------------------------------------------------------- */
 export async function approveWithdrawal(
   id:            string,
+  /** Required for HARD_WITHDRAWAL; pass empty string or omit for REDEMPTION */
   transactionId: string,
-  approver?:     { approvedById?: string; approvedByName?: string },
+  approver?:     { approvedById?: string; approvedByName?: string; withdrawalType?: WithdrawalType },
   opts?:         { include?: WithdrawalInclude | WithdrawalInclude[] }
 ) {
   try {
     const headers = await authHeaderFromCookies();
 
+    const isRedemption = approver?.withdrawalType === "REDEMPTION";
     const txId = (transactionId ?? "").trim();
-    if (!txId) {
-      return { success: false, error: "transactionId is required to approve a withdrawal" };
+    if (!isRedemption && !txId) {
+      return { success: false, error: "transactionId is required to approve a HARD_WITHDRAWAL" };
     }
 
     const body = {
-      transactionId: txId,
+      ...(txId ? { transactionId: txId } : {}),
       approvedById:   approver?.approvedById  ?? null,
       approvedByName: approver?.approvedByName ?? null,
     };
@@ -651,6 +669,37 @@ export async function approveWithdrawal(
   } catch (e: any) {
     return { success: false, error: msg(e, "Failed to approve withdrawal") };
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Convenience wrappers                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Create a HARD_WITHDRAWAL — cash out from master wallet to client bank account.
+ * Requires bank details (bankName, bankAccountName, bankBranch).
+ */
+export async function createHardWithdrawal(
+  input: Omit<WithdrawalCreateInput, "withdrawalType"> & {
+    bankName: string;
+    bankAccountName: string;
+    bankBranch: string;
+  },
+  opts?: { include?: WithdrawalInclude | WithdrawalInclude[] }
+) {
+  return createWithdrawal({ ...input, withdrawalType: "HARD_WITHDRAWAL" }, opts);
+}
+
+/**
+ * Create a REDEMPTION — internal transfer from portfolio wallet back to master wallet.
+ * Requires userPortfolioId. No bank details needed.
+ */
+export async function createRedemption(
+  input: Omit<WithdrawalCreateInput, "withdrawalType"> & { userPortfolioId: string },
+  opts?: { include?: WithdrawalInclude | WithdrawalInclude[] }
+) {
+  const referenceNo = input.referenceNo?.trim() || `RDM-${Date.now()}`;
+  return createWithdrawal({ ...input, referenceNo, withdrawalType: "REDEMPTION" }, opts);
 }
 
 /* -------------------------------------------------------------------------- */

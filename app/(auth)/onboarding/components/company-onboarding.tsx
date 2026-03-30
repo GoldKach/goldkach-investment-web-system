@@ -34,6 +34,7 @@ import {
 import { UploadDropzone } from "@/lib/uploadthing"
 
 import { submitCompanyOnboarding } from "@/actions/onboarding"
+import { clearOnboardingSession } from "@/actions/auth"
 import { AgentSelector } from "./agent-selector"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -536,7 +537,7 @@ export default function CompanyOnboardingForm({ user }: Props) {
       }
 
       localStorage.removeItem("onboardingUser")
-      toast.success("Company application submitted successfully!")
+      await clearOnboardingSession()
       router.push("/confirmation")
     } catch {
       toast.error("An error occurred. Please try again.")

@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select"
 
 import { submitIndividualOnboarding } from "@/actions/onboarding"
+import { clearOnboardingSession } from "@/actions/auth"
 import { AgentSelector } from "./agent-selector"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -572,7 +573,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
       }
 
       localStorage.removeItem("onboardingUser")
-      toast.success("Application submitted successfully!")
+      await clearOnboardingSession()
       if (formData.isPEP === "yes") {
         toast.info("Your application will undergo enhanced review as a PEP.")
       }

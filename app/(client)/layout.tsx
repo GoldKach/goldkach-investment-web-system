@@ -28,11 +28,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     (Array.isArray(user?.roles) && user.roles.some((r: any) => r?.roleName === "USER" || r === "USER"));
 
   if (!hasUserRole) {
-    // You can redirect or render an Unauthorized UI.
-    // Redirect keeps the URL clean:
+    if (user?.role === "AGENT") redirect("/agent");
+    if (user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") redirect("/dashboard");
     redirect("/unauthorized?reason=role");
   }
 
+  // If the user hasn't completed onboarding, send them there first
+  const hasOnboarding = !!(user?.individualOnboarding || user?.companyOnboarding);
+  if (!hasOnboarding) {
+    redirect("/onboarding?alert=Please+complete+your+onboarding+to+access+your+account");
+  }
 
   return  <ZustandHydration
     fallback={

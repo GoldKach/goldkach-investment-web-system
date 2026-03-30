@@ -8,7 +8,7 @@ const BASE_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "
 
 const api = axios.create({
   baseURL: BASE_API_URL,
-  timeout: 12000,
+  timeout: 60000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -32,9 +32,12 @@ export interface MasterWallet {
   id:             string;
   accountNumber:  string;
   userId:         string;
+  /** Cash available for allocation or hard withdrawal (external deposits minus allocations/withdrawals) */
+  balance:        number;
   totalDeposited: number;
   totalWithdrawn: number;
   totalFees:      number;
+  /** Sum of all portfolio wallet NAVs — separate from cash balance */
   netAssetValue:  number;
   status:         WalletStatus;
   createdAt?:     string;

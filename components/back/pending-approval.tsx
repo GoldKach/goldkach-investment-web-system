@@ -51,19 +51,27 @@ type PendingUser = {
   email?: string;
   phone?: string;
   status?: UserStatus;
+  isApproved?: boolean;
   imageUrl?: string;
   name?: string;
   firstName?: string;
   lastName?: string;
   createdAt?: string | Date;
-  entityOnboarding?: {
+  individualOnboarding?: {
+    id?: string;
     fullName?: string;
-    entityType?: EntityType;
     tin?: string;
     riskTolerance?: "Aggressive" | "Moderate" | "Conservative" | string;
     isApproved?: boolean;
-    companyName?: string;
     occupation?: string;
+    createdAt?: string | Date;
+  } | null;
+  companyOnboarding?: {
+    id?: string;
+    companyName?: string;
+    companyType?: string;
+    tin?: string;
+    isApproved?: boolean;
     createdAt?: string | Date;
   } | null;
 };
@@ -75,7 +83,8 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
   const [approvalAction, setApprovalAction] = useState<"approve" | "reject" | null>(null);
 
   const displayName = (u: PendingUser) =>
-    u.entityOnboarding?.fullName ||
+    u.individualOnboarding?.fullName ||
+    u.companyOnboarding?.companyName ||
     u.name ||
     [u.firstName, u.lastName].filter(Boolean).join(" ") ||
     u.email ||
@@ -86,14 +95,14 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
     return items.filter((u) => {
       const name = displayName(u).toLowerCase();
       const email = (u.email ?? "").toLowerCase();
-      const tin = (u.entityOnboarding?.tin ?? "").toLowerCase();
+      const tin = (u.individualOnboarding?.tin ?? u.companyOnboarding?.tin ?? "").toLowerCase();
       return name.includes(q) || email.includes(q) || tin.includes(q);
     });
   }, [items, searchQuery]);
 
   const stats = useMemo(() => {
-    const individuals = items.filter((u) => u.entityOnboarding?.entityType === "individual").length;
-    const companies = items.filter((u) => u.entityOnboarding?.entityType === "company").length;
+    const individuals = items.filter((u) => !!u.individualOnboarding).length;
+    const companies = items.filter((u) => !!u.companyOnboarding).length;
     return { total: items.length, individuals, companies };
   }, [items]);
 
@@ -138,7 +147,10 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
     setItems((list) => list.filter((u) => u.id !== selectedUserId));
     try {
       const nextStatus: UserStatus = approvalAction === "approve" ? "ACTIVE" : "DEACTIVATED";
-      const res = await updateUserById(selectedUserId, { status: nextStatus });
+      const res = await updateUserById(selectedUserId, {
+        status: nextStatus,
+        ...(approvalAction === "approve" && { isApproved: true }),
+      });
       if (res?.error) throw new Error(res.error);
       toast.success(approvalAction === "approve" ? "Application approved" : "Application rejected");
     } catch (e: any) {
@@ -226,10 +238,11 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
             <TableBody>
               {filtered.map((u) => {
                 const name = displayName(u);
-                const type = u.entityOnboarding?.entityType ?? "individual";
-                const risk = u.entityOnboarding?.riskTolerance;
-                const submitted = u.entityOnboarding?.createdAt ?? u.createdAt;
-                const tin = u.entityOnboarding?.tin;
+                const isCompany = !!u.companyOnboarding;
+                const type: EntityType = isCompany ? "company" : "individual";
+                const risk = u.individualOnboarding?.riskTolerance;
+                const submitted = u.individualOnboarding?.createdAt ?? u.companyOnboarding?.createdAt ?? u.createdAt;
+                const tin = u.individualOnboarding?.tin ?? u.companyOnboarding?.tin;
 
                 return (
                   <TableRow key={u.id} className="group hover:bg-muted/50">
@@ -244,7 +257,7 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
                         <div>
                           <div className="font-medium">{name}</div>
                           <div className="text-sm text-muted-foreground">
-                            {type === "company" ? u.entityOnboarding?.companyName : u.entityOnboarding?.occupation}
+                            {isCompany ? u.companyOnboarding?.companyType : u.individualOnboarding?.occupation}
                           </div>
                         </div>
                       </div>

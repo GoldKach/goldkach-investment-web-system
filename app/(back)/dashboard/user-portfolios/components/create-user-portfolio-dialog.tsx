@@ -28,12 +28,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Loader2, Check, ChevronsUpDown, AlertCircle } from "lucide-react"
+import { Loader2, Check, ChevronsUpDown, AlertCircle, Wallet, Ban } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createUserPortfolio } from "@/actions/user-portfolios"
 import { getAllUsers } from "@/actions/auth"
 import { getPortfolios } from "@/actions/portfolios"
 import { getPortfolioAssets } from "@/actions/portfolioassets"
+import { getMasterWalletByUser } from "@/actions/master-wallets"
 
 type User = {
   id: string
@@ -89,24 +90,51 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [isLoadingPortfolios, setIsLoadingPortfolios] = useState(false)
-  
+
   const [users, setUsers] = useState<User[]>([])
   const [portfolios, setPortfolios] = useState<Portfolio[]>([])
-  
+
   const [selectedUserId, setSelectedUserId] = useState("")
   const [selectedPortfolioId, setSelectedPortfolioId] = useState("")
+  const [amountInvested, setAmountInvested] = useState("")
+  const [bankFee, setBankFee] = useState("30")
+  const [transactionFee, setTransactionFee] = useState("10")
+  const [feeAtBank, setFeeAtBank] = useState("10")
   const [assetAllocations, setAssetAllocations] = useState<AssetAllocation[]>([])
-  
+
   const [userOpen, setUserOpen] = useState(false)
   const [portfolioOpen, setPortfolioOpen] = useState(false)
+
+  // Master wallet balance for the selected user
+  const [masterBalance, setMasterBalance] = useState<number | null>(null)
+  const [loadingBalance, setLoadingBalance] = useState(false)
 
   // Load users and portfolios on mount
   useEffect(() => {
     if (open) {
       loadUsers()
       loadPortfolios()
+      setAmountInvested("")
+      setBankFee("30"); setTransactionFee("10"); setFeeAtBank("10")
+      setMasterBalance(null)
     }
   }, [open])
+
+  // Fetch master wallet balance when user changes
+  useEffect(() => {
+    if (!selectedUserId) { setMasterBalance(null); return }
+    setLoadingBalance(true)
+    getMasterWalletByUser(selectedUserId)
+      .then((res) => {
+        if (res.success && res.data) {
+          setMasterBalance(Number(res.data.masterWallet?.balance ?? 0))
+        } else {
+          setMasterBalance(0)
+        }
+      })
+      .catch(() => setMasterBalance(0))
+      .finally(() => setLoadingBalance(false))
+  }, [selectedUserId])
 
   // When portfolio is selected, populate asset allocations with defaults
   useEffect(() => {
@@ -212,6 +240,20 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
       return
     }
 
+    const amount = parseFloat(amountInvested)
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount to invest.")
+      return
+    }
+    if (masterBalance !== null && masterBalance <= 0) {
+      toast.error("This user has no funds in their master wallet. Please deposit first.")
+      return
+    }
+    if (masterBalance !== null && amount > masterBalance) {
+      toast.error(`Amount exceeds available balance ($${masterBalance.toLocaleString()}).`)
+      return
+    }
+
     // Validate allocations
     const totalAllocation = assetAllocations.reduce((sum, a) => sum + a.allocationPercentage, 0)
     if (Math.abs(totalAllocation - 100) > 0.01 && totalAllocation > 0) {
@@ -221,12 +263,17 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
     setIsSubmitting(true)
     try {
       const payload = {
-        userId: selectedUserId,
-        portfolioId: selectedPortfolioId,
+        userId:          selectedUserId,
+        portfolioId:     selectedPortfolioId,
+        customName:      selectedPortfolio?.name ?? "My Portfolio",
+        amountInvested:  amount,
+        bankFee:         parseFloat(bankFee)        || 30,
+        transactionFee:  parseFloat(transactionFee) || 10,
+        feeAtBank:       parseFloat(feeAtBank)      || 10,
         assetAllocations: assetAllocations.map(a => ({
-          assetId: a.assetId,
+          assetId:              a.assetId,
           allocationPercentage: a.allocationPercentage,
-          costPerShare: a.costPerShare,
+          costPerShare:         a.costPerShare,
         })),
       }
 
@@ -392,6 +439,93 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
             </Popover>
           </div>
 
+          {/* Amount to Invest + Balance Guard */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Amount to Invest *</Label>
+
+            {/* Balance banner */}
+            {selectedUserId && (
+              loadingBalance ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking available balance…
+                </div>
+              ) : masterBalance !== null && masterBalance <= 0 ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950 text-sm text-amber-700 dark:text-amber-300">
+                  <Ban className="h-4 w-4 shrink-0" />
+                  No funds available — Please deposit to this account first before allocating to a portfolio.
+                </div>
+              ) : masterBalance !== null ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-green-400 bg-green-50 dark:bg-green-950 text-sm text-green-700 dark:text-green-300">
+                  <Wallet className="h-4 w-4 shrink-0" />
+                  Available master wallet balance: <span className="font-semibold">${masterBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ) : null
+            )}
+
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              max={masterBalance ?? undefined}
+              value={amountInvested}
+              onChange={(e) => setAmountInvested(e.target.value)}
+              placeholder="0.00"
+              disabled={!selectedUserId || loadingBalance || (masterBalance !== null && masterBalance <= 0)}
+            />
+
+            {masterBalance !== null && masterBalance > 0 && parseFloat(amountInvested) > masterBalance && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                Amount exceeds available balance (${masterBalance.toLocaleString()}).
+              </p>
+            )}
+          </div>
+
+          {/* Fee Rates */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Fee Rates for This Portfolio</Label>
+            <p className="text-sm text-muted-foreground">These fee rates apply specifically to this user's portfolio.</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="bankFee" className="text-sm">Bank Fee %</Label>
+                <Input
+                  id="bankFee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={bankFee}
+                  onChange={(e) => setBankFee(e.target.value)}
+                  placeholder="30"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="transactionFee" className="text-sm">Transaction Fee %</Label>
+                <Input
+                  id="transactionFee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={transactionFee}
+                  onChange={(e) => setTransactionFee(e.target.value)}
+                  placeholder="10"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="feeAtBank" className="text-sm">Fee at Bank %</Label>
+                <Input
+                  id="feeAtBank"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={feeAtBank}
+                  onChange={(e) => setFeeAtBank(e.target.value)}
+                  placeholder="10"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Asset Allocations - This is where the magic happens! */}
           {selectedPortfolioId && assetAllocations.length === 0 && (
             <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
@@ -548,7 +682,14 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !selectedUserId || !selectedPortfolioId}>
+            <Button type="submit" disabled={
+              isSubmitting ||
+              !selectedUserId ||
+              !selectedPortfolioId ||
+              loadingBalance ||
+              (masterBalance !== null && masterBalance <= 0) ||
+              (masterBalance !== null && parseFloat(amountInvested) > masterBalance)
+            }>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSubmitting ? "Assigning..." : "Assign Portfolio"}
             </Button>

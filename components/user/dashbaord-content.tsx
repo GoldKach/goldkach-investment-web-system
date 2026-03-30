@@ -633,23 +633,54 @@ type Deposit = {
   id: string
   amount: number
   createdAt: string
-  method?: string | null
   transactionStatus: TxStatus
+  depositTarget?: string | null
+  transactionId?: string | null
+  referenceNo?: string | null
+  mobileNo?: string | null
+  accountNo?: string | null
+  method?: string | null
+  description?: string | null
+  createdByName?: string | null
+  approvedByName?: string | null
+  approvedAt?: string | null
+  rejectedByName?: string | null
+  rejectedAt?: string | null
+  rejectReason?: string | null
 }
 
 type Withdrawal = {
   id: string
   amount: number
   createdAt: string
-  method?: string | null
   transactionStatus: TxStatus
+  withdrawalType?: string | null
+  transactionId?: string | null
+  referenceNo?: string | null
+  accountNo?: string | null
+  accountName?: string | null
+  method?: string | null
+  bankName?: string | null
+  bankAccountName?: string | null
+  bankBranch?: string | null
+  description?: string | null
+  createdByName?: string | null
+  approvedByName?: string | null
+  approvedAt?: string | null
+  rejectedByName?: string | null
+  rejectedAt?: string | null
+  rejectReason?: string | null
 }
 
 type Wallet = {
   id: string
   accountNumber: string
+  /** Cash available for allocation or hard withdrawal */
   balance?: number | null
+  /** Sum of all portfolio wallet NAVs */
   netAssetValue?: number | null
+  totalDeposited?: number | null
+  totalWithdrawn?: number | null
   totalFees?: number | null
   bankFee?: number | null
   transactionFee?: number | null
@@ -657,6 +688,24 @@ type Wallet = {
   status?: string | null
   updatedAt?: string | null
   createdAt?: string | null
+}
+
+type UserPortfolioForDashboard = {
+  id: string
+  customName?: string | null
+  portfolioValue?: number | null
+  totalInvested?: number | null
+  totalLossGain?: number | null
+  isActive?: boolean | null
+  portfolio?: { id: string; name: string; riskTolerance?: string | null; timeHorizon?: string | null } | null
+  wallet?: {
+    id: string
+    accountNumber?: string | null
+    balance?: number | null
+    netAssetValue?: number | null
+    totalFees?: number | null
+    status?: string | null
+  } | null
 }
 
 type EntityOnboarding = {
@@ -715,6 +764,7 @@ type UserForDashboard = {
   deposits?: Deposit[] | null
   withdrawals?: Withdrawal[] | null
   entityOnboarding?: EntityOnboarding | null
+  userPortfolios?: UserPortfolioForDashboard[] | null
 }
 
 type TxRow = {
@@ -723,7 +773,26 @@ type TxRow = {
   amount: number
   status: TxStatus
   date: string
+  // deposit-specific
+  depositTarget?: string | null
+  transactionId?: string | null
+  referenceNo?: string | null
+  mobileNo?: string | null
+  accountNo?: string | null
   method?: string | null
+  description?: string | null
+  createdByName?: string | null
+  approvedByName?: string | null
+  approvedAt?: string | null
+  rejectedByName?: string | null
+  rejectedAt?: string | null
+  rejectReason?: string | null
+  // withdrawal-specific
+  withdrawalType?: string | null
+  accountName?: string | null
+  bankName?: string | null
+  bankAccountName?: string | null
+  bankBranch?: string | null
 }
 
 type SeriesPoint = { date: string; value: number; deposits?: number; withdrawals?: number }
@@ -732,7 +801,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
   const [previewDocument, setPreviewDocument] = useState<{ url: string; name: string; type: string } | null>(null)
 
   // ---------- SAFE MAPS FROM USER ----------
-  const wallet = user.wallet ?? {
+  const wallet = (user as any).masterWallet ?? user.wallet ?? {
     id: "n/a",
     accountNumber: "—",
     balance: 0,
@@ -762,7 +831,19 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
       amount: d.amount,
       status: d.transactionStatus,
       date: d.createdAt,
+      depositTarget: d.depositTarget ?? null,
+      transactionId: d.transactionId ?? null,
+      referenceNo: d.referenceNo ?? null,
+      mobileNo: d.mobileNo ?? null,
+      accountNo: d.accountNo ?? null,
       method: d.method ?? null,
+      description: d.description ?? null,
+      createdByName: d.createdByName ?? null,
+      approvedByName: d.approvedByName ?? null,
+      approvedAt: d.approvedAt ?? null,
+      rejectedByName: d.rejectedByName ?? null,
+      rejectedAt: d.rejectedAt ?? null,
+      rejectReason: d.rejectReason ?? null,
     })),
     ...withdrawals.map(w => ({
       id: w.id,
@@ -770,17 +851,37 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
       amount: w.amount,
       status: w.transactionStatus,
       date: w.createdAt,
+      withdrawalType: w.withdrawalType ?? null,
+      transactionId: w.transactionId ?? null,
+      referenceNo: w.referenceNo ?? null,
+      accountNo: w.accountNo ?? null,
+      accountName: w.accountName ?? null,
       method: w.method ?? null,
+      bankName: w.bankName ?? null,
+      bankAccountName: w.bankAccountName ?? null,
+      bankBranch: w.bankBranch ?? null,
+      description: w.description ?? null,
+      createdByName: w.createdByName ?? null,
+      approvedByName: w.approvedByName ?? null,
+      approvedAt: w.approvedAt ?? null,
+      rejectedByName: w.rejectedByName ?? null,
+      rejectedAt: w.rejectedAt ?? null,
+      rejectReason: w.rejectReason ?? null,
     })),
   ]
     .sort((a, b) => +new Date(b.date) - +new Date(a.date))
     .slice(0, 12)
 
   // ---------- KPIs ----------
-  const totalBalance = Number(wallet.netAssetValue ?? 0)
-  const netAssetValue = Number(wallet.netAssetValue ?? 0)
-  const totalDeposits = deposits.reduce((s, d) => s + d.amount, 0)
+  const cashBalance   = Number(wallet.balance       ?? 0)
+  const netAssetValue = Number(wallet.netAssetValue  ?? 0)
+  const totalDeposited  = Number(wallet.totalDeposited ?? 0)
+  const totalWithdrawn  = Number(wallet.totalWithdrawn ?? 0)
+  const totalDeposits   = deposits.reduce((s, d) => s + d.amount, 0)
   const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0)
+
+  // Portfolio breakdown from userPortfolios
+  const portfolios = (user.userPortfolios ?? []).filter(Boolean)
 
   // ---------- BUILD SIMPLE SERIES FROM TX ----------
   const byMonth = new Map<string, { deposits: number; withdrawals: number }>()
@@ -930,19 +1031,20 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
         {/* ===== Overview ===== */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {/* <Card>
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Portfolio Gain</CardTitle>
+                <CardTitle className="text-sm font-medium">Cash Balance</CardTitle>
                 <WalletIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${Math.abs(totalPortfolioGain).toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Wallet balance</p>
+                <div className="text-2xl font-bold">${cashBalance.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Available for withdrawal / allocation</p>
               </CardContent>
-            </Card> */}
+            </Card>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Asset Value</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Invested (NAV)</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -957,26 +1059,73 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Deposits</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Deposited</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalDeposits.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">All time deposits</p>
+                <div className="text-2xl font-bold">${totalDeposited.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">All-time external deposits</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Withdrawals</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Withdrawn</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalWithdrawals.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">All time withdrawals</p>
+                <div className="text-2xl font-bold">${totalWithdrawn.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">All-time hard withdrawals</p>
               </CardContent>
             </Card>
           </div>
+
+          {/* Portfolio Breakdown */}
+          {portfolios.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Portfolio Breakdown</CardTitle>
+                <CardDescription>Performance across your invested portfolios</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {portfolios.map((p) => {
+                    const nav      = Number(p.wallet?.netAssetValue ?? p.portfolioValue ?? 0)
+                    const invested = Number(p.totalInvested ?? 0)
+                    const gain     = Number(p.totalLossGain ?? 0)
+                    const pct      = invested > 0 ? +((gain / invested) * 100).toFixed(2) : 0
+                    return (
+                      <div key={p.id} className="flex items-center justify-between border-b pb-3 last:border-0">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">
+                            {p.customName || p.portfolio?.name || "Portfolio"}
+                          </p>
+                          <div className="flex gap-2 flex-wrap">
+                            {p.portfolio?.riskTolerance && (
+                              <Badge variant="outline" className="text-xs">{p.portfolio.riskTolerance}</Badge>
+                            )}
+                            {p.portfolio?.timeHorizon && (
+                              <Badge variant="outline" className="text-xs">{p.portfolio.timeHorizon}</Badge>
+                            )}
+                            <Badge variant={p.isActive ? "default" : "secondary"} className="text-xs">
+                              {p.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <p className="text-sm font-bold">${nav.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">Invested: ${invested.toLocaleString()}</p>
+                          <p className={`text-xs font-medium ${gain >= 0 ? "text-green-600" : "text-red-600"}`}>
+                            {gain >= 0 ? "+" : ""}${gain.toLocaleString()} ({pct}%)
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Portfolio Performance */}
           <Card>
@@ -1317,13 +1466,13 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                     <p className="text-sm text-muted-foreground">Approval Status</p>
                     <Badge
                       className={
-                        user.entityOnboarding.isApproved
+                        user.isApproved
                           ? "bg-green-500/10 text-green-600 dark:text-green-400"
                           : "bg-orange-500/10 text-orange-600 dark:text-orange-400"
                       }
                     >
-                      {getStatusIcon(user.entityOnboarding.isApproved ? "APPROVED" : "PENDING")}
-                      {user.entityOnboarding.isApproved ? "Approved" : "Pending Approval"}
+                      {getStatusIcon(user.isApproved ? "APPROVED" : "PENDING")}
+                      {user.isApproved ? "Approved" : "Pending Approval"}
                     </Badge>
                   </div>
                   <div>
@@ -1500,57 +1649,112 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
-                Wallet Details
+                Master Wallet
               </CardTitle>
-              <CardDescription>Account information and fee breakdown</CardDescription>
+              <CardDescription>Account number: {wallet.accountNumber}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Account Number</p>
-                  <p className="font-mono text-lg font-semibold">{wallet.accountNumber}</p>
+                  <p className="text-sm text-muted-foreground">Status</p>
                   <Badge variant={(wallet.status ?? "ACTIVE") === "ACTIVE" ? "default" : "secondary"}>
                     {wallet.status ?? "ACTIVE"}
                   </Badge>
+                  <p className="text-xs text-muted-foreground">
+                    Updated: {new Date(wallet.updatedAt ?? new Date().toISOString()).toLocaleDateString()}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Current Balance</p>
-                  <p className="text-2xl font-bold">${Number(wallet.balance ?? 0).toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Available funds</p>
+                  <p className="text-sm text-muted-foreground">Cash Balance</p>
+                  <p className="text-2xl font-bold">${cashBalance.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Available for withdrawal / allocation</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Net Asset Value</p>
-                  <p className="text-2xl font-bold">${Number(wallet.netAssetValue ?? 0).toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">After fees</p>
+                  <p className="text-sm text-muted-foreground">Total Invested (NAV)</p>
+                  <p className="text-2xl font-bold">${netAssetValue.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Sum of all portfolio values</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Total Fees</p>
+                  <p className="text-sm text-muted-foreground">Total Fees Paid</p>
                   <p className="text-2xl font-bold">${Number(wallet.totalFees ?? 0).toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">All charges</p>
+                  <p className="text-xs text-muted-foreground">All charges to date</p>
                 </div>
               </div>
               <div className="mt-6 pt-6 border-t">
-                <p className="text-sm font-medium mb-4">Fee Breakdown</p>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Bank Fee</span>
-                    <span className="font-semibold">${Number(wallet.bankFee ?? 0).toLocaleString()}</span>
+                    <span className="text-sm text-muted-foreground">Total Deposited</span>
+                    <span className="font-semibold text-green-600">${Number(wallet.totalDeposited ?? 0).toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Transaction Fee</span>
-                    <span className="font-semibold">${Number(wallet.transactionFee ?? 0).toLocaleString()}</span>
+                    <span className="text-sm text-muted-foreground">Total Withdrawn</span>
+                    <span className="font-semibold text-red-500">${Number(wallet.totalWithdrawn ?? 0).toLocaleString()}</span>
                   </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Fee at Bank</span>
-                    <span className="font-semibold">${Number(wallet.feeAtBank ?? 0).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="mt-4 text-xs text-muted-foreground">
-                  Last updated: {new Date(wallet.updatedAt ?? new Date().toISOString()).toLocaleString()}
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Per-portfolio wallet breakdown */}
+          {portfolios.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Portfolio Wallets</CardTitle>
+                <CardDescription>Individual portfolio wallet balances and performance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {portfolios.map((p) => {
+                    const pNav      = Number(p.wallet?.netAssetValue ?? 0)
+                    const pBalance  = Number(p.wallet?.balance       ?? 0)
+                    const pInvested = Number(p.totalInvested          ?? 0)
+                    const pGain     = Number(p.totalLossGain           ?? 0)
+                    const pPct      = pInvested > 0 ? +((pGain / pInvested) * 100).toFixed(2) : 0
+                    return (
+                      <div key={p.id} className="rounded-lg border p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{p.customName || p.portfolio?.name || "Portfolio"}</p>
+                            {p.wallet?.accountNumber && (
+                              <p className="text-xs font-mono text-muted-foreground">{p.wallet.accountNumber}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Badge variant={p.isActive ? "default" : "secondary"}>{p.isActive ? "Active" : "Inactive"}</Badge>
+                            {p.wallet?.status && (
+                              <Badge variant={p.wallet.status === "ACTIVE" ? "outline" : "secondary"} className="text-xs">
+                                {p.wallet.status}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">NAV</p>
+                            <p className="font-semibold">${pNav.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Cash</p>
+                            <p className="font-semibold">${pBalance.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Invested</p>
+                            <p className="font-semibold">${pInvested.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Gain / Loss</p>
+                            <p className={`font-semibold ${pGain >= 0 ? "text-green-600" : "text-red-600"}`}>
+                              {pGain >= 0 ? "+" : ""}${pGain.toLocaleString()} ({pPct}%)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ===== Transactions ===== */}
@@ -1563,26 +1767,121 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
             <CardContent>
               <div className="space-y-4">
                 {recentTx.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{t.type}</p>
+                  <div key={t.id} className="border-b pb-4 last:border-0 space-y-3">
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold">{t.type}</p>
+                        {t.withdrawalType && (
+                          <span className="text-xs text-muted-foreground">({t.withdrawalType.replace(/_/g, " ")})</span>
+                        )}
+                        {t.depositTarget && t.depositTarget !== "MASTER" && (
+                          <span className="text-xs text-muted-foreground">({t.depositTarget})</span>
+                        )}
                         <Badge
-                          variant={
-                            t.status === "APPROVED" ? "default" : t.status === "PENDING" ? "secondary" : "destructive"
-                          }
+                          variant={t.status === "APPROVED" ? "default" : t.status === "PENDING" ? "secondary" : "destructive"}
                           className="text-xs"
                         >
                           {t.status}
                         </Badge>
                       </div>
+                      <div className={`text-sm font-bold shrink-0 ${t.type === "Deposit" ? "text-green-600" : "text-red-600"}`}>
+                        {t.type === "Deposit" ? "+" : "-"}${t.amount.toLocaleString()}
+                      </div>
+                    </div>
+
+                    {/* Detail grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Date: </span>
+                        <span>{new Date(t.date).toLocaleString()}</span>
+                      </div>
+                      {t.referenceNo && (
+                        <div>
+                          <span className="text-muted-foreground">Reference: </span>
+                          <span className="font-mono">{t.referenceNo}</span>
+                        </div>
+                      )}
+                      {t.transactionId && (
+                        <div>
+                          <span className="text-muted-foreground">Transaction ID: </span>
+                          <span className="font-mono">{t.transactionId}</span>
+                        </div>
+                      )}
+                      {t.method && (
+                        <div>
+                          <span className="text-muted-foreground">Method: </span>
+                          <span>{t.method}</span>
+                        </div>
+                      )}
+                      {t.mobileNo && (
+                        <div>
+                          <span className="text-muted-foreground">Mobile No: </span>
+                          <span>{t.mobileNo}</span>
+                        </div>
+                      )}
+                      {t.accountNo && (
+                        <div>
+                          <span className="text-muted-foreground">Account No: </span>
+                          <span>{t.accountNo}</span>
+                        </div>
+                      )}
+                      {t.accountName && (
+                        <div>
+                          <span className="text-muted-foreground">Account Name: </span>
+                          <span>{t.accountName}</span>
+                        </div>
+                      )}
+                      {t.bankName && (
+                        <div>
+                          <span className="text-muted-foreground">Bank: </span>
+                          <span>{t.bankName}</span>
+                        </div>
+                      )}
+                      {t.bankAccountName && (
+                        <div>
+                          <span className="text-muted-foreground">Bank Account: </span>
+                          <span>{t.bankAccountName}</span>
+                        </div>
+                      )}
+                      {t.bankBranch && (
+                        <div>
+                          <span className="text-muted-foreground">Branch: </span>
+                          <span>{t.bankBranch}</span>
+                        </div>
+                      )}
+                      {t.createdByName && (
+                        <div>
+                          <span className="text-muted-foreground">Created by: </span>
+                          <span>{t.createdByName}</span>
+                        </div>
+                      )}
+                      {t.approvedByName && (
+                        <div>
+                          <span className="text-muted-foreground">Approved by: </span>
+                          <span>{t.approvedByName}</span>
+                          {t.approvedAt && <span className="text-muted-foreground"> · {new Date(t.approvedAt).toLocaleDateString()}</span>}
+                        </div>
+                      )}
+                      {t.rejectedByName && (
+                        <div>
+                          <span className="text-muted-foreground">Rejected by: </span>
+                          <span className="text-red-500">{t.rejectedByName}</span>
+                          {t.rejectedAt && <span className="text-muted-foreground"> · {new Date(t.rejectedAt).toLocaleDateString()}</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    {t.description && (
                       <p className="text-xs text-muted-foreground">
-                        {(t.method ?? "—")} • {new Date(t.date).toLocaleString()}
+                        <span className="font-medium text-foreground">Note:</span> {t.description}
                       </p>
-                    </div>
-                    <div className={`text-sm font-semibold ${t.type === "Deposit" ? "text-green-600" : "text-red-600"}`}>
-                      {t.type === "Deposit" ? "+" : "-"}${t.amount.toLocaleString()}
-                    </div>
+                    )}
+                    {t.rejectReason && (
+                      <p className="text-xs text-red-500">
+                        <span className="font-medium">Rejection reason:</span> {t.rejectReason}
+                      </p>
+                    )}
                   </div>
                 ))}
                 {recentTx.length === 0 && (

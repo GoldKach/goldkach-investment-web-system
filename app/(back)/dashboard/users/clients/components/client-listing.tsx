@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { updateUserById } from "@/actions/auth";
+import { updateUserById, deleteUser } from "@/actions/auth";
+import { approveIndividualOnboarding, approveCompanyOnboarding } from "@/actions/onboarding";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +37,7 @@ import {
   Users, Search, Filter, MoreHorizontal, Eye, BadgeCheck,
   UserX, Mail, Phone, Wallet, TrendingUp, Briefcase,
   FileText, Loader2, CheckCircle2, XCircle, Clock,
-  Building2, User, ShieldCheck, Calendar, Hash,
+  Building2, User, ShieldCheck, Calendar, Hash, Trash2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -363,14 +365,86 @@ function ClientDetailDialog({
   );
 }
 
+// ─── Delete Client Dialog ─────────────────────────────────────────────────────
+
+function DeleteClientDialog({
+  open,
+  client,
+  onOpenChange,
+  onDeleted,
+}: {
+  open: boolean;
+  client: Client | null;
+  onOpenChange: (open: boolean) => void;
+  onDeleted: (clientId: string) => void;
+}) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  if (!client) return null;
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    try {
+      await deleteUser(client!.id);
+      toast.success(`${client!.firstName} ${client!.lastName ?? ""} has been deleted.`);
+      onDeleted(client!.id);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete client. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="bg-card border-border">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+              <Trash2 className="h-4 w-4 text-red-400" />
+            </div>
+            Delete Client Account
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to permanently delete{" "}
+            <span className="font-semibold text-foreground">
+              {client.firstName} {client.lastName}
+            </span>{" "}
+            ({client.email})? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting} onClick={() => onOpenChange(false)}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="gap-2 bg-red-500 hover:bg-red-600 text-white"
+          >
+            {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
+            Delete Account
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // ─── Main Listing ─────────────────────────────────────────────────────────────
 
 export default function ClientsListing({ clients: initialClients }: { clients: Client[] }) {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [onboardingFilter, setOnboardingFilter] = useState("ALL");
   const [detailTarget, setDetailTarget] = useState<Client | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+  const [approveTarget, setApproveTarget] = useState<Client | null>(null);
+  const [isApproving, startApproveTransition] = useTransition();
+  const [approveOnboardingTarget, setApproveOnboardingTarget] = useState<Client | null>(null);
+  const [isApprovingOnboarding, startApproveOnboardingTransition] = useTransition();
 
   // Stats
   const total = clients.length;
@@ -406,6 +480,46 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
   function handleUpdated(updated: Client) {
     setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
     setDetailTarget(updated);
+  }
+
+  function handleApprove() {
+    if (!approveTarget) return;
+    startApproveTransition(async () => {
+      const result = await updateUserById(approveTarget.id, { isApproved: true, status: "ACTIVE" });
+      if (result?.error) { toast.error(result.error); return; }
+      toast.success(`${approveTarget.firstName} has been approved.`);
+      setClients((prev) => prev.map((c) => c.id === approveTarget.id ? { ...c, isApproved: true, status: "ACTIVE" } : c));
+      setApproveTarget(null);
+    });
+  }
+
+  function handleApproveOnboarding() {
+    if (!approveOnboardingTarget) return;
+    startApproveOnboardingTransition(async () => {
+      const onboarding = approveOnboardingTarget.individualOnboarding ?? approveOnboardingTarget.companyOnboarding;
+      if (!onboarding) return;
+
+      const result = approveOnboardingTarget.individualOnboarding
+        ? await approveIndividualOnboarding(onboarding.id)
+        : await approveCompanyOnboarding(onboarding.id);
+
+      if (!result.success) { toast.error(result.error); return; }
+      toast.success(`Onboarding for ${approveOnboardingTarget.firstName} has been approved.`);
+      setClients((prev) => prev.map((c) => {
+        if (c.id !== approveOnboardingTarget.id) return c;
+        return {
+          ...c,
+          individualOnboarding: c.individualOnboarding ? { ...c.individualOnboarding, isApproved: true } : null,
+          companyOnboarding: c.companyOnboarding ? { ...c.companyOnboarding, isApproved: true } : null,
+        };
+      }));
+      setApproveOnboardingTarget(null);
+    });
+  }
+
+  function handleDeleted(clientId: string) {
+    setClients((prev) => prev.filter((c) => c.id !== clientId));
+    setDeleteTarget(null);
   }
 
   return (
@@ -517,7 +631,7 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
                   <TableRow
                     key={client.id}
                     className="border-border hover:bg-muted/30 cursor-pointer"
-                    onClick={() => setDetailTarget(client)}
+                    onClick={() => router.push(`/dashboard/users/clients/${client.id}`)}
                   >
                     {/* Client */}
                     <TableCell className="pl-4">
@@ -613,32 +727,61 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
 
                     {/* Actions */}
                     <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-card border-border w-44">
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer"
-                            onClick={() => setDetailTarget(client)}
-                          >
-                            <Eye className="h-4 w-4" /> View Details
-                          </DropdownMenuItem>
-                          {!client.isApproved && (
-                            <>
-                              <DropdownMenuSeparator className="bg-border" />
-                              <DropdownMenuItem
-                                className="gap-2 cursor-pointer text-primary focus:text-primary"
-                                onClick={() => { setDetailTarget(client); }}
-                              >
-                                <BadgeCheck className="h-4 w-4" /> Approve
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-red-500/10 hover:text-red-400"
+                          onClick={() => setDeleteTarget(client)}
+                          title="Delete client"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-card border-border w-44">
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => router.push(`/dashboard/users/clients/${client.id}`)}
+                            >
+                              <Eye className="h-4 w-4" /> View Details
+                            </DropdownMenuItem>
+                            {!client.isApproved && (
+                              <>
+                                <DropdownMenuSeparator className="bg-border" />
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer text-primary focus:text-primary"
+                                  onClick={() => setApproveTarget(client)}
+                                >
+                                  <BadgeCheck className="h-4 w-4" /> Approve
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {onboarding && !onboarding.isApproved && (
+                              <>
+                                <DropdownMenuSeparator className="bg-border" />
+                                <DropdownMenuItem
+                                  className="gap-2 cursor-pointer text-emerald-500 focus:text-emerald-500"
+                                  onClick={() => setApproveOnboardingTarget(client)}
+                                >
+                                  <ShieldCheck className="h-4 w-4" /> Approve Onboarding
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuSeparator className="bg-border" />
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer text-red-500 focus:text-red-500"
+                              onClick={() => setDeleteTarget(client)}
+                            >
+                              <Trash2 className="h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -661,6 +804,74 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
         onClose={() => setDetailTarget(null)}
         onUpdated={handleUpdated}
       />
+
+      {/* Delete dialog */}
+      <DeleteClientDialog
+        open={!!deleteTarget}
+        client={deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        onDeleted={handleDeleted}
+      />
+
+      {/* Approve onboarding confirm dialog */}
+      <AlertDialog open={!!approveOnboardingTarget} onOpenChange={(v) => !v && setApproveOnboardingTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              </div>
+              Approve Onboarding
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Approve KYC onboarding for{" "}
+              <span className="font-semibold text-foreground">
+                {approveOnboardingTarget?.firstName} {approveOnboardingTarget?.lastName}
+              </span>
+              ? Their onboarding status will be marked as <strong>KYC Approved</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isApprovingOnboarding} onClick={() => setApproveOnboardingTarget(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleApproveOnboarding} disabled={isApprovingOnboarding} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+              {isApprovingOnboarding && <Loader2 className="h-4 w-4 animate-spin" />}
+              Approve Onboarding
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Approve confirm dialog */}
+      <AlertDialog open={!!approveTarget} onOpenChange={(v) => !v && setApproveTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <BadgeCheck className="h-4 w-4 text-primary" />
+              </div>
+              Approve Client Account
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Approve{" "}
+              <span className="font-semibold text-foreground">
+                {approveTarget?.firstName} {approveTarget?.lastName}
+              </span>
+              ? Their account status will be set to <strong>Active</strong> and they will be able to log in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isApproving} onClick={() => setApproveTarget(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleApprove} disabled={isApproving} className="gap-2">
+              {isApproving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Approve Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -5,9 +5,12 @@ export default async function PendingApprovalsPage() {
   const res = await getAllUsers(); // { data, error } from your action
   const all = res?.data ?? [];
 
-  // show only pending approvals
+  // show only accounts that are not approved
   const pendingOnly = all.filter(
-    (u: any) => u.status === "PENDING" || u?.entityOnboarding?.isApproved === false
+    (u: any) =>
+      u.isApproved === false ||
+      u.individualOnboarding?.isApproved === false ||
+      u.companyOnboarding?.isApproved === false
   );
 
   return (

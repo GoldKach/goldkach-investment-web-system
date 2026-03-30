@@ -8,7 +8,8 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ArrowLeft, Mail, Clock } from "lucide-react";
 import { verifyLoginCode, resendLoginCode } from "@/actions/auth";
 import { toast } from "sonner";
 
@@ -39,6 +40,7 @@ export function VerifyLoginForm() {
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isResending, setIsResending] = useState(false);
+  const [onboardingBlocked, setOnboardingBlocked] = useState(false);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
   const [canResend, setCanResend] = useState(false);
 
@@ -88,8 +90,12 @@ export function VerifyLoginForm() {
 
     startTransition(async () => {
       const res = await verifyLoginCode({ userId, code });
-      
+
       if (!res.success) {
+        if (res.error === "ONBOARDING_PENDING_APPROVAL") {
+          setOnboardingBlocked(true);
+          return;
+        }
         setError(res.error || "Verification failed");
         toast.error(res.error || "Verification failed");
         return;
@@ -146,6 +152,25 @@ export function VerifyLoginForm() {
 
   return (
     <div className="space-y-6 justify-center">
+      {/* Onboarding pending approval modal */}
+      <Dialog open={onboardingBlocked} onOpenChange={setOnboardingBlocked}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30 mx-auto mb-3">
+              <Clock className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+            </div>
+            <DialogTitle className="text-center text-xl">Account Pending Approval</DialogTitle>
+            <DialogDescription className="text-center text-base pt-1">
+              Your onboarding has been submitted but has not yet been approved by our team. Please try again later or contact support.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center pt-2">
+            <Button variant="outline" onClick={() => { setOnboardingBlocked(false); router.push("/login"); }}>
+              Back to Login
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Image
         src="/logos/GoldKach-Logo-New-3.png"
         width={100}

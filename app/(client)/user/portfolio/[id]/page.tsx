@@ -27,7 +27,12 @@ export default async function PortfolioDetail({ params }: PortfolioDetailPagePar
   const userId = session.user.id;
 
   // Fetch specific portfolio
-  const result = await getUserPortfolioById(id);
+  const result = await getUserPortfolioById(id, {
+    portfolio: true,
+    userAssets: true,
+    wallet: true,
+    subPortfolios: true,
+  });
 
   // Handle errors
   if (result.error || !result.data) {

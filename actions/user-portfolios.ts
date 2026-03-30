@@ -10,7 +10,7 @@
 
 // const api = axios.create({
 //   baseURL: BASE_API_URL,
-//   timeout: 12000,
+//   timeout: 60000,
 //   headers: { "Content-Type": "application/json" },
 // });
 
@@ -323,7 +323,7 @@ const BASE_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "
 
 const api = axios.create({
   baseURL: BASE_API_URL,
-  timeout: 12000,
+  timeout: 60000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -483,6 +483,10 @@ export type CreateUserPortfolioInput = {
   customName:       string;           // required — identifies this enrollment
   amountInvested:   number;           // required — used to calculate initial positions
   assetAllocations: AssetAllocation[];
+  /** Fee rates applied on the portfolio wallet (stored on PortfolioWallet) */
+  bankFee?:         number;           // default 30 on the API
+  transactionFee?:  number;           // default 10 on the API
+  feeAtBank?:       number;           // default 10 on the API
   include?:         IncludeFlags;
 };
 
@@ -535,6 +539,9 @@ export async function createUserPortfolio(input: CreateUserPortfolioInput) {
         customName:       input.customName.trim(),
         amountInvested:   input.amountInvested,
         assetAllocations: input.assetAllocations,
+        ...(input.bankFee        !== undefined ? { bankFee:        input.bankFee        } : {}),
+        ...(input.transactionFee !== undefined ? { transactionFee: input.transactionFee } : {}),
+        ...(input.feeAtBank      !== undefined ? { feeAtBank:      input.feeAtBank      } : {}),
       },
       { headers, params: { include: toIncludeParam(input.include) } }
     );

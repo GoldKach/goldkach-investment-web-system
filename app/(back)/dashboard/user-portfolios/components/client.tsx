@@ -69,8 +69,11 @@ import {
   AlertCircle,
   RefreshCw,
   Wallet,
+  Loader2,
+  Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
 
 /* -------------------------------------------------------------------------- */
 /*  Brand tokens                                                                */
@@ -148,18 +151,43 @@ function CreateDialog({
   const [portfolioId,     setPortfolioId]     = useState("");
   const [customName,      setCustomName]      = useState("");
   const [amountInvested,  setAmountInvested]  = useState("");
+  const [bankFee,         setBankFee]         = useState("30");
+  const [transactionFee,  setTransactionFee]  = useState("10");
+  const [feeAtBank,       setFeeAtBank]       = useState("10");
   const [allocations,     setAllocations]     = useState<AllocationRow[]>([]);
   const [userOpen,        setUserOpen]        = useState(false);
   const [portfolioOpen,   setPortfolioOpen]   = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Master wallet balance for the selected user
+  const [masterBalance,     setMasterBalance]     = useState<number | null>(null);
+  const [loadingBalance,    setLoadingBalance]    = useState(false);
 
   // Reset on open
   useEffect(() => {
     if (open) {
       setUserId(""); setPortfolioId(""); setCustomName("");
       setAmountInvested(""); setAllocations([]);
+      setBankFee("30"); setTransactionFee("10"); setFeeAtBank("10");
+      setMasterBalance(null);
     }
   }, [open]);
+
+  // Fetch master wallet balance whenever the selected user changes
+  useEffect(() => {
+    if (!userId) { setMasterBalance(null); return; }
+    setLoadingBalance(true);
+    getMasterWalletByUser(userId)
+      .then((res) => {
+        if (res.success && res.data) {
+          setMasterBalance(Number(res.data.masterWallet?.balance ?? 0));
+        } else {
+          setMasterBalance(0);
+        }
+      })
+      .catch(() => setMasterBalance(0))
+      .finally(() => setLoadingBalance(false));
+  }, [userId]);
 
   // Populate allocations when portfolio selected
   useEffect(() => {
@@ -202,6 +230,14 @@ function CreateDialog({
     if (!customName.trim()) { toast.error("Portfolio name is required."); return; }
     const amount = parseFloat(amountInvested);
     if (!amount || amount <= 0) { toast.error("Enter a valid amount invested."); return; }
+    if (masterBalance !== null && amount > masterBalance) {
+      toast.error(`Amount exceeds available master wallet balance (${fmt$(masterBalance)}).`);
+      return;
+    }
+    if (masterBalance !== null && masterBalance <= 0) {
+      toast.error("This user has no funds in their master wallet. Please deposit first.");
+      return;
+    }
     if (allocations.length === 0) { toast.error("Portfolio has no assets."); return; }
 
     startTransition(async () => {
@@ -210,6 +246,9 @@ function CreateDialog({
         portfolioId,
         customName:      customName.trim(),
         amountInvested:  amount,
+        bankFee:         parseFloat(bankFee)        || 30,
+        transactionFee:  parseFloat(transactionFee) || 10,
+        feeAtBank:       parseFloat(feeAtBank)      || 10,
         assetAllocations: allocations.map((a) => ({
           assetId:              a.assetId,
           allocationPercentage: a.allocationPercentage,
@@ -333,20 +372,123 @@ function CreateDialog({
             </div>
             <div className="space-y-1.5">
               <Label className="text-slate-700 dark:text-slate-300 text-sm font-medium">
-                Amount Invested (USD) <span className="text-rose-500">*</span>
+                Amount to Allocate (USD) <span className="text-rose-500">*</span>
               </Label>
+
+              {/* Balance banner */}
+              {userId && (
+                loadingBalance ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Checking available balance…
+                  </div>
+                ) : masterBalance !== null && masterBalance <= 0 ? (
+                  <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+                    <Ban className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">No funds available</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                        Please deposit to this account first before allocating to a portfolio.
+                      </p>
+                    </div>
+                  </div>
+                ) : masterBalance !== null ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                    <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                      Available master wallet balance: <span className="font-bold">{fmt$(masterBalance)}</span>
+                    </p>
+                  </div>
+                ) : null
+              )}
+
               <Input
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="e.g., 5000.00"
+                max={masterBalance !== null && masterBalance > 0 ? masterBalance : undefined}
+                placeholder={
+                  masterBalance !== null && masterBalance > 0
+                    ? `Max ${fmt$(masterBalance)}`
+                    : "e.g., 5000.00"
+                }
                 value={amountInvested}
                 onChange={(e) => setAmountInvested(e.target.value)}
+                disabled={masterBalance !== null && masterBalance <= 0}
                 className={inputCls}
               />
+
+              {/* Over-balance warning */}
+              {masterBalance !== null && masterBalance > 0 && amountInvested && parseFloat(amountInvested) > masterBalance && (
+                <p className="text-xs text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Exceeds available balance of {fmt$(masterBalance)}
+                </p>
+              )}
+
               <p className="text-xs text-slate-400 dark:text-slate-500">
-                Used to calculate initial X slice positions (NAV)
+                Must not exceed the client's master wallet cash balance
               </p>
+            </div>
+          </div>
+
+          {/* Fee / Deduction rates */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-slate-700 dark:text-slate-300 text-sm font-medium">
+                Fee Rates (%)
+              </Label>
+              <span className="text-xs text-slate-400 dark:text-slate-500">— stored on this portfolio's wallet</span>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-slate-600 dark:text-slate-400 text-xs font-medium">
+                  Bank Fee %
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="30"
+                  value={bankFee}
+                  onChange={(e) => setBankFee(e.target.value)}
+                  className={inputCls}
+                />
+                <p className="text-xs text-slate-400 dark:text-slate-500">Default: 30%</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-600 dark:text-slate-400 text-xs font-medium">
+                  Transaction Fee %
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="10"
+                  value={transactionFee}
+                  onChange={(e) => setTransactionFee(e.target.value)}
+                  className={inputCls}
+                />
+                <p className="text-xs text-slate-400 dark:text-slate-500">Default: 10%</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-600 dark:text-slate-400 text-xs font-medium">
+                  Fee at Bank %
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  placeholder="10"
+                  value={feeAtBank}
+                  onChange={(e) => setFeeAtBank(e.target.value)}
+                  className={inputCls}
+                />
+                <p className="text-xs text-slate-400 dark:text-slate-500">Default: 10%</p>
+              </div>
             </div>
           </div>
 
@@ -446,7 +588,15 @@ function CreateDialog({
           <div className="flex gap-3 pt-2">
             <Button
               type="submit"
-              disabled={isPending || !userId || !portfolioId || allocations.length === 0}
+              disabled={
+                isPending ||
+                !userId ||
+                !portfolioId ||
+                allocations.length === 0 ||
+                loadingBalance ||
+                (masterBalance !== null && masterBalance <= 0) ||
+                (masterBalance !== null && amountInvested !== "" && parseFloat(amountInvested) > masterBalance)
+              }
               className="flex-1 bg-[#2B2F77] hover:bg-[#1a1f5e] dark:bg-[#3B82F6] dark:hover:bg-[#2563EB] text-white font-semibold h-9"
             >
               {isPending ? "Assigning…" : "Assign Portfolio"}

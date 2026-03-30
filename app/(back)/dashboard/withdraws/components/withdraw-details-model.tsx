@@ -836,25 +836,26 @@ export function WithdrawalDetailsModal({
     if (
       !confirm(
         `Approve withdrawal of $${withdrawal.amount.toLocaleString()} for ${
-          withdrawal.user?.name || "this user"
+          [withdrawal.user?.firstName, withdrawal.user?.lastName].filter(Boolean).join(" ") || "this user"
         }?`
       )
     ) {
       return;
     }
 
+    const isRedemption = withdrawal.withdrawalType === "REDEMPTION";
     const txId = approvalTxId.trim();
-    if (!txId) {
-      toast.error("Please provide a transaction ID before approving.");
+    if (!isRedemption && !txId) {
+      toast.error("Please provide a transaction ID before approving a hard withdrawal.");
       return;
     }
 
     setIsApproving(true);
     try {
-      // NOTE: new signature => (id, transactionId, approver?, opts?)
       const result = await approveWithdrawal(withdrawal.id, txId, {
-        approvedById: adminId,
+        approvedById:   adminId,
         approvedByName: adminName,
+        withdrawalType: withdrawal.withdrawalType,
       });
 
       if (result.success) {
@@ -938,10 +939,24 @@ export function WithdrawalDetailsModal({
 
         <div className="space-y-6 mt-4">
           {/* Status */}
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className={`text-sm px-3 py-1 ${getStatusColor()}`}>
-              {withdrawal.transactionStatus}
-            </Badge>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex gap-2">
+              <Badge variant="outline" className={`text-sm px-3 py-1 ${getStatusColor()}`}>
+                {withdrawal.transactionStatus}
+              </Badge>
+              {withdrawal.withdrawalType && (
+                <Badge
+                  variant="outline"
+                  className={
+                    withdrawal.withdrawalType === "HARD_WITHDRAWAL"
+                      ? "text-sm px-3 py-1 bg-orange-500/20 text-orange-400 border-orange-500/30"
+                      : "text-sm px-3 py-1 bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
+                  }
+                >
+                  {withdrawal.withdrawalType === "HARD_WITHDRAWAL" ? "Hard Withdrawal" : "Redemption"}
+                </Badge>
+              )}
+            </div>
             <p className="text-slate-400 text-sm">
               ID: <code className="text-slate-300 font-mono">{withdrawal.id.slice(0, 8)}</code>
             </p>
@@ -962,7 +977,9 @@ export function WithdrawalDetailsModal({
             <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-2">
               <div className="flex justify-between">
                 <span className="text-slate-400">Name:</span>
-                <span className="text-white">{withdrawal.user?.name || "N/A"}</span>
+                <span className="text-white">
+                  {[withdrawal.user?.firstName, withdrawal.user?.lastName].filter(Boolean).join(" ") || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Email:</span>
@@ -1130,23 +1147,33 @@ export function WithdrawalDetailsModal({
             </div>
           </div>
 
-          {/* Transaction ID input (required at approval) */}
+          {/* Transaction ID input — required for HARD_WITHDRAWAL, optional for REDEMPTION */}
           {withdrawal.transactionStatus === "PENDING" && (
             <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
               <label htmlFor="txId" className="text-slate-300 text-sm">
-                Transaction ID <span className="text-red-500">*</span>
+                Transaction ID
+                {withdrawal.withdrawalType !== "REDEMPTION" && <span className="text-red-500"> *</span>}
+                {withdrawal.withdrawalType === "REDEMPTION" && (
+                  <span className="text-slate-500 text-xs ml-2">(optional — internal transfer)</span>
+                )}
               </label>
               <Input
                 id="txId"
-                placeholder="Enter transaction/reference ID for this payout"
+                placeholder={
+                  withdrawal.withdrawalType === "REDEMPTION"
+                    ? "Optional reference for this redemption"
+                    : "Enter transaction/reference ID for this payout"
+                }
                 value={approvalTxId}
                 onChange={(e) => setApprovalTxId(e.target.value)}
                 className="mt-2 bg-slate-800 border-slate-700 text-white"
                 disabled={isApproving || isRejecting}
-                required
+                required={withdrawal.withdrawalType !== "REDEMPTION"}
               />
               <p className="text-slate-500 text-xs mt-1">
-                This value is required and will be saved on approval.
+                {withdrawal.withdrawalType === "REDEMPTION"
+                  ? "Redemption transfers funds from portfolio wallet back to master wallet."
+                  : "This value is required and will be saved on approval."}
               </p>
             </div>
           )}

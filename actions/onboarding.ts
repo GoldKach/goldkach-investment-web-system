@@ -3,13 +3,14 @@
 
 import axios from "axios";
 import { cookies } from "next/headers";
+import { refreshAccessToken } from "@/actions/auth";
 
 const BASE_API_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_API_URL,
-  timeout: 12000,
+  timeout: 60000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -21,6 +22,21 @@ async function authHeaderFromCookies() {
   const jar = await cookies();
   const token = jar.get("accessToken")?.value;
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function withAuthRetry<T>(fn: (headers: Record<string, string>) => Promise<T>): Promise<T> {
+  let headers = await authHeaderFromCookies();
+  try {
+    return await fn(headers);
+  } catch (e: any) {
+    if (e?.digest?.startsWith("NEXT_REDIRECT")) throw e;
+    if (axios.isAxiosError(e) && (e.response?.status === 401 || e.response?.status === 403)) {
+      await refreshAccessToken(); // may redirect to /login — that's intentional
+      headers = await authHeaderFromCookies();
+      return await fn(headers);
+    }
+    throw e;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -47,10 +63,12 @@ export async function validateTin(tin: string, userId?: string) {
 export async function submitIndividualOnboarding(form: any, userId: string) {
   if (!userId) return { success: false, error: "Missing userId." };
   try {
-    const headers = await authHeaderFromCookies();
-    const res = await api.post("/onboarding/individual", { ...form, userId }, { headers });
+    const res = await withAuthRetry((headers) =>
+      api.post("/onboarding/individual", { ...form, userId }, { headers })
+    );
     return { success: true, data: res.data?.data };
   } catch (e: any) {
+    if (e?.digest?.startsWith("NEXT_REDIRECT")) throw e;
     return { success: false, error: msg(e, "Failed to submit individual onboarding.") };
   }
 }
@@ -78,10 +96,12 @@ export async function fetchMyIndividualOnboarding(userId: string) {
 export async function submitCompanyOnboarding(form: any, userId: string) {
   if (!userId) return { success: false, error: "Missing userId." };
   try {
-    const headers = await authHeaderFromCookies();
-    const res = await api.post("/onboarding/company", { ...form, userId }, { headers });
+    const res = await withAuthRetry((headers) =>
+      api.post("/onboarding/company", { ...form, userId }, { headers })
+    );
     return { success: true, data: res.data?.data };
   } catch (e: any) {
+    if (e?.digest?.startsWith("NEXT_REDIRECT")) throw e;
     return { success: false, error: msg(e, "Failed to submit company onboarding.") };
   }
 }
@@ -137,6 +157,34 @@ export async function updateCompanyUBOs(ubos: any[], userId: string) {
     return { success: true, data: res.data?.data };
   } catch (e: any) {
     return { success: false, error: msg(e, "Failed to update UBOs.") };
+  }
+}
+
+/** PATCH /onboarding/individual/:id/approve */
+export async function approveIndividualOnboarding(id: string) {
+  if (!id) return { success: false, error: "Missing onboarding ID." };
+  try {
+    const res = await withAuthRetry((headers) =>
+      api.patch(`/onboarding/individual/${id}/approve`, {}, { headers })
+    );
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    if (e?.digest?.startsWith("NEXT_REDIRECT")) throw e;
+    return { success: false, error: msg(e, "Failed to approve onboarding.") };
+  }
+}
+
+/** PATCH /onboarding/company/:id/approve */
+export async function approveCompanyOnboarding(id: string) {
+  if (!id) return { success: false, error: "Missing onboarding ID." };
+  try {
+    const res = await withAuthRetry((headers) =>
+      api.patch(`/onboarding/company/${id}/approve`, {}, { headers })
+    );
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    if (e?.digest?.startsWith("NEXT_REDIRECT")) throw e;
+    return { success: false, error: msg(e, "Failed to approve onboarding.") };
   }
 }
 

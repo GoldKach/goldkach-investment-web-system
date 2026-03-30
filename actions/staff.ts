@@ -7,7 +7,7 @@ const BASE_API_URL = process.env.API_URL || "http://localhost:8000/api/v1";
 
 const api = axios.create({
   baseURL: BASE_API_URL,
-  timeout: 12000,
+  timeout: 60000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -241,6 +241,8 @@ export async function updateStaffAction(
     const { data } = await api.put(`/staff/${id}`, input);
     revalidatePath("/dashboard/staff");
     revalidatePath(`/dashboard/staff/${id}`);
+    revalidatePath("/agent");
+    revalidatePath("/agent/settings");
     return { success: true, data: data.data, message: data.message };
   } catch (e: any) {
     return {

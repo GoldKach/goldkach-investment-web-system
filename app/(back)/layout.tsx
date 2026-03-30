@@ -31,6 +31,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       user.roles.some((r: any) => r?.roleName === "SUPER_ADMIN" || r === "SUPER_ADMIN");
 
 if (!hasSuperAdminRole) {
+  // Redirect agents to their own portal instead of showing unauthorized
+  if (user?.role === "AGENT") redirect("/agent");
   redirect("/unauthorized?reason=role");
 }
 

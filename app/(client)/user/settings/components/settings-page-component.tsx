@@ -1,11 +1,10 @@
-// app/user/settings/components/settings-page-content.tsx
 "use client";
 
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { UserSettings } from "@/actions/user-settings";
-import { User, Lock, Settings } from "lucide-react";
+import { User, Lock, Settings, Shield } from "lucide-react";
 import { ProfileTab } from "./profile-tab";
 import { SecurityTab } from "./security-tab";
 import { AccountTab } from "./account-tab";
@@ -15,51 +14,71 @@ interface SettingsPageContentProps {
 }
 
 export function SettingsPageContent({ user }: SettingsPageContentProps) {
+  const initials =
+    `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "U";
+
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
+
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-gradient-to-br dark:from-slate-950 dark:to-slate-900 p-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="space-y-8">
-          {/* Header */}
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">
-              Account Settings
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400">
-              Manage your account settings and preferences
-            </p>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Avatar className="h-14 w-14 border-2 border-border">
+          <AvatarImage src={user.imageUrl || ""} alt={fullName} />
+          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">{fullName}</h1>
+            <Badge
+              variant="outline"
+              className={
+                user.status === "ACTIVE"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs"
+              }
+            >
+              {user.status}
+            </Badge>
           </div>
-
-          {/* Tabs */}
-          <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Profile
-              </TabsTrigger>
-              <TabsTrigger value="security" className="flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                Security
-              </TabsTrigger>
-              <TabsTrigger value="account" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Account
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="profile">
-              <ProfileTab user={user} />
-            </TabsContent>
-
-            <TabsContent value="security">
-              <SecurityTab user={user} />
-            </TabsContent>
-
-            <TabsContent value="account">
-              <AccountTab user={user} />
-            </TabsContent>
-          </Tabs>
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
+            {user.email}
+          </p>
         </div>
       </div>
-    </main>
+
+      {/* Tabs */}
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="bg-muted/50 border border-border">
+          <TabsTrigger value="profile" className="flex items-center gap-2 data-[state=active]:bg-card">
+            <User className="h-4 w-4" />
+            Profile
+          </TabsTrigger>
+          <TabsTrigger value="security" className="flex items-center gap-2 data-[state=active]:bg-card">
+            <Lock className="h-4 w-4" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="account" className="flex items-center gap-2 data-[state=active]:bg-card">
+            <Settings className="h-4 w-4" />
+            Account
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="mt-6">
+          <TabsContent value="profile">
+            <ProfileTab user={user} />
+          </TabsContent>
+          <TabsContent value="security">
+            <SecurityTab user={user} />
+          </TabsContent>
+          <TabsContent value="account">
+            <AccountTab user={user} />
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
   );
 }

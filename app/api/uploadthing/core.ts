@@ -73,6 +73,11 @@ export const ourFileRouter = {
     console.log("file url", file.url);
     return { uploadedBy: "ADMIN" };
   }),
+  depositProof: f({ image: { maxFileSize: "8MB" }, pdf: { maxFileSize: "8MB" } })
+  .onUploadComplete(async ({ metadata, file }) => {
+    console.log("deposit proof url", file.url);
+    return { uploadedBy: "ADMIN" };
+  }),
   mailAttachments: f({
     image: { maxFileSize: "1MB", maxFileCount: 4 },
     pdf: { maxFileSize: "1MB", maxFileCount: 4 },
