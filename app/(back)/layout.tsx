@@ -8,7 +8,6 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getAllUsers, getSession } from "@/actions/auth";
 import UserDashboardShell from "@/components/back/user-dashboard-shell";
-import AdminDashboard from "@/components/back/super-admin-dashboard";
 import DashboardShell from "@/components/back/dashboard-shell";
 
 export const dynamic = "force-dynamic";
@@ -31,8 +30,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       user.roles.some((r: any) => r?.roleName === "SUPER_ADMIN" || r === "SUPER_ADMIN");
 
 if (!hasSuperAdminRole) {
-  // Redirect agents to their own portal instead of showing unauthorized
   if (user?.role === "AGENT") redirect("/agent");
+  if (user?.role === "CLIENT_RELATIONS") redirect("/cr");
   redirect("/unauthorized?reason=role");
 }
 

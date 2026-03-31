@@ -820,6 +820,7 @@ import { Download, Eye, TrendingUp, RefreshCw, Loader2 } from "lucide-react"
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { listPerformanceReports, ListPerformanceReportsParams, PortfolioPerformanceReport } from "@/actions/portfolioPerformanceReports"
+import { UserPortfolioDTO } from "@/actions/user-portfolios"
 
 interface ReportsClientProps {
   user: {
@@ -843,16 +844,18 @@ interface ReportsClientProps {
   } | null
   initialReports: PortfolioPerformanceReport[]
   initialPortfolioId: string | null
+  initialPortfolios?: UserPortfolioDTO[]
   initialError?: string | null
 }
 
 type TabType = "portfolio"
 
-export default function ReportsClient({ 
-  user, 
-  initialReports, 
+export default function ReportsClient({
+  user,
+  initialReports,
   initialPortfolioId,
-  initialError 
+  initialPortfolios = [],
+  initialError
 }: ReportsClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>("portfolio")
   const [portfolioReports, setPortfolioReports] = useState<PortfolioPerformanceReport[]>(initialReports)
@@ -865,7 +868,7 @@ export default function ReportsClient({
     if (userPortfolioId && activeTab === "portfolio") {
       fetchPortfolioReports()
     }
-  }, [selectedPeriod, activeTab])
+  }, [selectedPeriod, userPortfolioId, activeTab])
 
   const fetchPortfolioReports = async () => {
     if (!userPortfolioId) return
@@ -1462,8 +1465,21 @@ Overall, the portfolio demonstrated the benefits of combining high-growth sector
           {activeTab === "portfolio" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
                   <h2 className="text-slate-900 dark:text-white font-semibold text-lg">Portfolio Performance Reports</h2>
+                  {initialPortfolios.length > 1 && (
+                    <select
+                      value={userPortfolioId ?? ""}
+                      onChange={(e) => setUserPortfolioId(e.target.value)}
+                      className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {initialPortfolios.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.customName || p.portfolio?.name || p.id}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <select
                     value={selectedPeriod}
                     onChange={(e) => setSelectedPeriod(e.target.value as "daily" | "weekly" | "monthly")}

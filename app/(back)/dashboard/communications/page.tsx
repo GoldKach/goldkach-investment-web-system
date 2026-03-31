@@ -17,23 +17,25 @@ export default async function CommunicationsPage() {
   const allClients = clientsRes.status === "fulfilled" ? (clientsRes.value?.data ?? []) : [];
   const allStaff = staffRes.status === "fulfilled" ? (staffRes.value?.data ?? []) : [];
 
-  const clients = allClients.map((u: any) => ({
-    id: u.id,
-    name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email,
-    email: u.email,
-    phone: u.phone || "",
-    status: u.status || "USER",
-  }));
-
-  const agents = allStaff
-    .filter((s: any) => s.role === "AGENT")
-    .map((s: any) => ({
-      id: s.id,
-      name: [s.firstName, s.lastName].filter(Boolean).join(" ") || s.email,
-      email: s.email,
-      phone: s.phone || "",
-      role: s.role,
+  // Only USER role accounts in the clients tab
+  const clients = allClients
+    .filter((u: any) => !u.role || u.role === "USER")
+    .map((u: any) => ({
+      id: u.id,
+      name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email,
+      email: u.email,
+      phone: u.phone || "",
+      status: u.status || "USER",
     }));
+
+  // All staff members in the agents/staff tab
+  const agents = allStaff.map((s: any) => ({
+    id: s.id,
+    name: [s.firstName, s.lastName].filter(Boolean).join(" ") || s.email,
+    email: s.email,
+    phone: s.phone || "",
+    role: s.role,
+  }));
 
   return (
     <div className="p-6 space-y-6">

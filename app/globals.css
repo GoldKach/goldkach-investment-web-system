@@ -47,38 +47,38 @@
 }
 
 .dark {
-  --background: oklch(0.15 0.02 260);
-  --foreground: oklch(0.98 0.005 240);
-  --card: oklch(0.2 0.025 265);
-  --card-foreground: oklch(0.98 0.005 240);
-  --popover: oklch(0.2 0.025 265);
-  --popover-foreground: oklch(0.98 0.005 240);
-  --primary: oklch(0.55 0.18 245);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.28 0.06 265);
-  --secondary-foreground: oklch(0.98 0.005 240);
-  --muted: oklch(0.25 0.03 265);
-  --muted-foreground: oklch(0.65 0.01 240);
-  --accent: oklch(0.55 0.18 245);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.5 0.2 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.28 0.04 265);
-  --input: oklch(0.28 0.04 265);
-  --ring: oklch(0.55 0.18 245);
-  --chart-1: oklch(0.55 0.18 245);
-  --chart-2: oklch(0.38 0.08 265);
-  --chart-3: oklch(0.65 0.15 245);
-  --chart-4: oklch(0.45 0.12 265);
-  --chart-5: oklch(0.7 0.1 240);
-  --sidebar: oklch(0.2 0.025 265);
-  --sidebar-foreground: oklch(0.98 0.005 240);
-  --sidebar-primary: oklch(0.55 0.18 245);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.25 0.03 265);
-  --sidebar-accent-foreground: oklch(0.98 0.005 240);
-  --sidebar-border: oklch(0.28 0.04 265);
-  --sidebar-ring: oklch(0.55 0.18 245);
+  --background: #080c1f;
+  --foreground: #e8eaf6;
+  --card: #0d1230;
+  --card-foreground: #e8eaf6;
+  --popover: #0d1230;
+  --popover-foreground: #e8eaf6;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1a2050;
+  --secondary-foreground: #e8eaf6;
+  --muted: #111840;
+  --muted-foreground: #8892b0;
+  --accent: #3b82f6;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #1e2d5a;
+  --input: #1e2d5a;
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #10b981;
+  --chart-3: #60a5fa;
+  --chart-4: #818cf8;
+  --chart-5: #93c5fd;
+  --sidebar: #0a0d24;
+  --sidebar-foreground: #e8eaf6;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #111840;
+  --sidebar-accent-foreground: #e8eaf6;
+  --sidebar-border: #1e2d5a;
+  --sidebar-ring: #3b82f6;
 }
 
 /* Base tweaks to use CSS variables with Tailwind tokens */

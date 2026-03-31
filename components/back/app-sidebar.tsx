@@ -90,25 +90,20 @@ const sidebarLinks = [
     items: [
       { title: "Portfolios",           url: "/dashboard/portfolios" },
       { title: "Portfolio Allocation", url: "/dashboard/user-portfolios" },
-      { title: "Portfolio Summary",    url: "/dashboard/portfolio-summary" },
     ],
   },
   {
     title: "Wallet & Transactions",
     icon: Wallet,
     items: [
-      { title: "Deposits",         url: "/dashboard/deposits" },
-      { title: "Withdrawals",      url: "/dashboard/withdrawals" },
-      { title: "Portfolio Wallets", url: "/dashboard/portfolio-wallets" },
-      { title: "Master Wallets",   url: "/dashboard/master-wallets" },
+      { title: "Deposits",    url: "/dashboard/deposits" },
+      { title: "Withdrawals", url: "/dashboard/withdrawals" },
     ],
   },
   {
     title: "Investment Tracking",
     icon: LineChart,
     items: [
-      { title: "Sub-Portfolios",    url: "/dashboard/sub-portfolios" },
-      { title: "Top-up Events",     url: "/dashboard/topup-events" },
       { title: "Performance Reports", url: "/dashboard/performance-reports" },
     ],
   },
@@ -126,20 +121,17 @@ const sidebarLinks = [
     title: "Activity History",
     icon: History,
     items: [
-      { title: "Recent Activity", url: "/activity/recent" },
-      { title: "Audit Trail",     url: "/activity/audit" },
-      { title: "System Logs",     url: "/activity/system" },
+      { title: "Recent Activity", url: "/dashboard/activity/recent" },
+      { title: "Audit Trail",     url: "/dashboard/activity/audit" },
+      { title: "System Logs",     url: "/dashboard/activity/system" },
     ],
   },
   {
     title: "Settings",
     icon: Settings,
     items: [
-      { title: "Account Settings",     url: "/settings/account" },
-      { title: "Security",             url: "/settings/security" },
-      { title: "Notifications",        url: "/settings/notifications" },
-      { title: "System Configuration", url: "/settings/system" },
-      { title: "Data Migration",       url: "/dashboard/migrations" },
+      { title: "My Account",       url: "/dashboard/settings" },
+      { title: "Data Migration",   url: "/dashboard/migrations" },
     ],
   },
   {

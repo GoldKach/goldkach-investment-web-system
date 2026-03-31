@@ -191,7 +191,7 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
       <Tabs defaultValue="clients">
         <TabsList>
           <TabsTrigger value="clients">Clients ({clients.length})</TabsTrigger>
-          <TabsTrigger value="agents">Agents ({agents.length})</TabsTrigger>
+          <TabsTrigger value="agents">Staff ({agents.length})</TabsTrigger>
         </TabsList>
 
         {/* ── Clients ── */}
@@ -240,14 +240,14 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
         <TabsContent value="agents" className="mt-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <p className="text-sm text-slate-500">
-              {selectedAgents.size > 0 ? `${selectedAgents.size} selected` : "Select agents to message"}
+              {selectedAgents.size > 0 ? `${selectedAgents.size} selected` : "Select staff to message"}
             </p>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={() => exportToExcel(agents, "agents")}
+                onClick={() => exportToExcel(agents, "staff")}
               >
                 <Download className="h-4 w-4" /> Export Excel
               </Button>
@@ -285,7 +285,7 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
-              Send Email to {emailDialog.target === "clients" ? `${selectedClients.size} client(s)` : `${selectedAgents.size} agent(s)`}
+              Send Email to {emailDialog.target === "clients" ? `${selectedClients.size} client(s)` : `${selectedAgents.size} staff member(s)`}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">

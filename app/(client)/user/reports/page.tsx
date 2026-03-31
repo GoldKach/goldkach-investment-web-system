@@ -1,7 +1,7 @@
 // app/reports/page.tsx (Server Component)
 import { fetchMe, getAllUsers, getSession } from "@/actions/auth"
 import { listPerformanceReports, PortfolioPerformanceReport } from "@/actions/portfolioPerformanceReports";
-import { listUserPortfolios } from "@/actions/user-portfolios"
+import { listUserPortfolios, UserPortfolioDTO } from "@/actions/user-portfolios"
 import ReportsClient from "@/components/front-end/reports-client"
 
 
@@ -15,20 +15,20 @@ export default async function ReportsPage() {
   let initialReports: PortfolioPerformanceReport[] = [];
   let initialError: string | null = null;
   let portfolioId: string | null = null;
+  let initialPortfolios: UserPortfolioDTO[] = [];
 
   try {
-    // Fetch user's portfolios - the backend should include relations automatically
-    const portfoliosResult = await listUserPortfolios({
-      userId
-    });
+    // Fetch all user portfolios (include portfolio for name)
+    const portfoliosResult = await listUserPortfolios({ userId, include: { portfolio: true } });
 
     if (!portfoliosResult.success || !portfoliosResult.data || portfoliosResult.data.length === 0) {
       initialError = "No portfolios found. Please create a portfolio first.";
     } else {
+      initialPortfolios = portfoliosResult.data;
       const portfolio = portfoliosResult.data[0];
       portfolioId = portfolio.id;
 
-      // Fetch portfolio performance reports
+      // Fetch portfolio performance reports for the first portfolio
       const reportsResult = await listPerformanceReports({
         userPortfolioId: portfolio.id,
         period: "daily"
@@ -57,10 +57,11 @@ export default async function ReportsPage() {
   console.log("Active User with Wallet:", activeUser);
 
   return (
-    <ReportsClient 
-      user={activeUser} 
+    <ReportsClient
+      user={activeUser}
       initialReports={initialReports}
       initialPortfolioId={portfolioId}
+      initialPortfolios={initialPortfolios}
       initialError={initialError}
     />
   )
