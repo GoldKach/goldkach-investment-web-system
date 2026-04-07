@@ -69,6 +69,11 @@ export default function UserSidebar({ user }: { user: any }) {
       icon: Wallet,
     },
     {
+      title: "My Wallets",
+      url: "/user/wallets",
+      icon: CreditCard,
+    },
+    {
       title: "Deposits",
       url: "/user/deposits",
       icon: TrendingUp,

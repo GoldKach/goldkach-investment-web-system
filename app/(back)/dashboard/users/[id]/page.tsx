@@ -23,7 +23,22 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     getPortfolioSummary(id),
   ])
 
-  const user = userRes.status === "fulfilled" ? userRes.value?.data : null
+  const rawUser = userRes.status === "fulfilled" ? userRes.value?.data : null
+
+  // Normalize: UserDetailPreview reads user.entityOnboarding
+  // Backend returns companyOnboarding and individualOnboarding as separate fields
+  const user = rawUser
+    ? {
+        ...rawUser,
+        entityOnboarding:
+          rawUser.entityOnboarding ??
+          (rawUser.companyOnboarding
+            ? { ...rawUser.companyOnboarding, entityType: "company" }
+            : rawUser.individualOnboarding
+            ? { ...rawUser.individualOnboarding, entityType: "individual" }
+            : null),
+      }
+    : null
   const portfolioSummary = summaryRes.status === "fulfilled" && summaryRes.value?.success
     ? summaryRes.value.data
     : null

@@ -101,8 +101,15 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
   }, [items, searchQuery]);
 
   const stats = useMemo(() => {
-    const individuals = items.filter((u) => !!u.individualOnboarding).length;
-    const companies = items.filter((u) => !!u.companyOnboarding).length;
+    const companies = items.filter((u) =>
+      !!u.companyOnboarding ||
+      u.individualOnboarding?.entityType === "company" ||
+      u.individualOnboarding?.entityType === "Company" ||
+      /\b(ltd|limited|inc|corp|corporation|company|co\.|llc|plc|group|enterprises|holdings)\b/i.test(
+        u.companyOnboarding?.companyName || u.individualOnboarding?.fullName || u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || ""
+      )
+    ).length;
+    const individuals = items.length - companies;
     return { total: items.length, individuals, companies };
   }, [items]);
 
@@ -238,7 +245,10 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
             <TableBody>
               {filtered.map((u) => {
                 const name = displayName(u);
-                const isCompany = !!u.companyOnboarding;
+                const isCompany = !!u.companyOnboarding ||
+                  u.individualOnboarding?.entityType === "company" ||
+                  u.individualOnboarding?.entityType === "Company" ||
+                  /\b(ltd|limited|inc|corp|corporation|company|co\.|llc|plc|group|enterprises|holdings|uganda ltd)\b/i.test(name);
                 const type: EntityType = isCompany ? "company" : "individual";
                 const risk = u.individualOnboarding?.riskTolerance;
                 const submitted = u.individualOnboarding?.createdAt ?? u.companyOnboarding?.createdAt ?? u.createdAt;

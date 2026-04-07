@@ -821,6 +821,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { listPerformanceReports, ListPerformanceReportsParams, PortfolioPerformanceReport } from "@/actions/portfolioPerformanceReports"
 import { UserPortfolioDTO } from "@/actions/user-portfolios"
+import { PortfolioSummary } from "@/actions/portfolio-summary"
 
 interface ReportsClientProps {
   user: {
@@ -846,6 +847,7 @@ interface ReportsClientProps {
   initialPortfolioId: string | null
   initialPortfolios?: UserPortfolioDTO[]
   initialError?: string | null
+  portfolioSummary?: PortfolioSummary | null
 }
 
 type TabType = "portfolio"
@@ -855,7 +857,8 @@ export default function ReportsClient({
   initialReports,
   initialPortfolioId,
   initialPortfolios = [],
-  initialError
+  initialError,
+  portfolioSummary,
 }: ReportsClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>("portfolio")
   const [portfolioReports, setPortfolioReports] = useState<PortfolioPerformanceReport[]>(initialReports)
@@ -1417,17 +1420,68 @@ Overall, the portfolio demonstrated the benefits of combining high-growth sector
     return doc
   }
 
+  // Enrich report with asset holdings from portfolio summary
+  const enrichReportWithAssets = (report: PortfolioPerformanceReport): PortfolioPerformanceReport => {
+    if (!portfolioSummary) return report;
+    const portfolioItem = portfolioSummary.portfolios.find(
+      (p) => p.id === report.userPortfolioId
+    );
+    if (!portfolioItem) return report;
+
+    // Build userAssets shape that generatePDF expects
+    const userAssets = portfolioItem.assets.map((a) => ({
+      id: a.id,
+      userPortfolioId: report.userPortfolioId,
+      assetId: a.assetId,
+      allocationPercentage: a.allocationPercentage,
+      costPerShare: a.costPerShare,
+      costPrice: a.costPrice,
+      stock: a.stock,
+      closeValue: a.closeValue,
+      lossGain: a.lossGain,
+      asset: a.asset ? {
+        id: a.asset.id,
+        symbol: a.asset.symbol,
+        description: a.asset.description,
+        sector: '',
+        assetClass: a.asset.assetClass,
+        defaultCostPerShare: a.costPerShare,
+        closePrice: a.asset.closePrice,
+      } : undefined,
+    }));
+
+    return {
+      ...report,
+      userPortfolio: {
+        ...(report.userPortfolio ?? {
+          id: report.userPortfolioId,
+          userId: user?.id ?? '',
+          portfolioId: portfolioItem.portfolio.id,
+          customName: portfolioItem.customName,
+          portfolioValue: portfolioItem.portfolioValue,
+          totalInvested: portfolioItem.totalInvested,
+          totalLossGain: portfolioItem.totalLossGain,
+          isActive: true,
+        }),
+        portfolio: portfolioItem.portfolio,
+        userAssets,
+      },
+    };
+  };
+
   const handleViewPDF = async (report: PortfolioPerformanceReport) => {
-    const doc = await generatePDF(report)
+    const enriched = enrichReportWithAssets(report);
+    const doc = await generatePDF(enriched)
     const pdfBlob = doc.output('blob')
     const pdfUrl = URL.createObjectURL(pdfBlob)
     window.open(pdfUrl, '_blank')
   }
 
   const handleDownloadPDF = async (report: PortfolioPerformanceReport) => {
-    const doc = await generatePDF(report)
-    const userName = report.userPortfolio?.user?.name?.replace(/\s+/g, '-') || 'client'
-    const reportDate = new Date(report.reportDate).toISOString().split('T')[0]
+    const enriched = enrichReportWithAssets(report);
+    const doc = await generatePDF(enriched)
+    const userName = enriched.userPortfolio?.user?.name?.replace(/\s+/g, '-') || 'client'
+    const reportDate = new Date(enriched.reportDate).toISOString().split('T')[0]
     const fileName = `portfolio-report-${userName}-${reportDate}.pdf`
     doc.save(fileName)
   }

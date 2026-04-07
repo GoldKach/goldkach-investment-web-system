@@ -2,6 +2,7 @@
 import { fetchMe, getAllUsers, getSession } from "@/actions/auth"
 import { listPerformanceReports, PortfolioPerformanceReport } from "@/actions/portfolioPerformanceReports";
 import { listUserPortfolios, UserPortfolioDTO } from "@/actions/user-portfolios"
+import { getPortfolioSummary } from "@/actions/portfolio-summary"
 import ReportsClient from "@/components/front-end/reports-client"
 
 
@@ -54,6 +55,10 @@ export default async function ReportsPage() {
   const activeUserArray = users?.filter((x: any) => x.id === userId) || [];
   const activeUser = activeUserArray.length > 0 ? activeUserArray[0] : user;
 
+  // Fetch portfolio summary to get asset holdings for PDF
+  const summaryRes = await getPortfolioSummary(userId);
+  const portfolioSummary = summaryRes.success ? summaryRes.data : null;
+
   console.log("Active User with Wallet:", activeUser);
 
   return (
@@ -63,6 +68,7 @@ export default async function ReportsPage() {
       initialPortfolioId={portfolioId}
       initialPortfolios={initialPortfolios}
       initialError={initialError}
+      portfolioSummary={portfolioSummary}
     />
   )
 }
