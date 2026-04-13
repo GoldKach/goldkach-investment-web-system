@@ -97,7 +97,7 @@ const inputCls =
   "bg-slate-50 dark:bg-[#161b4a]/60 border-slate-200 dark:border-[#2B2F77]/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus-visible:ring-[#3B82F6]/30 focus-visible:border-[#3B82F6]";
 
 const selectContentCls =
-  "bg-white dark:bg-[#0f1135] border-slate-200 dark:border-[#2B2F77]/50";
+  "bg-white dark:bg-[#0f1135] border-slate-200 dark:border-[#2B2F77]/50 max-h-64 overflow-y-auto";
 
 const selectItemCls =
   "text-slate-900 dark:text-white focus:bg-[#3B82F6]/10 focus:text-[#3B82F6]";

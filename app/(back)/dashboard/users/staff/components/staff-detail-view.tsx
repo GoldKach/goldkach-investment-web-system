@@ -49,10 +49,11 @@ function initials(first: string, last: string) {
 
 function fmtCurrency(val?: number) {
   if (val === undefined || val === null) return "—";
-  return new Intl.NumberFormat("en-UG", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "UGX",
-    maximumFractionDigits: 0,
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(val);
 }
 

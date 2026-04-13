@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { submitOnboarding } from "@/actions/onboarding";
+import { submitIndividualOnboarding, submitCompanyOnboarding } from "@/actions/onboarding";
 import { toast } from "sonner";
 
 type Props = {
@@ -105,7 +105,9 @@ export default function OnboardingForm({ user }: Props) {
         ...form,
         entityType,
       };
-      const res = await submitOnboarding(payload,user?.id || "");
+      const res = entityType === "company"
+        ? await submitCompanyOnboarding(payload, user?.id || "")
+        : await submitIndividualOnboarding(payload, user?.id || "");
       if (!res.success) {
         setError(res.error || "Failed to submit onboarding.");
         return;

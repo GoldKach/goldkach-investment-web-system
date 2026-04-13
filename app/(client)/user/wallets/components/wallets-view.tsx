@@ -1,22 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import {
   Wallet, ArrowDownCircle, RefreshCw, TrendingUp, TrendingDown,
   CreditCard, Building2, ChevronDown, ChevronUp, Loader2, Info,
+  Receipt,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { createHardWithdrawal, createRedemption } from "@/actions/withdraws";
-import { createAllocation } from "@/actions/deposits";
+import { createAllocation, listDeposits, type Deposit } from "@/actions/deposits";
 import type { MasterWalletDetail } from "@/actions/master-wallets";
 import type { PortfolioSummary } from "@/actions/portfolio-summary";
 
@@ -45,6 +47,18 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
   const [description, setDescription] = useState("");
   const [expandedWallet, setExpandedWallet] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // First deposit fee breakdown
+  const [firstDeposit, setFirstDeposit] = useState<Deposit | null>(null);
+
+  useEffect(() => {
+    listDeposits({ userId, pageSize: 50 }).then((res) => {
+      const first = (res.data ?? [])
+        .filter((d) => d.depositTarget === "MASTER" && d.isFirstDeposit)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0] ?? null;
+      setFirstDeposit(first);
+    }).catch(() => {});
+  }, [userId]);
 
   const resetForm = () => {
     setAmount(""); setBankName(""); setBankAccountName("");
@@ -172,6 +186,30 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
               </div>
             ))}
           </div>
+
+          {/* First deposit fee breakdown */}
+          {firstDeposit && (firstDeposit.bankCost ?? 0) + (firstDeposit.transactionCost ?? 0) + (firstDeposit.cashAtBank ?? 0) > 0 && (
+            <div className="rounded-lg border border-amber-400/30 bg-amber-50/50 dark:bg-amber-500/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Receipt className="h-3.5 w-3.5 text-amber-500" />
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400">One-Time Fees (First Deposit)</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Bank Cost</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">${fmt(firstDeposit.bankCost ?? 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Transaction Cost</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">${fmt(firstDeposit.transactionCost ?? 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cash at Bank</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">${fmt(firstDeposit.cashAtBank ?? 0)}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-2">
             <Button

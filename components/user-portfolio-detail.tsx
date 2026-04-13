@@ -1381,10 +1381,11 @@ import Link from "next/link"
 /*  Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const fmt = new Intl.NumberFormat("en-UG", {
+const fmt = new Intl.NumberFormat("en-US", {
   style: "currency",
-  currency: "UGX",
-  maximumFractionDigits: 0,
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 })
 
 const fmtDate = (d: string | null | undefined) =>
@@ -1961,7 +1962,7 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
 /*  Redemption dialog                                                           */
 /* -------------------------------------------------------------------------- */
 
-const fmtUGX = new Intl.NumberFormat("en-UG", { style: "currency", currency: "UGX", maximumFractionDigits: 0 })
+const fmtUGX = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 function RedeemDialog({
   open, onOpenChange, totalCloseValue, amount, setAmount, isPending, onConfirm,
@@ -2054,7 +2055,7 @@ function RedeemDialog({
 /* -------------------------------------------------------------------------- */
 
 function SubSnapshotCard({ s, kind }: { s: any; kind: "redemption" | "topup" }) {
-  const fmt = new Intl.NumberFormat("en-UG", { style: "currency", currency: "UGX", maximumFractionDigits: 0 })
+  const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const pos = s.totalLossGain >= 0
   const isRedemption = kind === "redemption"
   const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })

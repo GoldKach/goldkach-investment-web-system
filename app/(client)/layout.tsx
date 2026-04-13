@@ -11,28 +11,23 @@ export const dynamic = "force-dynamic";
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   // 1) Must be logged in
   const session = await getSession();
-    if (!session) redirect("/login?returnTo=/dashboard");
+  if (!session) redirect("/login?returnTo=/user");
 
-    const r = await getAllUsers();
-    const users = r.data;
-    const user = users?.find((u:any) => u.id === session?.user?.id);  
+  const r = await getAllUsers();
+  const users = r.data;
+  const user = users?.find((u: any) => u.id === session?.user?.id) ?? session.user;
 
-  // 2) Get the freshest user (or fall back to session)
-  // const me = await fetchMe(); // your server action that calls /me
+  // 3) Authorize by role — fall back to session role if user lookup fails
+  const role = user?.role ?? (session.user as any)?.role;
 
+  if (role === "AGENT") redirect("/agent");
+  if (role === "CLIENT_RELATIONS") redirect("/cr");
+  if (role === "ACCOUNT_MANAGER") redirect("/accountant");
+  if (role === "SUPER_ADMIN" || role === "ADMIN" || role === "MANAGER") redirect("/dashboard");
 
-  // 3) Authorize by role
-  // If your app sometimes uses array roles, this handles both string and array.
-  const hasUserRole =
-    (typeof user?.role === "string" && user.role === "USER") ||
-    (Array.isArray(user?.roles) && user.roles.some((r: any) => r?.roleName === "USER" || r === "USER"));
-
-  if (!hasUserRole) {
-    if (user?.role === "AGENT") redirect("/agent");
-    if (user?.role === "CLIENT_RELATIONS") redirect("/cr");
-    if (user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") redirect("/dashboard");
-    redirect("/unauthorized?reason=role");
-  }
+  // Only USER role (or unknown) continues here
+  const hasUserRole = !role || role === "USER";
+  if (!hasUserRole) redirect("/unauthorized?reason=role");
 
   // If the user hasn't completed onboarding, send them there first
   const hasOnboarding = !!(user?.individualOnboarding || user?.companyOnboarding);

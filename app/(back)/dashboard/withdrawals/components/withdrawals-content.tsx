@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
@@ -22,21 +22,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Search, RefreshCw, Eye, CheckCircle, XCircle, Clock,
-  Banknote, ArrowDownToLine, Building2, CreditCard, User,
+  Banknote, ArrowDownToLine, Building2, User,
   CalendarDays, Hash, FileText, TrendingDown, Wallet,
-  Paperclip, X as XIcon,
+  Paperclip, X as XIcon, DollarSign, Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { approveWithdrawal, rejectWithdrawal, type Withdrawal } from "@/actions/withdraws";
+import { getUserPortfolioById } from "@/actions/user-portfolios";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const fmt = new Intl.NumberFormat("en-UG", {
+const fmt = new Intl.NumberFormat("en-US", {
   style: "currency",
-  currency: "UGX",
-  maximumFractionDigits: 0,
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 const fmtDate = (d: string | null | undefined) =>
@@ -96,7 +98,8 @@ function StatCard({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Approve dialog (for HARD_WITHDRAWAL only — needs a transaction ID)          */
+/*  Approve dialog (for HARD_WITHDRAWAL — needs a transaction ID)             */
+/*  Also handles single REDEMPTION approval with close prices                 */
 /* -------------------------------------------------------------------------- */
 
 function ApproveDialog({
@@ -114,10 +117,50 @@ function ApproveDialog({
   adminName: string;
   onSuccess: () => void;
 }) {
+  const isRedemption = withdrawal.withdrawalType === "REDEMPTION";
   const [txId,      setTxId]      = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [closePrices, setClosePrices] = useState<Record<string, string>>({});
+  const [assetMap, setAssetMap] = useState<Record<string, { symbol: string; currentClose: number }>>({});
+  const [loadingAssets, setLoadingAssets] = useState(false);
+
+  const fetchAssets = async () => {
+    if (!isRedemption || !withdrawal.userPortfolioId) return;
+    setLoadingAssets(true);
+    try {
+      const res = await getUserPortfolioById(withdrawal.userPortfolioId, { userAssets: true });
+      if (res.success && res.data) {
+        const userAssets: any[] = (res.data as any).userAssets ?? [];
+        const map: Record<string, { symbol: string; currentClose: number }> = {};
+        for (const ua of userAssets) {
+          const id = ua.assetId ?? ua.asset?.id;
+          if (id) map[id] = { symbol: ua.asset?.symbol ?? id, currentClose: ua.asset?.closePrice ?? 0 };
+        }
+        setAssetMap(map);
+      }
+    } catch (e) {
+      console.error("Failed to fetch assets", e);
+    }
+    setLoadingAssets(false);
+  };
+
+  // Auto-fetch assets when dialog opens for a redemption
+  useEffect(() => {
+    if (open && isRedemption && withdrawal.userPortfolioId) {
+      setAssetMap({});
+      setClosePrices({});
+      fetchAssets();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const uniqueAssets = Object.entries(assetMap).map(([assetId, v]) => ({ assetId, ...v }));
+  const allPricesFilled = uniqueAssets.length === 0 || uniqueAssets.every((a) => {
+    const v = parseFloat(closePrices[a.assetId] ?? "");
+    return Number.isFinite(v) && v > 0;
+  });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -137,174 +180,222 @@ function ApproveDialog({
   }
 
   function handleApprove() {
-    if (!txId.trim()) {
+    if (!isRedemption && !txId.trim()) {
       toast.error("Bank reference / transaction ID is required.");
       return;
     }
+    if (isRedemption && uniqueAssets.length > 0 && !allPricesFilled) {
+      toast.error("Please enter close prices for all assets.");
+      return;
+    }
     startTransition(async () => {
+      const assetPrices: Record<string, number> = {};
+      for (const a of uniqueAssets) {
+        const v = parseFloat(closePrices[a.assetId] ?? "");
+        assetPrices[a.assetId] = Number.isFinite(v) && v > 0 ? v : a.currentClose;
+      }
+
       const result = await approveWithdrawal(
         withdrawal.id,
-        txId.trim(),
-        { approvedById: adminId, approvedByName: adminName, withdrawalType: "HARD_WITHDRAWAL" },
+        isRedemption ? "" : txId.trim(),
+        {
+          approvedById:  adminId,
+          approvedByName: adminName,
+          withdrawalType: withdrawal.withdrawalType,
+          ...(isRedemption ? { assetPrices } : {}),
+        },
         { include: ["user", "masterWallet"] },
       );
       if (result.success) {
-        toast.success("Withdrawal approved successfully.");
+        toast.success(isRedemption ? "Redemption approved." : "Withdrawal approved successfully.");
         onOpenChange(false);
         setTxId("");
         clearFile();
         onSuccess();
 
-        // Send email receipt to client
-        const payload = {
-          ...withdrawal,
-          ...(result.data ?? {}),
-          transactionId:     txId.trim(),
-          transactionStatus: "APPROVED" as const,
-          approvedByName:    adminName,
-          approvedAt:        new Date().toISOString(),
-        };
-        if (payload.user?.email) {
-          try {
-            const res = await fetch("/api/withdrawals/send-receipt", {
-              method:  "POST",
-              headers: { "Content-Type": "application/json" },
-              body:    JSON.stringify({ withdrawal: payload }),
-            });
-            const data = await res.json();
-            if (data.success) {
-              toast.success(`Receipt emailed to ${payload.user.email}`);
-            } else {
-              toast.error(data.error || "Approved but email receipt failed.");
+        if (!isRedemption) {
+          const payload = {
+            ...withdrawal,
+            ...(result.data ?? {}),
+            transactionId:     txId.trim(),
+            transactionStatus: "APPROVED" as const,
+            approvedByName:    adminName,
+            approvedAt:        new Date().toISOString(),
+          };
+          if (payload.user?.email) {
+            try {
+              const res = await fetch("/api/withdrawals/send-receipt", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify({ withdrawal: payload }),
+              });
+              const data = await res.json();
+              if (data.success) toast.success(`Receipt emailed to ${payload.user.email}`);
+              else toast.error(data.error || "Approved but email receipt failed.");
+            } catch {
+              toast.error("Approved but email receipt could not be sent.");
             }
-          } catch {
-            toast.error("Approved but email receipt could not be sent.");
           }
         }
       } else {
-        toast.error(result.error ?? "Failed to approve withdrawal.");
+        toast.error(result.error ?? "Failed to approve.");
       }
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!isPending) { onOpenChange(v); if (!v) clearFile(); } }}>
+    <Dialog open={open} onOpenChange={(v) => {
+      if (!isPending) {
+        onOpenChange(v);
+        if (!v) clearFile();
+        if (v && isRedemption) fetchAssets();
+      }
+    }}>
       <DialogContent className="max-w-md border-border bg-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-emerald-400" />
-            Approve Cash Withdrawal
+            <CheckCircle className={`h-5 w-5 ${isRedemption ? "text-cyan-400" : "text-emerald-400"}`} />
+            {isRedemption ? "Approve Redemption" : "Approve Cash Withdrawal"}
           </DialogTitle>
           <DialogDescription>
-            Confirm the bank transfer for{" "}
+            Confirm{" "}
             <span className="font-semibold text-foreground">{fmt.format(withdrawal.amount)}</span>{" "}
-            to <span className="font-semibold text-foreground">{userName(withdrawal)}</span>.
+            {isRedemption ? "redemption" : "withdrawal"} for{" "}
+            <span className="font-semibold text-foreground">{userName(withdrawal)}</span>.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          {/* Bank details summary */}
-          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Bank</span>
-              <span className="font-medium">{withdrawal.bankName || "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Account Name</span>
-              <span className="font-medium">{withdrawal.bankAccountName || "—"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Branch</span>
-              <span className="font-medium">{withdrawal.bankBranch || "—"}</span>
-            </div>
-            {withdrawal.accountNo && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Account No.</span>
-                <span className="font-mono font-medium">{withdrawal.accountNo}</span>
-              </div>
-            )}
-            <Separator />
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="font-bold text-foreground">{fmt.format(withdrawal.amount)}</span>
-            </div>
-          </div>
-
-          {/* Bank reference / transaction ID */}
-          <div className="space-y-1.5">
-            <Label htmlFor="txId">
-              Bank Reference / Transaction ID <span className="text-red-400">*</span>
-            </Label>
-            <Input
-              id="txId"
-              placeholder="e.g. TXN-2024-001234"
-              value={txId}
-              onChange={(e) => setTxId(e.target.value)}
-              disabled={isPending}
-              className="bg-muted/50 border-border"
-            />
-            <p className="text-xs text-muted-foreground">
-              The bank reference confirming this transfer was executed.
-            </p>
-          </div>
-
-          {/* Proof of payment — optional */}
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1.5">
-              <Paperclip className="h-3.5 w-3.5" />
-              Proof of Payment
-              <span className="text-muted-foreground text-xs font-normal">(optional)</span>
-            </Label>
-
-            {!proofFile ? (
-              <label className="flex items-center gap-2 cursor-pointer rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground hover:bg-muted/30 transition-colors">
-                <Paperclip className="h-4 w-4 shrink-0" />
-                <span>Attach photo or PDF of payment proof</span>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="sr-only"
-                  onChange={handleFileChange}
-                  disabled={isPending}
-                />
-              </label>
-            ) : (
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Paperclip className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span className="text-sm font-medium truncate">{proofFile.name}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      ({(proofFile.size / 1024).toFixed(0)} KB)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearFile}
-                    disabled={isPending}
-                    className="rounded p-1 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  >
-                    <XIcon className="h-3.5 w-3.5" />
-                  </button>
+        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+          {isRedemption ? (
+            <>
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Portfolio</span>
+                  <span className="font-medium">{(withdrawal.userPortfolio as any)?.customName ?? "—"}</span>
                 </div>
+                <Separator />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-bold text-foreground">{fmt.format(withdrawal.amount)}</span>
+                </div>
+              </div>
 
-                {/* Image preview */}
-                {proofPreview && (
-                  <img
-                    src={proofPreview}
-                    alt="Proof preview"
-                    className="rounded-md max-h-48 w-full object-contain border border-border bg-muted/20"
-                  />
-                )}
-                {proofFile.type === "application/pdf" && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <FileText className="h-3.5 w-3.5" />
-                    PDF attached — preview not available
-                  </p>
+              {/* Close prices */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Closing Prices <span className="text-red-400">*</span>
+                </Label>
+                {loadingAssets ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <RefreshCw className="h-4 w-4 animate-spin" /> Loading assets...
+                  </div>
+                ) : uniqueAssets.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No assets found.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {uniqueAssets.map((a) => (
+                      <div key={a.assetId} className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{a.symbol}</p>
+                          <p className="text-xs text-muted-foreground">Current: {fmt.format(a.currentClose)}</p>
+                        </div>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder={a.currentClose.toFixed(2)}
+                          value={closePrices[a.assetId] ?? ""}
+                          onChange={(e) => setClosePrices((prev) => ({ ...prev, [a.assetId]: e.target.value }))}
+                          disabled={isPending}
+                          className="w-28 bg-muted/50 border-border text-right"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Bank details summary */}
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Bank</span>
+                  <span className="font-medium">{withdrawal.bankName || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Account Name</span>
+                  <span className="font-medium">{withdrawal.bankAccountName || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Branch</span>
+                  <span className="font-medium">{withdrawal.bankBranch || "—"}</span>
+                </div>
+                {withdrawal.accountNo && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Account No.</span>
+                    <span className="font-mono font-medium">{withdrawal.accountNo}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-bold text-foreground">{fmt.format(withdrawal.amount)}</span>
+                </div>
+              </div>
+
+              {/* Bank reference / transaction ID */}
+              <div className="space-y-1.5">
+                <Label htmlFor="txId">
+                  Bank Reference / Transaction ID <span className="text-red-400">*</span>
+                </Label>
+                <Input
+                  id="txId"
+                  placeholder="e.g. TXN-2024-001234"
+                  value={txId}
+                  onChange={(e) => setTxId(e.target.value)}
+                  disabled={isPending}
+                  className="bg-muted/50 border-border"
+                />
+              </div>
+
+              {/* Proof of payment */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  Proof of Payment
+                  <span className="text-muted-foreground text-xs font-normal">(optional)</span>
+                </Label>
+                {!proofFile ? (
+                  <label className="flex items-center gap-2 cursor-pointer rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground hover:bg-muted/30 transition-colors">
+                    <Paperclip className="h-4 w-4 shrink-0" />
+                    <span>Attach photo or PDF of payment proof</span>
+                    <input type="file" accept="image/*,.pdf" className="sr-only" onChange={handleFileChange} disabled={isPending} />
+                  </label>
+                ) : (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Paperclip className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <span className="text-sm font-medium truncate">{proofFile.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">({(proofFile.size / 1024).toFixed(0)} KB)</span>
+                      </div>
+                      <button type="button" onClick={clearFile} disabled={isPending} className="rounded p-1 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors shrink-0">
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    {proofPreview && <img src={proofPreview} alt="Proof preview" className="rounded-md max-h-48 w-full object-contain border border-border bg-muted/20" />}
+                    {proofFile.type === "application/pdf" && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5" /> PDF attached
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter>
@@ -313,14 +404,15 @@ function ApproveDialog({
           </Button>
           <Button
             onClick={handleApprove}
-            disabled={isPending || !txId.trim()}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+            disabled={
+              isPending ||
+              (!isRedemption && !txId.trim()) ||
+              (isRedemption && uniqueAssets.length > 0 && !allPricesFilled) ||
+              loadingAssets
+            }
+            className={`${isRedemption ? "bg-cyan-600 hover:bg-cyan-700" : "bg-emerald-600 hover:bg-emerald-700"} text-white gap-2`}
           >
-            {isPending ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle className="h-4 w-4" />
-            )}
+            {isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
             Confirm Approval
           </Button>
         </DialogFooter>
@@ -411,6 +503,232 @@ function RejectDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Bulk Redemption Approval Dialog                                            */
+/*  Admin sets close prices for all unique assets across pending redemptions  */
+/*  then approves all at once                                                  */
+/* -------------------------------------------------------------------------- */
+
+function RedemptionApproveDialog({
+  pendingRedemptions,
+  open,
+  onOpenChange,
+  adminId,
+  adminName,
+  onSuccess,
+}: {
+  pendingRedemptions: Withdrawal[];
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  adminId: string;
+  adminName: string;
+  onSuccess: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [closePrices, setClosePrices] = useState<Record<string, string>>({});
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  // assetId → { symbol, currentClose }
+  const [assetMap, setAssetMap] = useState<Record<string, { symbol: string; currentClose: number }>>({});
+  const [loadingAssets, setLoadingAssets] = useState(false);
+
+  // Fetch portfolio assets when dialog opens
+  const fetchAssets = async () => {
+    if (!open || pendingRedemptions.length === 0) return;
+    setLoadingAssets(true);
+    const map: Record<string, { symbol: string; currentClose: number }> = {};
+    try {
+      for (const w of pendingRedemptions) {
+        if (!w.userPortfolioId) continue;
+        const res = await getUserPortfolioById(w.userPortfolioId, { userAssets: true });
+        if (!res.success || !res.data) continue;
+        const userAssets: any[] = (res.data as any).userAssets ?? [];
+        for (const ua of userAssets) {
+          const id = ua.assetId ?? ua.asset?.id;
+          if (id && !map[id]) {
+            map[id] = {
+              symbol:       ua.asset?.symbol ?? id,
+              currentClose: ua.asset?.closePrice ?? 0,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch portfolio assets", e);
+    }
+    setAssetMap(map);
+    setLoadingAssets(false);
+  };
+
+  // Fetch on open
+  useEffect(() => {
+    if (open && pendingRedemptions.length > 0) {
+      setAssetMap({});
+      setClosePrices({});
+      fetchAssets();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const uniqueAssets = Object.entries(assetMap).map(([assetId, v]) => ({ assetId, ...v }));
+  const allPricesFilled = uniqueAssets.length === 0 || uniqueAssets.every((a) => {
+    const v = parseFloat(closePrices[a.assetId] ?? "");
+    return Number.isFinite(v) && v > 0;
+  });
+
+  function handleApproveAll() {
+    if (!allPricesFilled) {
+      toast.error("Please enter close prices for all assets.");
+      return;
+    }
+    startTransition(async () => {
+      setProgress({ done: 0, total: pendingRedemptions.length });
+      let successCount = 0;
+      let failCount = 0;
+
+      // Build assetPrices map from inputs
+      const assetPrices: Record<string, number> = {};
+      for (const a of uniqueAssets) {
+        const v = parseFloat(closePrices[a.assetId] ?? "");
+        assetPrices[a.assetId] = Number.isFinite(v) && v > 0 ? v : a.currentClose;
+      }
+
+      for (let i = 0; i < pendingRedemptions.length; i++) {
+        const w = pendingRedemptions[i];
+        const result = await approveWithdrawal(
+          w.id,
+          "",
+          { approvedById: adminId, approvedByName: adminName, withdrawalType: "REDEMPTION", assetPrices },
+          { include: ["user", "masterWallet"] },
+        );
+        if (result.success) successCount++;
+        else {
+          failCount++;
+          console.error(`Failed to approve redemption ${w.id}:`, result.error);
+        }
+        setProgress({ done: i + 1, total: pendingRedemptions.length });
+      }
+
+      setProgress(null);
+      if (failCount === 0) {
+        toast.success(`All ${successCount} redemption(s) approved successfully.`);
+      } else {
+        toast.warning(`${successCount} approved, ${failCount} failed. Check console for details.`);
+      }
+      onOpenChange(false);
+      onSuccess();
+    });
+  }
+
+  const totalAmount = pendingRedemptions.reduce((s, w) => s + w.amount, 0);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => {
+      if (!isPending) {
+        onOpenChange(v);
+        if (v) fetchAssets();
+      }
+    }}>
+      <DialogContent className="max-w-lg border-border bg-card">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Layers className="h-5 w-5 text-cyan-400" />
+            Approve All Pending Redemptions
+          </DialogTitle>
+          <DialogDescription>
+            {pendingRedemptions.length} pending redemption(s) totalling{" "}
+            <span className="font-semibold text-foreground">{fmt.format(totalAmount)}</span>.
+            Set the closing prices for all assets, then approve all at once.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+          {/* Redemptions list */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Redemptions to Approve</p>
+            {pendingRedemptions.map((w) => (
+              <div key={w.id} className="rounded-lg border border-border bg-muted/20 p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{userName(w)}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {(w.userPortfolio as any)?.customName ?? "Portfolio"} · {w.referenceNo ?? w.id.slice(-8)}
+                  </p>
+                </div>
+                <span className="text-sm font-bold text-cyan-400 shrink-0">{fmt.format(w.amount)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Close prices section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Closing Prices at Approval Time <span className="text-red-400">*</span>
+              </p>
+            </div>
+
+            {loadingAssets ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Loading portfolio assets...
+              </div>
+            ) : uniqueAssets.length === 0 ? (
+              <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                No assets found in the selected portfolios. The approval will proceed without price updates.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {uniqueAssets.map((a) => (
+                  <div key={a.assetId} className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{a.symbol}</p>
+                      <p className="text-xs text-muted-foreground">Current: {fmt.format(a.currentClose)}</p>
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={a.currentClose.toFixed(2)}
+                      value={closePrices[a.assetId] ?? ""}
+                      onChange={(e) => setClosePrices((prev) => ({ ...prev, [a.assetId]: e.target.value }))}
+                      disabled={isPending}
+                      className="w-32 bg-muted/50 border-border text-right"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Progress */}
+          {progress && (
+            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3">
+              <p className="text-sm text-cyan-400 flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Approving {progress.done} of {progress.total}...
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleApproveAll}
+            disabled={isPending || pendingRedemptions.length === 0 || loadingAssets || (uniqueAssets.length > 0 && !allPricesFilled)}
+            className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
+          >
+            {isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+            Approve All ({pendingRedemptions.length})
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -606,6 +924,26 @@ function DetailsModal({
               </Button>
             </DialogFooter>
           )}
+          {/* Actions — for PENDING REDEMPTION */}
+          {isPending && !isHard && (
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10 gap-1.5"
+                onClick={() => setRejectOpen(true)}
+              >
+                <XCircle className="h-4 w-4" />
+                Reject
+              </Button>
+              <Button
+                className="bg-cyan-600 hover:bg-cyan-700 text-white gap-1.5"
+                onClick={() => setApproveOpen(true)}
+              >
+                <CheckCircle className="h-4 w-4" />
+                Approve with Close Prices
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -649,6 +987,7 @@ export function WithdrawalsContent({
   const [typeFilter,   setTypeFilter]   = useState("HARD_WITHDRAWAL"); // default: cash-outs needing approval
   const [selected,     setSelected]     = useState<Withdrawal | null>(null);
   const [detailsOpen,  setDetailsOpen]  = useState(false);
+  const [redemptionApproveOpen, setRedemptionApproveOpen] = useState(false);
 
   /* ---- stats ---- */
   const stats = useMemo(() => {
@@ -657,15 +996,18 @@ export function WithdrawalsContent({
     const pending = hard.filter((w) => w.transactionStatus === "PENDING");
     const approved = hard.filter((w) => w.transactionStatus === "APPROVED");
     const rejected = hard.filter((w) => w.transactionStatus === "REJECTED");
+    const pendingRedemptions = redeem.filter((w) => w.transactionStatus === "PENDING");
     return {
-      totalHard:      hard.length,
-      totalRedemption: redeem.length,
-      pendingHard:    pending.length,
-      approvedHard:   approved.length,
-      rejectedHard:   rejected.length,
-      pendingAmount:  pending.reduce((s, w) => s + w.amount, 0),
-      approvedAmount: approved.reduce((s, w) => s + w.amount, 0),
-      totalAmount:    hard.reduce((s, w) => s + w.amount, 0),
+      totalHard:           hard.length,
+      totalRedemption:     redeem.length,
+      pendingHard:         pending.length,
+      approvedHard:        approved.length,
+      rejectedHard:        rejected.length,
+      pendingAmount:       pending.reduce((s, w) => s + w.amount, 0),
+      approvedAmount:      approved.reduce((s, w) => s + w.amount, 0),
+      totalAmount:         hard.reduce((s, w) => s + w.amount, 0),
+      pendingRedemptions,
+      pendingRedemptionAmount: pendingRedemptions.reduce((s, w) => s + w.amount, 0),
     };
   }, [withdrawals]);
 
@@ -704,13 +1046,25 @@ export function WithdrawalsContent({
         <div>
           <h1 className="text-2xl font-bold">Withdrawals</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage cash-out requests from master wallets. Redemptions (portfolio → master) are processed automatically.
+            Manage cash-out requests and portfolio redemptions.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2 shrink-0">
-          <RefreshCw className="h-3.5 w-3.5" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {stats.pendingRedemptions.length > 0 && (
+            <Button
+              size="sm"
+              className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
+              onClick={() => setRedemptionApproveOpen(true)}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Approve Redemptions ({stats.pendingRedemptions.length})
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -719,31 +1073,31 @@ export function WithdrawalsContent({
           label="Pending Cash-Outs"
           value={stats.pendingHard}
           sub={fmt.format(stats.pendingAmount)}
-          accent="text-amber-400"
+          accent="text-[#3B9EE8]"
         />
         <StatCard
           label="Approved Cash-Outs"
           value={stats.approvedHard}
           sub={fmt.format(stats.approvedAmount)}
-          accent="text-emerald-400"
+          accent="text-[#2B2F77]"
         />
         <StatCard
           label="Rejected"
           value={stats.rejectedHard}
           sub="Cash-out requests"
-          accent="text-red-400"
+          accent="text-red-500"
         />
         <StatCard
           label="Total Cash-Outs"
           value={stats.totalHard}
           sub={fmt.format(stats.totalAmount)}
-          accent="text-orange-400"
+          accent="text-[#2B2F77]"
         />
         <StatCard
-          label="Redemptions"
-          value={stats.totalRedemption}
-          sub="Auto-processed"
-          accent="text-cyan-400"
+          label="Pending Redemptions"
+          value={stats.pendingRedemptions.length}
+          sub={fmt.format(stats.pendingRedemptionAmount)}
+          accent="text-[#3B9EE8]"
         />
       </div>
 
@@ -876,6 +1230,16 @@ export function WithdrawalsContent({
         withdrawal={selected}
         open={detailsOpen}
         onOpenChange={(v) => { setDetailsOpen(v); if (!v) setSelected(null); }}
+        adminId={adminId}
+        adminName={adminName}
+        onSuccess={handleRefresh}
+      />
+
+      {/* Bulk redemption approval */}
+      <RedemptionApproveDialog
+        pendingRedemptions={stats.pendingRedemptions}
+        open={redemptionApproveOpen}
+        onOpenChange={setRedemptionApproveOpen}
         adminId={adminId}
         adminName={adminName}
         onSuccess={handleRefresh}

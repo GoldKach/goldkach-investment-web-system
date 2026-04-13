@@ -48,14 +48,14 @@ interface Tx {
 /*  Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const fmt = new Intl.NumberFormat("en-UG", {
-  style: "currency", currency: "UGX", maximumFractionDigits: 0,
+const fmt = new Intl.NumberFormat("en-US", {
+  style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
 });
 
 const fmtShort = (n: number) => {
-  if (n >= 1_000_000_000) return `USh ${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000)     return `USh ${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)         return `USh ${(n / 1_000).toFixed(0)}K`;
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)         return `$${(n / 1_000).toFixed(0)}K`;
   return fmt.format(n);
 };
 
@@ -457,11 +457,11 @@ export function AdminDashboard({
                   {recentActivity.map((tx) => {
                     const isDeposit  = tx._kind === "deposit";
                     const typeLabel  = isDeposit
-                      ? (tx.depositTarget === "ALLOCATION" ? "Allocation" : "Deposit")
-                      : (tx.withdrawalType === "REDEMPTION" ? "Redemption" : "Cash Out");
+                      ? ((tx as any).depositTarget === "ALLOCATION" ? "Allocation" : "Deposit")
+                      : ((tx as any).withdrawalType === "REDEMPTION" ? "Redemption" : "Cash Out");
                     const typeColor  = isDeposit
-                      ? (tx.depositTarget === "ALLOCATION" ? "border-blue-500/30 bg-blue-500/10 text-blue-400" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400")
-                      : (tx.withdrawalType === "REDEMPTION" ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" : "border-orange-500/30 bg-orange-500/10 text-orange-400");
+                      ? ((tx as any).depositTarget === "ALLOCATION" ? "border-blue-500/30 bg-blue-500/10 text-blue-400" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400")
+                      : ((tx as any).withdrawalType === "REDEMPTION" ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" : "border-orange-500/30 bg-orange-500/10 text-orange-400");
 
                     return (
                       <tr key={tx._kind + tx.id} className="border-b border-border last:border-0 hover:bg-muted/10">

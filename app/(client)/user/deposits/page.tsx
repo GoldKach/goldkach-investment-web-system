@@ -17,10 +17,10 @@ export default async function DepositsPage() {
   const userId = session.user.id;
 
   const [userResponse, result] = await Promise.all([
-    getUserById(userId),
+    getUserById(userId).catch(() => null),
     getUserDeposits(userId),
   ]);
-  const user = userResponse?.data ?? userResponse;
+  const user = userResponse?.data ?? userResponse ?? session.user;
 
   if (!result.success || !result.data) {
     return (

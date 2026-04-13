@@ -137,7 +137,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                   <UploadDropzone
                     endpoint="imageUploader"
                     onClientUploadComplete={handleImageUploadComplete}
-                    onUploadError={(error: Error) => toast.error(`Upload failed: ${error.message}`)}
+                    onUploadError={(error: Error) => { toast.error(`Upload failed: ${error.message}`); }}
                     className="border-2 border-dashed border-border rounded-lg ut-label:text-foreground ut-allowed-content:text-muted-foreground"
                   />
                   <Button

@@ -429,68 +429,16 @@ function CreateDialog({
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 Must not exceed the client's master wallet cash balance
               </p>
+              <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2">
+                <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  Portfolio NAV equals the full invested amount. Maintenance and management fees are deducted from the master wallet separately.
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Fee / Deduction rates */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label className="text-slate-700 dark:text-slate-300 text-sm font-medium">
-                Fee Rates (%)
-              </Label>
-              <span className="text-xs text-slate-400 dark:text-slate-500">— stored on this portfolio's wallet</span>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-slate-600 dark:text-slate-400 text-xs font-medium">
-                  Bank Fee %
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  placeholder="30"
-                  value={bankFee}
-                  onChange={(e) => setBankFee(e.target.value)}
-                  className={inputCls}
-                />
-                <p className="text-xs text-slate-400 dark:text-slate-500">Default: 30%</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-slate-600 dark:text-slate-400 text-xs font-medium">
-                  Transaction Fee %
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  placeholder="10"
-                  value={transactionFee}
-                  onChange={(e) => setTransactionFee(e.target.value)}
-                  className={inputCls}
-                />
-                <p className="text-xs text-slate-400 dark:text-slate-500">Default: 10%</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-slate-600 dark:text-slate-400 text-xs font-medium">
-                  Fee at Bank %
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  placeholder="10"
-                  value={feeAtBank}
-                  onChange={(e) => setFeeAtBank(e.target.value)}
-                  className={inputCls}
-                />
-                <p className="text-xs text-slate-400 dark:text-slate-500">Default: 10%</p>
-              </div>
-            </div>
-          </div>
+
 
           {/* No assets warning */}
           {portfolioId && allocations.length === 0 && (

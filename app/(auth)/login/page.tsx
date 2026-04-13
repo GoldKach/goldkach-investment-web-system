@@ -1,7 +1,11 @@
 import { LoginForm } from "@/components/front-end/forms/login-form";
 import HeroCarousel from "@/components/front-end/hero-couresel";
 import { ThemeToggle } from "@/components/front-end/theme-toggle";
+import { Suspense } from "react";
 
+function LoginSuccessMessage() {
+  return null; // Handled by the form
+}
 
 export default function LoginPage() {
   return (

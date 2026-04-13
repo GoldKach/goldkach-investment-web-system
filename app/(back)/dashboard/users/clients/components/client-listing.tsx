@@ -91,8 +91,8 @@ function initials(first: string, last?: string | null) {
 
 function fmtCurrency(val?: number | null) {
   if (val === undefined || val === null) return "—";
-  return new Intl.NumberFormat("en-UG", {
-    style: "currency", currency: "UGX", maximumFractionDigits: 0,
+  return new Intl.NumberFormat("en-US", {
+    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(val);
 }
 
@@ -701,10 +701,12 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
                     <TableCell>
                       {client.masterWallet ? (
                         <div>
+                          <p className="text-xs font-mono text-muted-foreground">
+                            {client.masterWallet.accountNumber}
+                          </p>
                           <p className="text-sm font-semibold text-foreground">
                             {fmtCurrency(client.masterWallet.netAssetValue)}
                           </p>
-                          <p className="text-xs text-muted-foreground">NAV</p>
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>

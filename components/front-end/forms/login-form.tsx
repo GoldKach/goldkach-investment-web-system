@@ -56,10 +56,21 @@ export function LoginForm() {
       }
 
       if (!res.data) {
-  setError("Invalid response from server");
-  return;
-}
+        setError("Invalid response from server");
+        return;
+      }
+
       const { userId, email } = res.data;
+
+      // Check if email verification is required (unverified email)
+      if (res.data.requiresEmailVerification) {
+        const verifyUrl = `/verify-email?email=${encodeURIComponent(email)}&userId=${userId}${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ""}`;
+        toast.success("Please verify your email first. A verification code has been sent.");
+        router.push(verifyUrl);
+        return;
+      }
+
+      // Regular 2FA verification
       const verifyUrl = `/verify-login?userId=${userId}&email=${encodeURIComponent(email)}${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ""}`;
       toast.success("Verification code sent! Please check your email.");
       router.push(verifyUrl);

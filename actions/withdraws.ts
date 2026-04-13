@@ -366,7 +366,8 @@ export type WithdrawalInclude =
   | "userPortfolio"
   | "createdBy"
   | "approvedBy"
-  | "rejectedBy";
+  | "rejectedBy"
+  | "wallet";
 
 function toIncludeParam(include?: WithdrawalInclude | WithdrawalInclude[]) {
   if (!include) return undefined;
@@ -389,6 +390,10 @@ export interface Withdrawal {
   userPortfolioId?:  string | null;
   portfolioWalletId?: string | null;
   masterWalletId:    string;
+  /** @deprecated use masterWalletId */
+  walletId?:         string;
+  /** @deprecated use masterWallet */
+  wallet?:           { netAssetValue?: number | null } | null;
   withdrawalType:    WithdrawalType;
   amount:            number;
   transactionStatus: TxStatus;
@@ -429,6 +434,7 @@ export interface Withdrawal {
     email?:     string | null;
     firstName?: string | null;
     lastName?:  string | null;
+    name?:      string | null;
   };
   portfolioWallet?: {
     id:             string;
@@ -642,7 +648,7 @@ export async function approveWithdrawal(
   id:            string,
   /** Required for HARD_WITHDRAWAL; pass empty string or omit for REDEMPTION */
   transactionId: string,
-  approver?:     { approvedById?: string; approvedByName?: string; withdrawalType?: WithdrawalType },
+  approver?:     { approvedById?: string; approvedByName?: string; withdrawalType?: WithdrawalType; assetPrices?: Record<string, number> },
   opts?:         { include?: WithdrawalInclude | WithdrawalInclude[] }
 ) {
   try {
@@ -658,6 +664,7 @@ export async function approveWithdrawal(
       ...(txId ? { transactionId: txId } : {}),
       approvedById:   approver?.approvedById  ?? null,
       approvedByName: approver?.approvedByName ?? null,
+      ...(isRedemption && approver?.assetPrices ? { assetPrices: approver.assetPrices } : {}),
     };
 
     const include = toIncludeParam(opts?.include);

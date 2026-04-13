@@ -4,10 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { UserSettings } from "@/actions/user-settings";
-import { User, Lock, Settings, Shield } from "lucide-react";
+import { User, Lock, Shield } from "lucide-react";
 import { ProfileTab } from "./profile-tab";
 import { SecurityTab } from "./security-tab";
-import { AccountTab } from "./account-tab";
 
 interface SettingsPageContentProps {
   user: UserSettings;
@@ -51,31 +50,24 @@ export function SettingsPageContent({ user }: SettingsPageContentProps) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs defaultValue="security" className="w-full">
         <TabsList className="bg-muted/50 border border-border">
-          <TabsTrigger value="profile" className="flex items-center gap-2 data-[state=active]:bg-card">
-            <User className="h-4 w-4" />
-            Profile
-          </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2 data-[state=active]:bg-card">
             <Lock className="h-4 w-4" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="account" className="flex items-center gap-2 data-[state=active]:bg-card">
-            <Settings className="h-4 w-4" />
-            Account
+          <TabsTrigger value="profile" className="flex items-center gap-2 data-[state=active]:bg-card">
+            <User className="h-4 w-4" />
+            Profile
           </TabsTrigger>
         </TabsList>
 
         <div className="mt-6">
-          <TabsContent value="profile">
-            <ProfileTab user={user} />
-          </TabsContent>
           <TabsContent value="security">
             <SecurityTab user={user} />
           </TabsContent>
-          <TabsContent value="account">
-            <AccountTab user={user} />
+          <TabsContent value="profile">
+            <ProfileTab user={user} />
           </TabsContent>
         </div>
       </Tabs>

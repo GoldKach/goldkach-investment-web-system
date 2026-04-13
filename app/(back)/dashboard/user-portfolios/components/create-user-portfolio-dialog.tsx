@@ -170,7 +170,8 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
     try {
       const res = await getAllUsers()
       if (res.data) {
-        setUsers(res.data)
+        // Only show clients (USER role)
+        setUsers(res.data.filter((u: any) => !u.role || u.role === "USER"))
       }
     } catch (error) {
       toast.error("Failed to load users")
@@ -480,51 +481,15 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
                 Amount exceeds available balance (${masterBalance.toLocaleString()}).
               </p>
             )}
-          </div>
-
-          {/* Fee Rates */}
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">Fee Rates for This Portfolio</Label>
-            <p className="text-sm text-muted-foreground">These fee rates apply specifically to this user's portfolio.</p>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="bankFee" className="text-sm">Bank Fee %</Label>
-                <Input
-                  id="bankFee"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={bankFee}
-                  onChange={(e) => setBankFee(e.target.value)}
-                  placeholder="30"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="transactionFee" className="text-sm">Transaction Fee %</Label>
-                <Input
-                  id="transactionFee"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={transactionFee}
-                  onChange={(e) => setTransactionFee(e.target.value)}
-                  placeholder="10"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="feeAtBank" className="text-sm">Fee at Bank %</Label>
-                <Input
-                  id="feeAtBank"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={feeAtBank}
-                  onChange={(e) => setFeeAtBank(e.target.value)}
-                  placeholder="10"
-                />
-              </div>
+            <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2">
+              <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <p className="text-xs text-blue-700 dark:text-blue-400">
+                Portfolio NAV equals the full invested amount. Maintenance and management fees are deducted from the master wallet separately.
+              </p>
             </div>
           </div>
+
+
 
           {/* Asset Allocations - This is where the magic happens! */}
           {selectedPortfolioId && assetAllocations.length === 0 && (

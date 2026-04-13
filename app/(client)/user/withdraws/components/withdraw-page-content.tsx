@@ -26,8 +26,8 @@ import { createHardWithdrawal, type Withdrawal } from "@/actions/withdraws";
 /*  Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const fmt = new Intl.NumberFormat("en-UG", {
-  style: "currency", currency: "UGX", maximumFractionDigits: 0,
+const fmt = new Intl.NumberFormat("en-US", {
+  style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
 });
 
 const fmtDate = (d: string) =>
@@ -378,7 +378,7 @@ export function WithdrawalsPageContent({ withdrawals, wallet, userId }: Props) {
             {/* Amount */}
             <div className="space-y-1.5">
               <Label htmlFor="wd-amount">
-                Amount (UGX) <span className="text-red-400">*</span>
+                Amount (USD) <span className="text-red-400">*</span>
               </Label>
               <Input
                 id="wd-amount"

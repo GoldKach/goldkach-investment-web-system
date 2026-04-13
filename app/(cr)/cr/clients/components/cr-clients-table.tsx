@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 
-export function CRClientsTable({ clients }: { clients: any[] }) {
+export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients: any[]; basePath?: string }) {
   const [query, setQuery] = useState("");
   const router = useRouter();
 
@@ -60,24 +60,24 @@ export function CRClientsTable({ clients }: { clients: any[] }) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input
           type="search"
-          placeholder="Search by name, email or phone…"
+          placeholder="Search clients…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="pl-9"
+          className="pl-9 h-8 text-xs"
         />
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-slate-50 dark:bg-[#2B2F77]/10 text-xs text-slate-500 uppercase tracking-wide">
             <tr>
-              <th className="px-4 py-3 text-left">Client</th>
-              <th className="px-4 py-3 text-left">Email</th>
-              <th className="px-4 py-3 text-left">Phone</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-left">Approved</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-3 py-2 text-left">Client</th>
+              <th className="px-3 py-2 text-left">Email</th>
+              <th className="px-3 py-2 text-left">Phone</th>
+              <th className="px-3 py-2 text-left">Status</th>
+              <th className="px-3 py-2 text-left">Approved</th>
+              <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-[#2B2F77]/20">
@@ -96,26 +96,26 @@ export function CRClientsTable({ clients }: { clients: any[] }) {
                     key={u.id}
                     className="hover:bg-slate-50 dark:hover:bg-[#2B2F77]/10 transition-colors"
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 rounded-lg shrink-0">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7 rounded-lg shrink-0">
                           <AvatarImage src={u.imageUrl || ""} alt={name} />
-                          <AvatarFallback className="rounded-lg bg-[#2B2F77] text-white text-xs font-bold">
+                          <AvatarFallback className="rounded-lg bg-[#2B2F77] text-white text-[10px] font-bold">
                             {initials}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium text-slate-800 dark:text-slate-100">{name}</p>
-                          <p className="text-[10px] text-slate-400">{u.id?.slice(0, 20)}…</p>
+                          <p className="font-medium text-slate-800 dark:text-slate-100 text-xs">{name}</p>
+                          <p className="text-[9px] text-muted-foreground font-mono">{u.masterWallet?.accountNumber || "—"}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{u.email}</td>
-                    <td className="px-4 py-3 text-slate-500">{u.phone || "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2 text-slate-600 dark:text-slate-300 text-xs">{u.email}</td>
+                    <td className="px-3 py-2 text-slate-500 text-xs">{u.phone || "—"}</td>
+                    <td className="px-3 py-2">
                       <Badge
                         variant="outline"
-                        className={`text-xs ${
+                        className={`text-[10px] ${
                           u.status === "ACTIVE"
                             ? "border-green-300 text-green-700 dark:text-green-400"
                             : u.status === "PENDING"
@@ -126,21 +126,21 @@ export function CRClientsTable({ clients }: { clients: any[] }) {
                         {u.status || "—"}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       {u.isApproved ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-3.5 w-3.5 text-green-500" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-slate-400" />
+                        <XCircle className="h-3.5 w-3.5 text-slate-400" />
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2 text-right">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1.5 text-xs"
-                        onClick={() => router.push(`/cr/clients/${u.id}`)}
+                        className="gap-1 text-[10px] h-7 px-2"
+                        onClick={() => router.push(`${basePath}/${u.id}`)}
                       >
-                        <Eye className="h-3.5 w-3.5" /> View
+                        <Eye className="h-3 w-3" /> View
                       </Button>
                     </td>
                   </tr>

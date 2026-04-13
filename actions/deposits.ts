@@ -266,6 +266,13 @@ export interface Deposit {
   proofUrl?:         string | null;
   proofFileName?:    string | null;
 
+  // One-time fees on first MASTER deposit
+  bankCost?:        number;
+  transactionCost?: number;
+  cashAtBank?:      number;
+  totalFees?:       number;
+  isFirstDeposit?:  boolean;
+
   // Staff who created the deposit request
   createdById?:      string | null;
   createdByName?:    string | null;
@@ -324,6 +331,10 @@ export interface DepositCreateInput {
   description?:     string | null;
   proofUrl?:        string | null;
   proofFileName?:   string | null;
+  // One-time fees — only on first MASTER deposit
+  bankCost?:        number;
+  transactionCost?: number;
+  cashAtBank?:      number;
 }
 
 export interface DepositUpdateInput {
@@ -436,6 +447,9 @@ export async function createDeposit(
       description:     input.description     ?? null,
       proofUrl:        input.proofUrl        ?? null,
       proofFileName:   input.proofFileName   ?? null,
+      ...(input.bankCost        !== undefined ? { bankCost:        input.bankCost }        : {}),
+      ...(input.transactionCost !== undefined ? { transactionCost: input.transactionCost } : {}),
+      ...(input.cashAtBank      !== undefined ? { cashAtBank:      input.cashAtBank }      : {}),
     };
     const res = await api.post("/deposits", payload, {
       headers,

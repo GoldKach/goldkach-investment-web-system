@@ -30,8 +30,8 @@ export default async function WalletsPage() {
   return (
     <WalletsView
       userId={userId}
-      walletDetail={walletDetail}
-      portfolioSummary={portfolioSummary}
+      walletDetail={walletDetail ?? null}
+      portfolioSummary={portfolioSummary ?? null}
     />
   );
 }

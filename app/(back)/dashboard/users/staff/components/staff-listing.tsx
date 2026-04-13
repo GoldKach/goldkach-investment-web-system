@@ -114,8 +114,8 @@ function initials(first: string, last?: string | null) {
 
 function fmtCurrency(val?: number) {
   if (val === undefined || val === null) return "—";
-  return new Intl.NumberFormat("en-UG", {
-    style: "currency", currency: "UGX", maximumFractionDigits: 0,
+  return new Intl.NumberFormat("en-US", {
+    style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(val);
 }
 

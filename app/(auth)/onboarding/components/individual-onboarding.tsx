@@ -408,6 +408,17 @@ export default function IndividualOnboardingForm({ user }: Props) {
   useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem("onboardingUser") : null
+      const savedProgress = typeof window !== "undefined" ? localStorage.getItem("individualOnboardingProgress") : null
+
+      if (savedProgress) {
+        const progress = JSON.parse(savedProgress)
+        if (progress.userId === user?.id || progress.userId) {
+          setCurrentStep(progress.currentStep ?? 0)
+          setCompletedSteps(progress.completedSteps ?? [])
+          setFormData((p) => ({ ...p, ...progress.formData }))
+        }
+      }
+
       if (raw) {
         const parsed = JSON.parse(raw) as { id?: string; email?: string; phone?: string; firstName?: string; lastName?: string }
         if (parsed?.id) setUserId(parsed.id)
@@ -434,6 +445,15 @@ export default function IndividualOnboardingForm({ user }: Props) {
       setInitDone(true)
     }
   }, [user])
+
+  useEffect(() => {
+    if (initDone && userId) {
+      localStorage.setItem(
+        "individualOnboardingProgress",
+        JSON.stringify({ userId, currentStep, completedSteps, formData })
+      )
+    }
+  }, [currentStep, completedSteps, formData, userId, initDone])
 
   const steps = [
     { id: 0, title: "Personal Info", description: "Your personal details" },
@@ -563,6 +583,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
         {
           ...formData,
           entityType: "individual",
+          agentId: formData.agentId || null,
         },
         userId
       )
@@ -573,6 +594,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
       }
 
       localStorage.removeItem("onboardingUser")
+      localStorage.removeItem("individualOnboardingProgress")
       await clearOnboardingSession()
       if (formData.isPEP === "yes") {
         toast.info("Your application will undergo enhanced review as a PEP.")
@@ -762,10 +784,15 @@ export default function IndividualOnboardingForm({ user }: Props) {
               <div className="space-y-2">
                 <Label>Investment Time Horizon *</Label>
                 <RadioGroup value={formData.timeHorizon} onValueChange={(v) => update("timeHorizon", v)}>
-                  {["1-3-years", "3-5-years", "5-10-years", "over-10-years"].map((v) => (
-                    <div key={v} className="flex items-center space-x-2">
-                      <RadioGroupItem value={v} id={v} />
-                      <Label htmlFor={v}>{v.replace(/-/g, " ")}</Label>
+                  {[
+                    { value: "1-3-years", label: "1-3 years" },
+                    { value: "3-5-years", label: "3-5 years" },
+                    { value: "5-10-years", label: "5-10 years" },
+                    { value: "over-10-years", label: "Over 10 years" },
+                  ].map((o) => (
+                    <div key={o.value} className="flex items-center space-x-2">
+                      <RadioGroupItem value={o.value} id={o.value} />
+                      <Label htmlFor={o.value}>{o.label}</Label>
                     </div>
                   ))}
                 </RadioGroup>
@@ -992,19 +1019,19 @@ export default function IndividualOnboardingForm({ user }: Props) {
               </div>
 
               <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                   <Checkbox
                     id="agreement-confirm"
                     checked={agreementConfirmed}
                     onCheckedChange={(c) => setAgreementConfirmed(c as boolean)}
-                    className="mt-1"
+                    className="mt-0.5 h-5 w-5 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                   />
                   <div>
-                    <Label htmlFor="agreement-confirm" className="font-medium cursor-pointer">
+                    <Label htmlFor="agreement-confirm" className="font-semibold text-slate-900 dark:text-white cursor-pointer">
                       I have read and agree to the Investment Management Agreement *
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      By checking this box, you confirm that you have read, understood, and agree to all terms in the agreement above.
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      By checking this box, you confirm that you have read, understood, and agree to all terms in the agreement above. This is required to submit your application.
                     </p>
                   </div>
                 </div>

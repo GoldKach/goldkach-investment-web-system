@@ -182,6 +182,7 @@ export default function VerifyEmailForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email = params.get("email") || "";
+  const userId = params.get("userId") || "";
 
   const [code, setCode] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -209,14 +210,13 @@ export default function VerifyEmailForm() {
       }
       const entityType = params.get("entityType"); // params already exists from useSearchParams()
 
-        localStorage.setItem(
-      "onboardingUser",
-      JSON.stringify({ id: res.userId, email: res.email,    entityType: entityType ?? "individual",
- })
-    );
-      // inside onSubmit success branch
-     toast.success("Email verified! Let's finish your onboarding.");
-     router.replace("/onboarding");
+      // Store user data in localStorage and redirect to onboarding
+      localStorage.setItem(
+        "onboardingUser",
+        JSON.stringify({ id: res.userId, email: res.email, entityType: entityType ?? "individual" })
+      );
+      toast.success("Email verified! Let's finish your onboarding.");
+      router.replace("/onboarding");
     } finally {
       setLoading(false);
     }

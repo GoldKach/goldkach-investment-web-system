@@ -1480,7 +1480,7 @@ Overall, the portfolio demonstrated the benefits of combining high-growth sector
   const handleDownloadPDF = async (report: PortfolioPerformanceReport) => {
     const enriched = enrichReportWithAssets(report);
     const doc = await generatePDF(enriched)
-    const userName = enriched.userPortfolio?.user?.name?.replace(/\s+/g, '-') || 'client'
+    const userName = ([enriched.userPortfolio?.user?.firstName, enriched.userPortfolio?.user?.lastName].filter(Boolean).join('-') || 'client').replace(/\s+/g, '-')
     const reportDate = new Date(enriched.reportDate).toISOString().split('T')[0]
     const fileName = `portfolio-report-${userName}-${reportDate}.pdf`
     doc.save(fileName)

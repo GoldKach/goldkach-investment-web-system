@@ -7,13 +7,12 @@
 import axios from "axios";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 /** ========= Axios ========= **/
 const BASE_API_URL = process.env.API_URL || "";
 const api = axios.create({
   baseURL: BASE_API_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -47,6 +46,7 @@ interface InitiateLoginResponse {
     userId: string;
     email: string;
     requiresVerification: boolean;
+    requiresEmailVerification?: boolean;
     expiresAt: string;
   };
   error?: string;
@@ -243,7 +243,7 @@ export async function refreshAccessToken() {
   try {
     const cookieStore = await cookies();
     const refreshToken = cookieStore.get("refreshToken")?.value;
-    if (!refreshToken) throw new Error("No refresh token found");
+    if (!refreshToken) return { success: false, error: "No refresh token" };
 
     const res = await api.post("/refresh-token", { refreshToken });
     const { accessToken: newAccessToken } = res.data;
@@ -252,14 +252,14 @@ export async function refreshAccessToken() {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 1 week
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return { success: true, accessToken: newAccessToken };
   } catch (error) {
     console.error("Token refresh error:", error);
     await clearCookies();
-    redirect("/login");
+    return { success: false, error: "Token refresh failed" };
   }
 }
 
@@ -413,15 +413,16 @@ export async function fetchMe() {
 }
 
 export async function getUserById(userId: string) {
-  if (!userId) throw new Error("User ID is required");
+  if (!userId) return { data: null, error: "User ID is required" };
 
   try {
-    const res = await api.get(`/users/${encodeURIComponent(userId)}`);
-    return res.data; // { data, error } per your controller
+    const headers = await getAuthHeaderFromCookies();
+    const res = await api.get(`/users/${encodeURIComponent(userId)}`, { headers });
+    return res.data;
   } catch (err: any) {
     console.error("getUserById error:", err?.response?.data || err);
-    // Surface a cleaner message while preserving throw behavior like your other actions
-    throw new Error(err?.response?.data?.error || "Failed to fetch user");
+    // Return null data instead of throwing — prevents logout on 401/404
+    return { data: null, error: err?.response?.data?.error || "Failed to fetch user" };
   }
 }
 

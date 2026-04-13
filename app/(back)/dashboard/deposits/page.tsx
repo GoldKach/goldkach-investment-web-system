@@ -1,5 +1,5 @@
 // app/admin/deposits/page.tsx
-import { getSession } from "@/actions/auth";
+import { getSession, getAllUsers } from "@/actions/auth";
 import { listDeposits } from "@/actions/deposits";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
@@ -12,9 +12,19 @@ export default async function AdminDepositsPage() {
     redirect("/login");
   }
 
-  // Check if user is admin (adjust role check based on your schema)
-  if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN" && session.user.role !== "MANAGER") {
-    redirect("/user/deposits");
+  // Get fresh role from DB (session cookie may be stale)
+  const r = await getAllUsers();
+  const users = r?.data;
+  const user = users?.find((u: any) => u.id === session.user?.id) ?? session.user;
+  const role = user?.role ?? (session.user as any)?.role;
+
+  const adminRoles = ["ADMIN", "SUPER_ADMIN", "MANAGER"];
+  if (!adminRoles.includes(role)) {
+    if (role === "USER") redirect("/user/deposits");
+    if (role === "AGENT") redirect("/agent");
+    if (role === "CLIENT_RELATIONS") redirect("/cr");
+    if (role === "ACCOUNT_MANAGER") redirect("/accountant");
+    redirect("/dashboard");
   }
 
   // Fetch all deposits with user and wallet info
@@ -38,13 +48,11 @@ export default async function AdminDepositsPage() {
     );
   }
 
-  console.log(result.data);
-
   return (
     <AdminDepositsContent 
       deposits={result.data} 
       adminId={session.user.id}
-      adminName={session.user.name || session.user.email || "Admin"}
+      adminName={user?.name || user?.email || session.user.email || "Admin"}
     />
   );
 }

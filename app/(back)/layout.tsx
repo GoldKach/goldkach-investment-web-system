@@ -23,17 +23,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const user = users?.find((u: any) => u.id === session.user?.id) ?? session.user;
 
   // 3. Authorize by role
-  const hasSuperAdminRole =
-  typeof user?.role === "string"
-    ? user.role === "SUPER_ADMIN"
-    : Array.isArray(user?.roles) &&
-      user.roles.some((r: any) => r?.roleName === "SUPER_ADMIN" || r === "SUPER_ADMIN");
+  const adminRoles = ["SUPER_ADMIN", "ADMIN", "MANAGER"];
+  const hasAdminRole =
+    typeof user?.role === "string"
+      ? adminRoles.includes(user.role)
+      : Array.isArray(user?.roles) &&
+        user.roles.some((r: any) => adminRoles.includes(r?.roleName ?? r));
 
-if (!hasSuperAdminRole) {
-  if (user?.role === "AGENT") redirect("/agent");
-  if (user?.role === "CLIENT_RELATIONS") redirect("/cr");
-  redirect("/unauthorized?reason=role");
-}
+  if (!hasAdminRole) {
+    if (user?.role === "AGENT") redirect("/agent");
+    if (user?.role === "CLIENT_RELATIONS") redirect("/cr");
+    if (user?.role === "ACCOUNT_MANAGER") redirect("/accountant");
+    if (user?.role === "USER") redirect("/user");
+    redirect("/unauthorized?reason=role");
+  }
 
   return <DashboardShell user={user}>{children}</DashboardShell>;
 }

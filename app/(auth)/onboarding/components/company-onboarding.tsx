@@ -372,13 +372,24 @@ export default function CompanyOnboardingForm({ user }: Props) {
   useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem("onboardingUser") : null
+      const savedProgress = typeof window !== "undefined" ? localStorage.getItem("companyOnboardingProgress") : null
+
+      if (savedProgress) {
+        const progress = JSON.parse(savedProgress)
+        if (progress.userId === user?.id || progress.userId) {
+          setCurrentStep(progress.currentStep ?? 0)
+          setCompletedSteps(progress.completedSteps ?? [])
+          setFormData((p) => ({ ...p, ...progress.formData }))
+        }
+      }
+
       if (raw) {
         const parsed = JSON.parse(raw) as { id?: string; email?: string; firstName?: string }
         if (parsed?.id) setUserId(parsed.id)
         setFormData((p) => ({
           ...p,
           email: parsed?.email ?? p.email,
-          companyName: parsed?.firstName ?? p.companyName, // firstName holds company name for company registrations
+          companyName: parsed?.firstName ?? p.companyName,
         }))
       } else if (user?.id) {
         setUserId(user.id)
@@ -395,10 +406,19 @@ export default function CompanyOnboardingForm({ user }: Props) {
     }
   }, [user])
 
+  useEffect(() => {
+    if (initDone && userId) {
+      localStorage.setItem(
+        "companyOnboardingProgress",
+        JSON.stringify({ userId, currentStep, completedSteps, formData })
+      )
+    }
+  }, [currentStep, completedSteps, formData, userId, initDone])
+
   const steps = [
     { id: 0, title: "Company Details", description: "Basic company information" },
     { id: 1, title: "Directors", description: "Company directors" },
-    { id: 2, title: "UBOs", description: "Ultimate beneficial owners" },
+    { id: 2, title: "Ultimate Beneficial Owners", description: "Beneficial owners of the company" },
     { id: 3, title: "Investment Profile", description: "Investment goals" },
     { id: 4, title: "Compliance", description: "Regulatory requirements" },
     { id: 5, title: "Documents", description: "Upload required documents" },
@@ -537,6 +557,7 @@ export default function CompanyOnboardingForm({ user }: Props) {
       }
 
       localStorage.removeItem("onboardingUser")
+      localStorage.removeItem("companyOnboardingProgress")
       await clearOnboardingSession()
       router.push("/confirmation")
     } catch {
@@ -686,29 +707,29 @@ export default function CompanyOnboardingForm({ user }: Props) {
             </div>
           )}
 
-          {/* ── STEP 2: UBOs ── */}
+          {/* ── STEP 2: Ultimate Beneficial Owners ── */}
           {currentStep === 2 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold">Ultimate Beneficial Owners (UBOs)</h3>
+                  <h3 className="font-semibold">Ultimate Beneficial Owners</h3>
                   <p className="text-sm text-muted-foreground">
-                    Add UBOs if they differ from the directors above. Optional.
+                    Add beneficial owners if they differ from the directors above. Optional.
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addUBO} className="gap-1">
-                  <Plus className="h-4 w-4" /> Add UBO
+                  <Plus className="h-4 w-4" /> Add Beneficial Owner
                 </Button>
               </div>
               {formData.ubos.length === 0 && (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  No UBOs added. Click "Add UBO" if your beneficial owners differ from the directors.
+                  No beneficial owners added. Click "Add Beneficial Owner" if your beneficial owners differ from the directors.
                 </div>
               )}
               {formData.ubos.map((u, i) => (
                 <PersonCard
                   key={i}
-                  title="UBO"
+                  title="Ultimate Beneficial Owner"
                   person={u}
                   index={i}
                   onUpdate={updateUBO}
@@ -741,10 +762,15 @@ export default function CompanyOnboardingForm({ user }: Props) {
               <div className="space-y-2">
                 <Label>Investment Time Horizon *</Label>
                 <RadioGroup value={formData.timeHorizon} onValueChange={(v) => update("timeHorizon", v)}>
-                  {["1-3-years", "3-5-years", "5-10-years", "over-10-years"].map((v) => (
-                    <div key={v} className="flex items-center space-x-2">
-                      <RadioGroupItem value={v} id={`ct-${v}`} />
-                      <Label htmlFor={`ct-${v}`}>{v.replace(/-/g, " ")}</Label>
+                  {[
+                    { value: "1-3-years", label: "1-3 years" },
+                    { value: "3-5-years", label: "3-5 years" },
+                    { value: "5-10-years", label: "5-10 years" },
+                    { value: "over-10-years", label: "Over 10 years" },
+                  ].map((o) => (
+                    <div key={o.value} className="flex items-center space-x-2">
+                      <RadioGroupItem value={o.value} id={`ct-${o.value}`} />
+                      <Label htmlFor={`ct-${o.value}`}>{o.label}</Label>
                     </div>
                   ))}
                 </RadioGroup>
@@ -911,7 +937,7 @@ export default function CompanyOnboardingForm({ user }: Props) {
 
               {formData.ubos.length > 0 && (
                 <div className="p-3 border rounded-lg">
-                  <p className="text-sm font-medium mb-1">UBOs ({formData.ubos.length})</p>
+                  <p className="text-sm font-medium mb-1">Ultimate Beneficial Owners ({formData.ubos.length})</p>
                   {formData.ubos.map((u, i) => (
                     <p key={i} className="text-sm text-muted-foreground">{i + 1}. {u.fullName}</p>
                   ))}
@@ -932,19 +958,19 @@ export default function CompanyOnboardingForm({ user }: Props) {
               </div>
 
               <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                   <Checkbox
                     id="co-agreement-confirm"
                     checked={agreementConfirmed}
                     onCheckedChange={(c) => setAgreementConfirmed(c as boolean)}
-                    className="mt-1"
+                    className="mt-0.5 h-5 w-5 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                   />
                   <div>
-                    <Label htmlFor="co-agreement-confirm" className="font-medium cursor-pointer">
+                    <Label htmlFor="co-agreement-confirm" className="font-semibold text-slate-900 dark:text-white cursor-pointer">
                       I have read and agree to the Investment Management Agreement on behalf of the company *
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      By checking this box, you confirm that you are duly authorised to sign on behalf of the company and agree to all terms in the agreement above.
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      By checking this box, you confirm that you are duly authorised to sign on behalf of the company and agree to all terms in the agreement above. This is required to submit your application.
                     </p>
                   </div>
                 </div>

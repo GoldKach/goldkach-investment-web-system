@@ -8,10 +8,15 @@ export default async function Page() {
 
   if (!loggedIn?.id) return null;
 
-  const response = await getUserById(loggedIn.id);
-  const raw = response?.data ?? response;
+  let raw: any = null;
+  try {
+    const response = await getUserById(loggedIn.id);
+    raw = response?.data ?? response;
+  } catch {
+    // Fall back to session data if API call fails
+    raw = loggedIn;
+  }
 
-  // Map individualOnboarding / companyOnboarding → entityOnboarding expected by DashboardContent
   const individual = raw?.individualOnboarding;
   const company = raw?.companyOnboarding;
   const entityOnboarding =

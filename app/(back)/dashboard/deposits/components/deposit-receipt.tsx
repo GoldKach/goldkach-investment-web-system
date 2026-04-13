@@ -24,6 +24,12 @@ export const DepositReceipt = forwardRef<HTMLDivElement, DepositReceiptProps>(
     const fmtDate = (d?: string | null) =>
       d ? new Date(d).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }) : "N/A"
 
+    const maskAccount = (acc?: string | null) => {
+      if (!acc) return "N/A";
+      if (acc.length <= 3) return acc;
+      return "x".repeat(acc.length - 3) + acc.slice(-3);
+    }
+
     const methodLabel: Record<string, string> = {
       BANK_TRANSFER: "Bank Transfer",
       CASH:          "Cash Deposit",
@@ -141,13 +147,13 @@ export const DepositReceipt = forwardRef<HTMLDivElement, DepositReceiptProps>(
             <SectionTitle>Client Information</SectionTitle>
             <Row label="Client Name"    value={clientName} />
             <Row label="Email"          value={deposit.user?.email || "N/A"} />
-            <Row label="Account No"     value={deposit.masterWallet?.accountNumber || deposit.portfolioWallet?.accountNumber || "N/A"} mono />
+            <Row label="Account No"     value={maskAccount(deposit.masterWallet?.accountNumber || deposit.portfolioWallet?.accountNumber)} mono />
 
             <SectionTitle style={{ marginTop: "20px" }}>Transaction Details</SectionTitle>
-            <Row label="Transaction ID" value={deposit.transactionId || "N/A"} mono />
-            <Row label="Reference No"   value={deposit.referenceNo   || "N/A"} mono />
+            <Row label="Transaction ID" value={maskAccount(deposit.transactionId)} mono />
+            <Row label="Reference No"   value={maskAccount(deposit.referenceNo)} mono />
             <Row label="Payment Method" value={methodLabel[deposit.method ?? ""] || deposit.method || "N/A"} />
-            <Row label="Account No"     value={deposit.accountNo     || "N/A"} />
+            <Row label="Account No"     value={maskAccount(deposit.accountNo)} />
           </div>
 
           {/* Right column */}

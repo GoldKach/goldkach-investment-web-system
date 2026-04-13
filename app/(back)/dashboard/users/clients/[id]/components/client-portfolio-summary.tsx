@@ -70,10 +70,11 @@ const ASSET_COLORS = [
   "#14b8a6",
 ];
 
-const fmt = new Intl.NumberFormat("en-UG", {
+const fmt = new Intl.NumberFormat("en-US", {
   style: "currency",
-  currency: "UGX",
-  maximumFractionDigits: 0,
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;

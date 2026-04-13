@@ -1224,6 +1224,9 @@ export function UserDetailPreview({
   const netAssetValue = Number(wallet.netAssetValue ?? 0)
   const totalDeposits = deposits.reduce((s, d) => s + d.amount, 0)
   const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0)
+  const cashBalance = portfolioSummary
+    ? portfolioSummary.portfolios.reduce((s, p) => s + Number(p.wallet?.balance ?? 0), 0)
+    : 0
 
   // ---------- PORTFOLIO PERFORMANCE SERIES (from topup history) ----------
   // Use portfolioSummary topup events as the NAV timeline if available
@@ -1402,7 +1405,7 @@ export function UserDetailPreview({
   ]
 
   const fmtUGX = {
-    format: (v: number) => `USh ${Math.round(v).toLocaleString("en-US")}`,
+    format: (v: number) => `$${Math.round(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
   }
   const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`
   const fmtDate = (d: string | null | undefined) =>
@@ -1431,7 +1434,7 @@ export function UserDetailPreview({
         {/* ===== Overview ===== */}
         <TabsContent value="overview" className="space-y-6">
           {/* KPI cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {/* Available Balance — highlighted as actionable */}
             <Card className="border-emerald-500/20 bg-emerald-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1445,6 +1448,22 @@ export function UserDetailPreview({
                   {fmtUGX.format(availableBalance)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Available for withdrawal or investment</p>
+              </CardContent>
+            </Card>
+
+            {/* Cash Balance - sum of all portfolio wallet balances */}
+            <Card className="border-amber-500/20 bg-amber-500/5">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Cash Balance</CardTitle>
+                <div className="rounded-lg bg-amber-500/10 p-1.5">
+                  <DollarSign className="h-4 w-4 text-amber-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-400">
+                  {fmtUGX.format(cashBalance)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Total in portfolio wallets</p>
               </CardContent>
             </Card>
 
@@ -2740,6 +2759,11 @@ export function UserDetailPreview({
                 onChange={(e) => { setActionAmount(e.target.value); setActionError(null); setActionSuccess(null) }}
                 disabled={isPending}
               />
+              {portfolioAction?.type === "topup" && Number(actionAmount) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Remaining master wallet balance after topup: <span className="font-semibold text-foreground">{fmtUGX.format((portfolioAction?.masterBalance ?? 0) - Number(actionAmount))}</span>
+                </p>
+              )}
               {portfolioAction?.type === "withdraw" && Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0) && (
                 <p className="text-xs text-red-400">You cannot withdraw more than the portfolio current value of {fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}.</p>
               )}

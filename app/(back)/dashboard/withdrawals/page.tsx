@@ -1,4 +1,4 @@
-import { getSession } from "@/actions/auth";
+import { getSession, getAllUsers } from "@/actions/auth";
 import { listWithdrawals } from "@/actions/withdraws";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
@@ -9,11 +9,18 @@ export default async function WithdrawalsPage() {
 
   if (!session?.user) redirect("/login");
 
-  if (
-    session.user.role !== "ADMIN" &&
-    session.user.role !== "SUPER_ADMIN" &&
-    session.user.role !== "MANAGER"
-  ) {
+  // Get fresh role from DB
+  const r = await getAllUsers();
+  const users = r?.data;
+  const user = users?.find((u: any) => u.id === session.user?.id) ?? session.user;
+  const role = user?.role ?? (session.user as any)?.role;
+
+  const adminRoles = ["ADMIN", "SUPER_ADMIN", "MANAGER"];
+  if (!adminRoles.includes(role)) {
+    if (role === "AGENT") redirect("/agent");
+    if (role === "CLIENT_RELATIONS") redirect("/cr");
+    if (role === "ACCOUNT_MANAGER") redirect("/accountant");
+    if (role === "USER") redirect("/user");
     redirect("/unauthorized");
   }
 
@@ -43,7 +50,7 @@ export default async function WithdrawalsPage() {
     <WithdrawalsContent
       withdrawals={result.data}
       adminId={session.user.id}
-      adminName={session.user.name || session.user.email || "Admin"}
+      adminName={(user as any)?.name || (user as any)?.email || session.user.email || "Admin"}
     />
   );
 }

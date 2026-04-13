@@ -103,10 +103,10 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
   const stats = useMemo(() => {
     const companies = items.filter((u) =>
       !!u.companyOnboarding ||
-      u.individualOnboarding?.entityType === "company" ||
-      u.individualOnboarding?.entityType === "Company" ||
+      (u.individualOnboarding as any)?.entityType === "company" ||
+      (u.individualOnboarding as any)?.entityType === "Company" ||
       /\b(ltd|limited|inc|corp|corporation|company|co\.|llc|plc|group|enterprises|holdings)\b/i.test(
-        u.companyOnboarding?.companyName || u.individualOnboarding?.fullName || u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || ""
+        (u.companyOnboarding as any)?.companyName || (u.individualOnboarding as any)?.fullName || u.name || [u.firstName, u.lastName].filter(Boolean).join(" ") || ""
       )
     ).length;
     const individuals = items.length - companies;
@@ -246,8 +246,8 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
               {filtered.map((u) => {
                 const name = displayName(u);
                 const isCompany = !!u.companyOnboarding ||
-                  u.individualOnboarding?.entityType === "company" ||
-                  u.individualOnboarding?.entityType === "Company" ||
+                  (u.individualOnboarding as any)?.entityType === "company" ||
+                  (u.individualOnboarding as any)?.entityType === "Company" ||
                   /\b(ltd|limited|inc|corp|corporation|company|co\.|llc|plc|group|enterprises|holdings|uganda ltd)\b/i.test(name);
                 const type: EntityType = isCompany ? "company" : "individual";
                 const risk = u.individualOnboarding?.riskTolerance;

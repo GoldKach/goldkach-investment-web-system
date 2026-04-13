@@ -27,7 +27,8 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
 
     return {
       id: up.portfolio!.id,
-      name: up.portfolio!.name,
+      name: up.customName || up.portfolio!.name,
+      templateName: up.portfolio!.name,
       userPortfolioId: up.id,
       description: up.portfolio!.description || "No description",
       totalValue,
@@ -141,8 +142,8 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="line-clamp-1">{portfolio.name}</CardTitle>
-                      <CardDescription className="line-clamp-2 mt-1">
-                        {portfolio.description}
+                      <CardDescription className="line-clamp-1 mt-0.5 text-xs font-medium text-muted-foreground">
+                        {portfolio.templateName}
                       </CardDescription>
                     </div>
                     <Badge variant={portfolio.status === "ACTIVE" ? "default" : "secondary"}>

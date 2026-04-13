@@ -15,10 +15,15 @@ const api = axios.create({
 });
 
 function msg(e: any, fallback = "Request failed") {
-  return e?.response?.data?.error || e?.message || fallback;
+  return (
+    e?.response?.data?.error ||
+    e?.response?.data?.message ||
+    e?.message ||
+    fallback
+  );
 }
 
-async function authHeaderFromCookies() {
+async function authHeaderFromCookies(): Promise<Record<string, string>> {
   const jar = await cookies();
   const token = jar.get("accessToken")?.value;
   return token ? { Authorization: `Bearer ${token}` } : {};

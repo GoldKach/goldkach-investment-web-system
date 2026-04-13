@@ -103,7 +103,7 @@ export function DepositDetailsModal({
       }
     }
 
-    if (!confirm(`Approve deposit of USh ${deposit.amount.toLocaleString()} for ${name}?`)) return
+    if (!confirm(`Approve deposit of $${deposit.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} for ${name}?`)) return
 
     setIsApproving(true)
     try {
@@ -133,7 +133,7 @@ export function DepositDetailsModal({
 
   const handleReject = async () => {
     const name = [deposit.user?.firstName, deposit.user?.lastName].filter(Boolean).join(" ") || "this user"
-    const reason = prompt(`Reason for rejecting deposit of USh ${deposit.amount.toLocaleString()} for ${name} (optional):`) ?? ""
+    const reason = prompt(`Reason for rejecting deposit of $${deposit.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} for ${name} (optional):`) ?? ""
     if (!confirm("Confirm rejection?")) return
     setIsRejecting(true)
     try {
@@ -222,7 +222,7 @@ export function DepositDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle className="text-slate-900 dark:text-white text-xl flex items-center gap-2">
             {statusIcon()} Deposit Details
@@ -248,7 +248,7 @@ export function DepositDetailsModal({
           {/* Amount hero */}
           <div className="bg-gradient-to-r from-[#1e2d5a] to-[#2d4a8a] p-6 rounded-lg text-center">
             <p className="text-slate-300 text-xs uppercase tracking-widest mb-1">Deposit Amount</p>
-            <p className="text-white text-4xl font-bold">USh {deposit.amount.toLocaleString()}</p>
+            <p className="text-white text-4xl font-bold">${deposit.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
           </div>
 
           {/* Receipt actions */}
@@ -335,11 +335,11 @@ export function DepositDetailsModal({
           <div>
             <h3 className={hd}><Wallet className="h-4 w-4" /> Wallet Information</h3>
             <div className={card}>
-              {deposit.masterWallet && <div className="flex justify-between"><span className={lbl}>Master Cash Balance</span><span className={val}>USh {deposit.masterWallet.balance?.toLocaleString() ?? "N/A"}</span></div>}
+              {deposit.masterWallet && <div className="flex justify-between"><span className={lbl}>Master Cash Balance</span><span className={val}>${deposit.masterWallet.balance?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? "N/A"}</span></div>}
               {isAllocation && deposit.portfolioWallet && (
                 <>
                   <div className="flex justify-between items-center"><span className={lbl}>Portfolio Wallet</span><code className="text-slate-700 dark:text-white font-mono text-xs">{deposit.portfolioWallet.accountNumber || deposit.portfolioWalletId}</code></div>
-                  <div className="flex justify-between"><span className={lbl}>Portfolio NAV</span><span className={val}>USh {deposit.portfolioWallet.netAssetValue?.toLocaleString() ?? "N/A"}</span></div>
+                  <div className="flex justify-between"><span className={lbl}>Portfolio NAV</span><span className={val}>${deposit.portfolioWallet.netAssetValue?.toLocaleString("en-US", { minimumFractionDigits: 2 }) ?? "N/A"}</span></div>
                 </>
               )}
             </div>
@@ -373,8 +373,8 @@ export function DepositDetailsModal({
                           <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Asset</th>
                           <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400">Class</th>
                           <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400">Alloc %</th>
-                          <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 w-36">Cost/Share (USh)</th>
-                          <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 w-36">Close Price (USh)</th>
+                          <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 w-36">Cost/Share ($)</th>
+                          <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 w-36">Close Price ($)</th>
                         </tr>
                       </thead>
                       <tbody>

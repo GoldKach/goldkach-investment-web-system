@@ -50,6 +50,8 @@ export function UserPortfolioForm({ users, portfolios, userPortfolio }: UserPort
         const res = await createUserPortfolio({
           userId,
           portfolioId,
+          customName: "",
+          amountInvested: 0,
           assetAllocations: [], // ✅ Required: empty array initially, assets added separately
           include: { user: true, portfolio: true, userAssets: true },
         });

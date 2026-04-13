@@ -22,9 +22,9 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import {
   Loader2, Check, ChevronsUpDown, UploadCloud, FileText, Image as ImageIcon,
-  X, CheckCircle,
+  X, CheckCircle, Info,
 } from "lucide-react"
-import { createDeposit, type Deposit } from "@/actions/deposits"
+import { createDeposit, listDeposits, type Deposit } from "@/actions/deposits"
 import { getAllUsers } from "@/actions/auth"
 import { cn } from "@/lib/utils"
 import { UploadButton } from "@/lib/uploadthing"
@@ -56,6 +56,8 @@ export function CreateDepositDialog({
 }: CreateDepositDialogProps) {
   const [isSubmitting,   setIsSubmitting]   = useState(false)
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [checkingFirst,  setCheckingFirst]  = useState(false)
+  const [isFirstDeposit, setIsFirstDeposit] = useState(false)
 
   const [users,          setUsers]          = useState<User[]>([])
   const [userOpen,       setUserOpen]       = useState(false)
@@ -64,10 +66,13 @@ export function CreateDepositDialog({
   const [amount,         setAmount]         = useState("")
   const [method,         setMethod]         = useState("")
   const [transactionId,  setTransactionId]  = useState("")
-  const [referenceNo,    setReferenceNo]    = useState("")
   const [accountNo,      setAccountNo]      = useState("")
   const [accountName,    setAccountName]    = useState("")
   const [description,    setDescription]    = useState("")
+
+  const [bankCost,        setBankCost]        = useState("")
+  const [transactionCost, setTransactionCost] = useState("")
+  const [cashAtBank,      setCashAtBank]      = useState("")
 
   const [proofUrl,       setProofUrl]       = useState<string | null>(null)
   const [proofFileName,  setProofFileName]  = useState<string | null>(null)
@@ -76,6 +81,12 @@ export function CreateDepositDialog({
   const selectedUser = users.find(u => u.id === selectedUserId)
   const getUserName  = (u: User) =>
     [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email
+
+  const fBankCost        = parseFloat(bankCost)        || 0
+  const fTransactionCost = parseFloat(transactionCost) || 0
+  const fCashAtBank      = parseFloat(cashAtBank)      || 0
+  const fTotalFees       = fBankCost + fTransactionCost + fCashAtBank
+  const fNetAmount       = (parseFloat(amount) || 0) - fTotalFees
 
   useEffect(() => {
     if (!open) return
@@ -86,10 +97,24 @@ export function CreateDepositDialog({
       .finally(() => setIsLoadingUsers(false))
 
     setSelectedUserId("")
-    setAmount(""); setMethod(""); setTransactionId(""); setReferenceNo("")
+    setAmount(""); setMethod(""); setTransactionId("")
     setAccountNo(""); setAccountName(""); setDescription("")
+    setBankCost(""); setTransactionCost(""); setCashAtBank("")
     setProofUrl(null); setProofFileName(null)
+    setIsFirstDeposit(false)
   }, [open])
+
+  useEffect(() => {
+    if (!selectedUserId) { setIsFirstDeposit(false); return }
+    setCheckingFirst(true)
+    listDeposits({ userId: selectedUserId, pageSize: 50 })
+      .then((res) => {
+        const masterDeposits = (res.data ?? []).filter((d: any) => d.depositTarget === "MASTER")
+        setIsFirstDeposit(masterDeposits.length === 0)
+      })
+      .catch(() => setIsFirstDeposit(false))
+      .finally(() => setCheckingFirst(false))
+  }, [selectedUserId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,6 +122,9 @@ export function CreateDepositDialog({
     if (!selectedUserId) { toast.error("Please select a client."); return }
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) { toast.error("Please enter a valid amount."); return }
+    if (isFirstDeposit && fTotalFees >= amt) {
+      toast.error("Total fees cannot exceed the deposit amount."); return
+    }
 
     setIsSubmitting(true)
     try {
@@ -107,11 +135,11 @@ export function CreateDepositDialog({
           amount:        amt,
           method:        method        || null,
           transactionId: transactionId || null,
-          referenceNo:   referenceNo   || null,
           accountNo:     accountNo     || null,
           description:   [description, accountName ? `Account Name: ${accountName}` : ""].filter(Boolean).join(" | ") || null,
           proofUrl:      proofUrl      ?? null,
           proofFileName: proofFileName ?? null,
+          ...(isFirstDeposit ? { bankCost: fBankCost, transactionCost: fTransactionCost, cashAtBank: fCashAtBank } : {}),
         },
         { include: ["user", "masterWallet"] }
       )
@@ -122,7 +150,6 @@ export function CreateDepositDialog({
       }
 
       toast.success("Deposit registered successfully and is pending approval.")
-
       onSuccess(result.data)
       onOpenChange(false)
     } catch {
@@ -139,9 +166,7 @@ export function CreateDepositDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
         <DialogHeader>
-          <DialogTitle className="text-slate-900 dark:text-white text-xl">
-            Register New Deposit
-          </DialogTitle>
+          <DialogTitle className="text-slate-900 dark:text-white text-xl">Register New Deposit</DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400">
             Record an external deposit on behalf of a client. The deposit will be PENDING until approved.
           </DialogDescription>
@@ -149,7 +174,7 @@ export function CreateDepositDialog({
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-2">
 
-          {/* Deposited By (logged-in admin) */}
+          {/* Deposited By */}
           <div className="space-y-1.5">
             <Label className="text-slate-700 dark:text-slate-300 font-medium">Deposited By</Label>
             <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
@@ -170,17 +195,12 @@ export function CreateDepositDialog({
             </Label>
             <Popover open={userOpen} onOpenChange={setUserOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
+                <Button type="button" variant="outline" role="combobox"
                   className="w-full justify-between bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
                   disabled={isLoadingUsers}
                 >
                   {isLoadingUsers ? (
-                    <span className="flex items-center gap-2 text-slate-400">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-                    </span>
+                    <span className="flex items-center gap-2 text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</span>
                   ) : selectedUser ? (
                     <span className="flex flex-col items-start text-left">
                       <span className="font-medium">{getUserName(selectedUser)}</span>
@@ -194,18 +214,11 @@ export function CreateDepositDialog({
               </PopoverTrigger>
               <PopoverContent className="w-full p-0 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                 <Command className="bg-transparent">
-                  <CommandInput
-                    placeholder="Search by name or email…"
-                    className="text-slate-900 dark:text-white"
-                  />
-                  <CommandEmpty className="text-slate-500 dark:text-slate-400 text-sm py-4 text-center">
-                    No user found.
-                  </CommandEmpty>
+                  <CommandInput placeholder="Search by name or email…" className="text-slate-900 dark:text-white" />
+                  <CommandEmpty className="text-slate-500 dark:text-slate-400 text-sm py-4 text-center">No user found.</CommandEmpty>
                   <CommandGroup className="max-h-60 overflow-y-auto">
                     {users.map((u) => (
-                      <CommandItem
-                        key={u.id}
-                        value={`${getUserName(u)} ${u.email}`}
+                      <CommandItem key={u.id} value={`${getUserName(u)} ${u.email}`}
                         onSelect={() => { setSelectedUserId(u.id); setUserOpen(false) }}
                         className="text-slate-900 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                       >
@@ -220,6 +233,20 @@ export function CreateDepositDialog({
                 </Command>
               </PopoverContent>
             </Popover>
+
+            {selectedUserId && !checkingFirst && (
+              <div className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${isFirstDeposit ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                {isFirstDeposit
+                  ? "First deposit — one-time fees required below."
+                  : "Returning client — no one-time fees."}
+              </div>
+            )}
+            {checkingFirst && (
+              <div className="flex items-center gap-2 text-xs text-slate-400 px-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking deposit history…
+              </div>
+            )}
           </div>
 
           <Separator className="bg-slate-200 dark:bg-slate-800" />
@@ -227,139 +254,107 @@ export function CreateDepositDialog({
           {/* Amount + Method */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-slate-700 dark:text-slate-300 font-medium">
-                Amount (USD) <span className="text-rose-500">*</span>
-              </Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className={inputCls}
-              />
+              <Label className="text-slate-700 dark:text-slate-300 font-medium">Amount (USD) <span className="text-rose-500">*</span></Label>
+              <Input type="number" step="0.01" min="0.01" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputCls} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-slate-700 dark:text-slate-300 font-medium">Payment Method</Label>
               <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className={inputCls}>
-                  <SelectValue placeholder="Select method…" />
-                </SelectTrigger>
+                <SelectTrigger className={inputCls}><SelectValue placeholder="Select method…" /></SelectTrigger>
                 <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
                   {PAYMENT_METHODS.map((m) => (
-                    <SelectItem
-                      key={m.value}
-                      value={m.value}
-                      className="text-slate-900 dark:text-white"
-                    >
-                      {m.label}
-                    </SelectItem>
+                    <SelectItem key={m.value} value={m.value} className="text-slate-900 dark:text-white">{m.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Transaction ID + Reference No */}
+          {/* One-time fees — first deposit only */}
+          {isFirstDeposit && (
+            <div className="space-y-3 rounded-lg border border-amber-400/40 bg-amber-50 dark:bg-amber-500/10 p-4">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">One-Time Fees (First Deposit Only)</p>
+              </div>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Deducted once from this deposit. Net amount is credited to the client's master wallet.
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Bank Cost (USD)</Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0.00" value={bankCost} onChange={(e) => setBankCost(e.target.value)} className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Transaction Cost (USD)</Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0.00" value={transactionCost} onChange={(e) => setTransactionCost(e.target.value)} className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Cash at Bank (USD)</Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0.00" value={cashAtBank} onChange={(e) => setCashAtBank(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              {fTotalFees > 0 && (
+                <div className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 space-y-1 text-sm">
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Gross Deposit</span><span>${(parseFloat(amount) || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                    <span>Total Fees</span><span>− ${fTotalFees.toFixed(2)}</span>
+                  </div>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between font-semibold text-green-600 dark:text-green-400">
+                    <span>Net Available Balance</span><span>${Math.max(0, fNetAmount).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Transaction ID */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-slate-700 dark:text-slate-300 font-medium">Transaction ID</Label>
-              <Input
-                placeholder="e.g. TXN123456"
-                value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value)}
-                className={cn(inputCls, "font-mono")}
-              />
+              <Input placeholder="e.g. TXN123456" value={transactionId} onChange={(e) => setTransactionId(e.target.value)} className={cn(inputCls, "font-mono")} />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-700 dark:text-slate-300 font-medium">Reference Number</Label>
-              <Input
-                placeholder="e.g. REF-2025-001"
-                value={referenceNo}
-                onChange={(e) => setReferenceNo(e.target.value)}
-                className={cn(inputCls, "font-mono")}
-              />
-            </div>
-          </div>
-
-          {/* Account No + Bank Account Name (bank transfer only) */}
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-slate-700 dark:text-slate-300 font-medium">Account Number</Label>
-              <Input
-                placeholder="Sender's account"
-                value={accountNo}
-                onChange={(e) => setAccountNo(e.target.value)}
-                className={inputCls}
-              />
+              <Input placeholder="Sender's account" value={accountNo} onChange={(e) => setAccountNo(e.target.value)} className={inputCls} />
             </div>
-            {method === "BANK_TRANSFER" && (
-              <div className="space-y-1.5">
-                <Label className="text-slate-700 dark:text-slate-300 font-medium">Bank Account Name</Label>
-                <Input
-                  placeholder="Name on bank account"
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-            )}
           </div>
 
-          {/* Description */}
+          {method === "BANK_TRANSFER" && (
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300 font-medium">Bank Account Name</Label>
+              <Input placeholder="Name on bank account" value={accountName} onChange={(e) => setAccountName(e.target.value)} className={inputCls} />
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label className="text-slate-700 dark:text-slate-300 font-medium">Description / Notes</Label>
-            <Textarea
-              placeholder="Any additional notes about this deposit…"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className={cn(inputCls, "resize-none")}
-            />
+            <Textarea placeholder="Any additional notes…" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={cn(inputCls, "resize-none")} />
           </div>
 
           <Separator className="bg-slate-200 dark:bg-slate-800" />
 
-          {/* Proof of Payment Upload */}
+          {/* Proof of Payment */}
           <div className="space-y-2">
             <Label className="text-slate-700 dark:text-slate-300 font-medium flex items-center gap-2">
-              <UploadCloud className="h-4 w-4" />
-              Proof of Payment (Receipt)
+              <UploadCloud className="h-4 w-4" /> Proof of Payment (Receipt)
             </Label>
             <p className="text-xs text-slate-400 dark:text-slate-500">Upload a receipt image or PDF. Max 8 MB.</p>
-
             {proofUrl ? (
               <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10">
                 <div className="flex items-center gap-3">
-                  {isPdf ? (
-                    <FileText className="h-8 w-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  ) : (
-                    <ImageIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  )}
+                  {isPdf ? <FileText className="h-8 w-8 text-emerald-600 dark:text-emerald-400 shrink-0" /> : <ImageIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                   <div>
-                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                      {proofFileName || "Proof uploaded"}
-                    </p>
-                    <a
-                      href={proofUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-emerald-600 dark:text-emerald-500 underline"
-                    >
-                      View file
-                    </a>
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{proofFileName || "Proof uploaded"}</p>
+                    <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-600 dark:text-emerald-500 underline">View file</a>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-emerald-500" />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { setProofUrl(null); setProofFileName(null) }}
-                    className="text-slate-500 hover:text-slate-900 dark:hover:text-white h-7 w-7 p-0"
-                  >
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setProofUrl(null); setProofFileName(null) }} className="text-slate-500 hover:text-slate-900 dark:hover:text-white h-7 w-7 p-0">
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -368,78 +363,49 @@ export function CreateDepositDialog({
               <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-4 flex flex-col items-center gap-3">
                 {uploadingProof ? (
                   <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm">Uploading…</span>
+                    <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Uploading…</span>
                   </div>
                 ) : (
                   <>
                     <UploadCloud className="h-8 w-8 text-slate-400 dark:text-slate-500" />
-                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-                      Drag & drop or click to upload a receipt (JPG, PNG, PDF)
-                    </p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center">Drag & drop or click to upload (JPG, PNG, PDF)</p>
                     <UploadButton
                       endpoint="depositProof"
                       onUploadBegin={() => setUploadingProof(true)}
                       onClientUploadComplete={(res) => {
                         setUploadingProof(false)
-                        if (res?.[0]) {
-                          setProofUrl(res[0].url)
-                          setProofFileName(res[0].name)
-                          toast.success("Receipt uploaded successfully")
-                        }
+                        if (res?.[0]) { setProofUrl(res[0].url); setProofFileName(res[0].name); toast.success("Receipt uploaded") }
                       }}
-                      onUploadError={(error) => {
-                        setUploadingProof(false)
-                        toast.error(`Upload failed: ${error.message}`)
-                      }}
-                      appearance={{
-                        button: "bg-slate-700 hover:bg-slate-600 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-sm px-4 py-2 rounded-md",
-                        allowedContent: "text-slate-400 dark:text-slate-500 text-xs",
-                      }}
+                      onUploadError={(error) => { setUploadingProof(false); toast.error(`Upload failed: ${error.message}`) }}
+                      appearance={{ button: "bg-slate-700 hover:bg-slate-600 text-white text-sm px-4 py-2 rounded-md", allowedContent: "text-slate-400 text-xs" }}
                     />
                   </>
                 )}
               </div>
             )}
-
             {proofUrl && !isPdf && (
               <div className="mt-2 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 max-h-48">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={proofUrl}
-                  alt="Proof of payment"
-                  className="w-full object-contain max-h-48"
-                />
+                <img src={proofUrl} alt="Proof of payment" className="w-full object-contain max-h-48" />
               </div>
             )}
           </div>
 
           {/* Status note */}
           <div className="flex items-center gap-2 p-3 rounded-lg border border-yellow-400/40 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-500/10">
-            <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400/50 dark:bg-yellow-500/20 dark:text-yellow-400 dark:border-yellow-500/30 shrink-0">
-              PENDING
-            </Badge>
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400/50 dark:bg-yellow-500/20 dark:text-yellow-400 dark:border-yellow-500/30 shrink-0">PENDING</Badge>
             <p className="text-xs text-yellow-700 dark:text-yellow-300">
-              This deposit will be saved as <strong>Pending</strong>. You can review it and approve or reject it from the deposits list.
+              Saved as <strong>Pending</strong>. Approve it to credit the client's master wallet.
             </p>
           </div>
 
           {/* Actions */}
           <div className="flex gap-3 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-              className="flex-1 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}
+              className="flex-1 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || !selectedUserId || !amount}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-            >
+            <Button type="submit" disabled={isSubmitting || !selectedUserId || !amount} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isSubmitting ? "Registering…" : "Register Deposit"}
             </Button>
