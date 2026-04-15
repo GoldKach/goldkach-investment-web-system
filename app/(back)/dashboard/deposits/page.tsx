@@ -31,6 +31,7 @@ export default async function AdminDepositsPage() {
   const result = await listDeposits({
     sortBy: "createdAt",
     order: "desc",
+    pageSize: 500,
   });
 
   if (!result.success || !result.data) {

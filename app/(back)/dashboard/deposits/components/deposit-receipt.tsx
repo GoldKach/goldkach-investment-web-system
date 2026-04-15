@@ -147,13 +147,23 @@ export const DepositReceipt = forwardRef<HTMLDivElement, DepositReceiptProps>(
             <SectionTitle>Client Information</SectionTitle>
             <Row label="Client Name"    value={clientName} />
             <Row label="Email"          value={deposit.user?.email || "N/A"} />
-            <Row label="Account No"     value={maskAccount(deposit.masterWallet?.accountNumber || deposit.portfolioWallet?.accountNumber)} mono />
+            <Row label="Account No"     value={deposit.masterWallet?.accountNumber || deposit.portfolioWallet?.accountNumber || "N/A"} mono />
 
             <SectionTitle style={{ marginTop: "20px" }}>Transaction Details</SectionTitle>
-            <Row label="Transaction ID" value={maskAccount(deposit.transactionId)} mono />
-            <Row label="Reference No"   value={maskAccount(deposit.referenceNo)} mono />
+            <Row label="Transaction ID" value={deposit.transactionId || "N/A"} mono />
+            <Row label="Reference No"   value={deposit.referenceNo || "N/A"} mono />
             <Row label="Payment Method" value={methodLabel[deposit.method ?? ""] || deposit.method || "N/A"} />
-            <Row label="Account No"     value={maskAccount(deposit.accountNo)} />
+            <Row label="Account No"     value={deposit.accountNo || "N/A"} />
+
+            {(deposit.bankCost || deposit.transactionCost || deposit.cashAtBank) && (
+              <>
+                <SectionTitle style={{ marginTop: "20px" }}>Deductions</SectionTitle>
+                <Row label="Bank Cost" value={fmt(deposit.bankCost)} />
+                <Row label="Transaction Cost" value={fmt(deposit.transactionCost)} />
+                <Row label="Cash at Bank" value={fmt(deposit.cashAtBank)} />
+                <Row label="Total Fees" value={fmt(deposit.totalFees)} bold />
+              </>
+            )}
           </div>
 
           {/* Right column */}
@@ -237,7 +247,7 @@ function SectionTitle({ children, style }: { children: React.ReactNode; style?: 
   )
 }
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Row({ label, value, mono, bold }: { label: string; value: string; mono?: boolean; bold?: boolean }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "7px", gap: "8px" }}>
       <span style={{ fontSize: "11px", color: "#64748b", flexShrink: 0 }}>{label}</span>
@@ -245,7 +255,7 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
         style={{
           fontSize: "11px",
           color: "#1e293b",
-          fontWeight: "600",
+          fontWeight: bold ? "800" : "600",
           fontFamily: mono ? "monospace" : "inherit",
           textAlign: "right",
           wordBreak: "break-all",

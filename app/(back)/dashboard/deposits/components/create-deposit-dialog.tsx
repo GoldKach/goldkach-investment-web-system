@@ -58,6 +58,7 @@ export function CreateDepositDialog({
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [checkingFirst,  setCheckingFirst]  = useState(false)
   const [isFirstDeposit, setIsFirstDeposit] = useState(false)
+  const [applyFees, setApplyFees] = useState(false)
 
   const [users,          setUsers]          = useState<User[]>([])
   const [userOpen,       setUserOpen]       = useState(false)
@@ -102,6 +103,7 @@ export function CreateDepositDialog({
     setBankCost(""); setTransactionCost(""); setCashAtBank("")
     setProofUrl(null); setProofFileName(null)
     setIsFirstDeposit(false)
+    setApplyFees(false)
   }, [open])
 
   useEffect(() => {
@@ -122,7 +124,7 @@ export function CreateDepositDialog({
     if (!selectedUserId) { toast.error("Please select a client."); return }
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) { toast.error("Please enter a valid amount."); return }
-    if (isFirstDeposit && fTotalFees >= amt) {
+    if (applyFees && fTotalFees >= amt) {
       toast.error("Total fees cannot exceed the deposit amount."); return
     }
 
@@ -139,7 +141,7 @@ export function CreateDepositDialog({
           description:   [description, accountName ? `Account Name: ${accountName}` : ""].filter(Boolean).join(" | ") || null,
           proofUrl:      proofUrl      ?? null,
           proofFileName: proofFileName ?? null,
-          ...(isFirstDeposit ? { bankCost: fBankCost, transactionCost: fTransactionCost, cashAtBank: fCashAtBank } : {}),
+          ...(applyFees ? { bankCost: fBankCost, transactionCost: fTransactionCost, cashAtBank: fCashAtBank } : {}),
         },
         { include: ["user", "masterWallet"] }
       )
@@ -234,12 +236,10 @@ export function CreateDepositDialog({
               </PopoverContent>
             </Popover>
 
-            {selectedUserId && !checkingFirst && (
-              <div className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${isFirstDeposit ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+            {selectedUserId && !checkingFirst && isFirstDeposit && (
+              <div className="flex items-center gap-2 text-xs px-2 py-1 rounded text-amber-600 dark:text-amber-400">
                 <Info className="h-3.5 w-3.5 shrink-0" />
-                {isFirstDeposit
-                  ? "First deposit — one-time fees required below."
-                  : "Returning client — no one-time fees."}
+                First deposit detected — no fees will apply unless enabled below.
               </div>
             )}
             {checkingFirst && (
@@ -270,46 +270,52 @@ export function CreateDepositDialog({
             </div>
           </div>
 
-          {/* One-time fees — first deposit only */}
-          {isFirstDeposit && (
-            <div className="space-y-3 rounded-lg border border-amber-400/40 bg-amber-50 dark:bg-amber-500/10 p-4">
-              <div className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">One-Time Fees (First Deposit Only)</p>
-              </div>
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                Deducted once from this deposit. Net amount is credited to the client's master wallet.
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Bank Cost (USD)</Label>
-                  <Input type="number" step="0.01" min="0" placeholder="0.00" value={bankCost} onChange={(e) => setBankCost(e.target.value)} className={inputCls} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Transaction Cost (USD)</Label>
-                  <Input type="number" step="0.01" min="0" placeholder="0.00" value={transactionCost} onChange={(e) => setTransactionCost(e.target.value)} className={inputCls} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Cash at Bank (USD)</Label>
-                  <Input type="number" step="0.01" min="0" placeholder="0.00" value={cashAtBank} onChange={(e) => setCashAtBank(e.target.value)} className={inputCls} />
-                </div>
-              </div>
-              {fTotalFees > 0 && (
-                <div className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 space-y-1 text-sm">
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Gross Deposit</span><span>${(parseFloat(amount) || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-amber-600 dark:text-amber-400">
-                    <span>Total Fees</span><span>− ${fTotalFees.toFixed(2)}</span>
-                  </div>
-                  <Separator className="my-1" />
-                  <div className="flex justify-between font-semibold text-green-600 dark:text-green-400">
-                    <span>Net Available Balance</span><span>${Math.max(0, fNetAmount).toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
+          {/* Fees section - always shown, enabled by checkbox */}
+          <div className="space-y-3 rounded-lg border border-slate-300 dark:border-slate-700 p-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="applyFees"
+                checked={applyFees}
+                onChange={(e) => setApplyFees(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
+              />
+              <Label htmlFor="applyFees" className="text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                Apply Deductions
+              </Label>
             </div>
-          )}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Deduct fees from this deposit. Net amount is credited to the client's master wallet.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Bank Cost (USD)</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={bankCost} onChange={(e) => setBankCost(e.target.value)} className={inputCls} disabled={!applyFees} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Transaction Cost (USD)</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={transactionCost} onChange={(e) => setTransactionCost(e.target.value)} className={inputCls} disabled={!applyFees} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 dark:text-slate-300 text-xs font-medium">Cash at Bank (USD)</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={cashAtBank} onChange={(e) => setCashAtBank(e.target.value)} className={inputCls} disabled={!applyFees} />
+              </div>
+            </div>
+            {applyFees && fTotalFees > 0 && (
+              <div className="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3 space-y-1 text-sm">
+                <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                  <span>Gross Deposit</span><span>${(parseFloat(amount) || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                  <span>Total Fees</span><span>− ${fTotalFees.toFixed(2)}</span>
+                </div>
+                <Separator className="my-1" />
+                <div className="flex justify-between font-semibold text-green-600 dark:text-green-400">
+                  <span>Net Available Balance</span><span>${Math.max(0, fNetAmount).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Transaction ID */}
           <div className="grid grid-cols-2 gap-4">

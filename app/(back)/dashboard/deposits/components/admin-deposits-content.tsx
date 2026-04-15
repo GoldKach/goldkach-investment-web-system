@@ -1,7 +1,7 @@
 // app/admin/deposits/components/admin-deposits-content.tsx
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from "react"
+import { useState, useMemo, useRef, useCallback, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Eye,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { type Deposit } from "@/actions/deposits"
 import { useRouter } from "next/navigation"
@@ -36,6 +38,8 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
   const [selectedDeposit, setSelectedDeposit] = useState<Deposit | null>(null)
   const [isModalOpen,     setIsModalOpen]     = useState(false)
   const [createOpen,      setCreateOpen]      = useState(false)
+  const [page,          setPage]          = useState(1)
+  const ITEMS_PER_PAGE = 15
   const router = useRouter()
 
   const filteredDeposits = useMemo(() => {
@@ -53,6 +57,15 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
       return matchesSearch && matchesStatus && matchesType
     })
   }, [deposits, searchQuery, statusFilter, typeFilter])
+
+  const totalPages = Math.ceil(filteredDeposits.length / ITEMS_PER_PAGE)
+  const paginatedDeposits = filteredDeposits.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
+  const startIdx = (page - 1) * ITEMS_PER_PAGE + 1
+  const endIdx = Math.min(page * ITEMS_PER_PAGE, filteredDeposits.length)
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter, typeFilter, deposits.length])
 
   const stats = useMemo(() => {
     const pending  = deposits.filter(d => d.transactionStatus === "PENDING")
@@ -226,7 +239,7 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
                   <p>No deposits found</p>
                 </div>
               ) : (
-                filteredDeposits.map((deposit) => (
+                paginatedDeposits.map((deposit) => (
                   <div
                     key={deposit.id}
                     className="relative flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
@@ -303,6 +316,29 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
             </div>
           </CardContent>
         </Card>
+
+        {deposits.length > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Showing {startIdx}-{endIdx} of {filteredDeposits.length} deposits
+            </p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="h-7 w-7 p-0 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300">
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs text-slate-500 dark:text-slate-400 px-2">
+                  {page} / {totalPages}
+                </span>
+                <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className="h-7 w-7 p-0 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300">
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Create Deposit Dialog */}

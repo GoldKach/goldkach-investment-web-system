@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,12 +35,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText
+  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp
 } from "lucide-react";
 import { updateUserById } from "@/actions/auth";
 import { createDeposit } from "@/actions/deposits";
 import { UserDetailPreview } from "@/components/user/user-detail-view";
 import type { PortfolioSummary } from "@/actions/portfolio-summary";
+import { generatePerformanceReportPDF } from "@/components/front-end/generate-report-pdf";
+
+const fmt = (n: number) =>
+  `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
 type UserForDashboard = {
   id: string;
@@ -56,10 +62,11 @@ type UserForDashboard = {
   createdAt?: string | null;
   updatedAt?: string | null;
   wallet?: any | null;
+  masterWallet?: any | null;
   deposits?: any[] | null;
   withdrawals?: any[] | null;
   entityOnboarding?: any | null;
-  userPortfolios?: Array<{ id: string; customName: string }> | null;
+  userPortfolios?: Array<{ id: string; customName: string; portfolio?: { name: string } | null }> | null;
 };
 
 const STATUS_OPTIONS = [
@@ -69,18 +76,37 @@ const STATUS_OPTIONS = [
   { value: "SUSPENDED", label: "Suspended", color: "bg-red-500/15 text-red-400 border-red-500/20" },
 ];
 
+interface DepositFeeSummary {
+  totalBankCost: number;
+  totalTransactionCost: number;
+  totalCashAtBank: number;
+  totalFees: number;
+  depositCount: number;
+}
+
 export function ClientDetail({
   user: initialUser,
   portfolioSummary,
+  reports = {},
+  portfolios = [],
+  depositFeeSummary,
 }: {
   user: UserForDashboard;
   portfolioSummary?: PortfolioSummary | null;
+  reports?: Record<string, any[]>;
+  portfolios?: Array<{ id: string; customName: string; portfolio?: { name: string } | null }>;
+  depositFeeSummary?: DepositFeeSummary | null;
 }) {
   const [user, setUser] = useState(initialUser);
   const [isPending, startTransition] = useTransition();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [loadingReports, setLoadingReports] = useState<Set<string>>(new Set());
+  const [filteredReports, setFilteredReports] = useState<Record<string, any[]>>(reports ?? {});
   
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -206,7 +232,98 @@ export function ClientDetail({
     });
   }
 
+  const filterReportsByDate = async () => {
+    if (!selectedDate) {
+      setFilteredReports(reports ?? {});
+      return;
+    }
+
+    setLoadingReports(new Set(portfolios.map((p) => p.id)));
+    
+    try {
+      const dateParams = {
+        startDate: new Date(selectedDate + "T00:00:00.000Z").toISOString(),
+        endDate: new Date(selectedDate + "T23:59:59.999Z").toISOString(),
+      };
+
+      const results: Record<string, any[]> = {};
+      
+      for (const portfolio of portfolios) {
+        const { listPerformanceReports } = await import("@/actions/portfolioPerformanceReports");
+        const res = await listPerformanceReports({ 
+          userPortfolioId: portfolio.id, 
+          period: "daily",
+          ...dateParams
+        });
+        if (res.success && res.data) {
+          results[portfolio.id] = [...res.data].sort(
+            (a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()
+          );
+        }
+      }
+      
+      setFilteredReports(results);
+    } catch (error) {
+      toast.error("Failed to filter reports");
+    } finally {
+      setLoadingReports(new Set());
+    }
+  };
+
   const statusOption = STATUS_OPTIONS.find((s) => s.value === user.status);
+
+  const togglePortfolio = useCallback((portfolioId: string) => {
+    setExpandedPortfolios((prev) => {
+      const s = new Set(prev);
+      if (s.has(portfolioId)) { s.delete(portfolioId); return s; }
+      s.add(portfolioId);
+      return s;
+    });
+  }, []);
+
+  const handleView = async (report: any, portfolio: any) => {
+    setGeneratingPdf(report.id);
+    try {
+      const enrichedReport = {
+        ...report,
+        userPortfolio: {
+          ...(report.userPortfolio ?? {
+            id: report.userPortfolioId,
+            portfolioId: portfolio.portfolio?.id,
+            customName: portfolio.customName,
+          }),
+          portfolio: portfolio.portfolio,
+          userAssets: portfolio.userAssets ?? [],
+        },
+      };
+      const doc = await generatePerformanceReportPDF(enrichedReport, user, displayName, depositFeeSummary ?? undefined);
+      window.open(URL.createObjectURL(doc.output("blob")), "_blank");
+    } finally {
+      setGeneratingPdf(null);
+    }
+  };
+
+  const handleDownload = async (report: any, portfolio: any) => {
+    setGeneratingPdf(report.id);
+    try {
+      const enrichedReport = {
+        ...report,
+        userPortfolio: {
+          ...(report.userPortfolio ?? {
+            id: report.userPortfolioId,
+            portfolioId: portfolio.portfolio?.id,
+            customName: portfolio.customName,
+          }),
+          portfolio: portfolio.portfolio,
+          userAssets: portfolio.userAssets ?? [],
+        },
+      };
+      const doc = await generatePerformanceReportPDF(enrichedReport, user, displayName, depositFeeSummary ?? undefined);
+      doc.save(`portfolio-report-${displayName.replace(/\s+/g, "-")}-${report.reportDate.split("T")[0]}.pdf`);
+    } finally {
+      setGeneratingPdf(null);
+    }
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -340,6 +457,134 @@ export function ClientDetail({
           null;
         return { ...user, entityOnboarding };
       })()} />
+
+      {/* Performance Reports Section */}
+      {portfolios.length > 0 && (
+        <Card className="border-border bg-card">
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Performance Reports
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-40 text-sm h-8"
+                />
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={filterReportsByDate}
+                  disabled={!selectedDate || loadingReports.size > 0}
+                  className="h-8 gap-1"
+                >
+                  {loadingReports.size > 0 ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Filter"
+                  )}
+                </Button>
+                {selectedDate && (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={() => {
+                      setSelectedDate("");
+                      setFilteredReports(reports ?? {});
+                    }}
+                    className="h-8 text-xs"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-3">
+            {portfolios.map((portfolio) => {
+              const isExpanded = expandedPortfolios.has(portfolio.id);
+              const portfolioReports = (filteredReports ?? {})[portfolio.id] ?? [];
+              const latestReport = portfolioReports[0];
+
+              return (
+                <div key={portfolio.id} className="rounded-lg border border-border/60 overflow-hidden">
+                  <div
+                    className="flex items-center gap-3 p-3 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => togglePortfolio(portfolio.id)}
+                  >
+                    <FileText className="h-4 w-4 text-slate-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{portfolio.customName}</p>
+                      <p className="text-xs text-muted-foreground">{portfolio.portfolio?.name}</p>
+                    </div>
+                    <div className="hidden md:flex items-center gap-4 text-xs">
+                      {latestReport && (
+                        <>
+                          <span className="text-muted-foreground">
+                            NAV: <span className="font-semibold text-blue-500">{fmt(latestReport.netAssetValue)}</span>
+                          </span>
+                          <span className={latestReport.totalLossGain >= 0 ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
+                            {latestReport.totalLossGain >= 0 ? "+" : ""}{latestReport.totalLossGain.toFixed(2)}
+                          </span>
+                          <span className={latestReport.totalPercentage >= 0 ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
+                            {latestReport.totalPercentage >= 0 ? "+" : ""}{latestReport.totalPercentage.toFixed(2)}%
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                  </div>
+
+                  {isExpanded && (
+                    <div className="border-t border-border/60">
+                      {portfolioReports.length === 0 ? (
+                        <p className="px-4 py-4 text-xs text-muted-foreground italic">
+                          No reports generated yet.
+                        </p>
+                      ) : (
+                        <div className="divide-y divide-border/40">
+                          {portfolioReports.map((report: any) => {
+                            const pos = report.totalLossGain >= 0;
+                            const isGen = generatingPdf === report.id;
+                            return (
+                              <div key={report.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/10 flex-wrap">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold">{fmtDate(report.reportDate)}</p>
+                                  <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                                    <span>NAV: <span className="text-blue-500 font-medium">{fmt(report.netAssetValue)}</span></span>
+                                    <span>Close: <span className="font-medium">{fmt(report.totalCloseValue)}</span></span>
+                                    <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>{fmt(report.totalLossGain)}</span>
+                                    <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>
+                                      {report.totalPercentage >= 0 ? "+" : ""}{report.totalPercentage.toFixed(2)}%
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                  <Button size="sm" variant="outline" onClick={() => handleView(report, portfolio)} disabled={isGen} className="gap-1.5 text-xs h-7">
+                                    {isGen ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+                                    View
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleDownload(report, portfolio)} disabled={isGen} className="gap-1.5 text-xs h-7">
+                                    {isGen ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                                    PDF
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>

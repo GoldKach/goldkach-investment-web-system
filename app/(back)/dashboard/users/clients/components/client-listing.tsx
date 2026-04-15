@@ -83,6 +83,17 @@ type Client = {
   userPortfolios: { id: string; customName: string; portfolioValue: number; isActive: boolean }[];
 };
 
+function concatPortfolioNames(portfolios: { customName: string }[], maxLength = 30) {
+  if (!portfolios || portfolios.length === 0) return "—";
+  const names = portfolios.map(p => p.customName);
+  const combined = names.join(" — ");
+  if (combined.length > maxLength) {
+    const half = Math.floor((maxLength - 3) / 2);
+    return combined.slice(0, half) + "..." + combined.slice(-half);
+  }
+  return combined;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function initials(first: string, last?: string | null) {
@@ -600,6 +611,7 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent">
               <TableHead className="text-muted-foreground font-medium pl-4">Client</TableHead>
+              <TableHead className="text-muted-foreground font-medium">Portfolios</TableHead>
               <TableHead className="text-muted-foreground font-medium">Type</TableHead>
               <TableHead className="text-muted-foreground font-medium">Contact</TableHead>
               <TableHead className="text-muted-foreground font-medium">Onboarding</TableHead>

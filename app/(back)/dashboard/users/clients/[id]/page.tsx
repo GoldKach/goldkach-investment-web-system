@@ -5,6 +5,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { getUserById } from "@/actions/auth";
 import { getPortfolioSummary } from "@/actions/portfolio-summary";
+import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
+import { listUserPortfolios } from "@/actions/user-portfolios";
+import { getDepositFeeSummary } from "@/actions/deposits";
 import { ClientDetail } from "./components/client-detail";
 
 export default async function ClientDetailPage({
@@ -16,9 +19,10 @@ export default async function ClientDetailPage({
 
   async function ClientWithData() {
     try {
-      const [userResponse, portfolioResponse] = await Promise.all([
+      const [userResponse, portfolioResponse, portfoliosResponse] = await Promise.all([
         getUserById(id),
         getPortfolioSummary(id),
+        listUserPortfolios({ userId: id, include: { portfolio: true, userAssets: true } }),
       ]);
 
       const user = userResponse.data;
@@ -38,10 +42,31 @@ export default async function ClientDetailPage({
         );
       }
 
+      const portfolios = portfoliosResponse.success && portfoliosResponse.data ? portfoliosResponse.data : [];
+      let reports: Record<string, any[]> = {};
+      
+      for (const portfolio of portfolios) {
+        const res = await listPerformanceReports({ userPortfolioId: portfolio.id, period: "daily" });
+        if (res.success && res.data) {
+          reports[portfolio.id] = [...res.data].sort(
+            (a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()
+          );
+        }
+      }
+
+      let depositFeeSummary = null;
+      const feeSummaryRes = await getDepositFeeSummary(id);
+      if (feeSummaryRes.success) {
+        depositFeeSummary = feeSummaryRes.data ?? null;
+      }
+
       return (
         <ClientDetail
           user={user}
           portfolioSummary={portfolioResponse.success ? portfolioResponse.data : null}
+          reports={reports}
+          portfolios={portfolios}
+          depositFeeSummary={depositFeeSummary}
         />
       );
     } catch (error) {

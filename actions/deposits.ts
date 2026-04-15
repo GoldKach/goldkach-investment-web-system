@@ -595,3 +595,23 @@ export async function deleteDeposit(id: string) {
     return { success: false, error: msg(e, "Failed to delete deposit") };
   }
 }
+
+export interface DepositFeeSummary {
+  totalBankCost: number;
+  totalTransactionCost: number;
+  totalCashAtBank: number;
+  totalFees: number;
+  depositCount: number;
+}
+
+/** GET /deposits/summary/:userId — get fee summary for all approved deposits */
+export async function getDepositFeeSummary(userId: string) {
+  if (!userId) return { success: false, error: "Missing userId." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get(`/deposits/summary/${userId}`, { headers });
+    return { success: true, data: res.data?.data as DepositFeeSummary };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to get deposit fee summary") };
+  }
+}

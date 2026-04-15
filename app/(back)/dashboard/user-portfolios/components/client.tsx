@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   createUserPortfolio,
   deleteUserPortfolio,
-  recomputeUserPortfolio,
   type UserPortfolioDTO,
   type AssetAllocation,
 } from "@/actions/user-portfolios";
@@ -67,10 +66,11 @@ import {
   Check,
   ChevronsUpDown,
   AlertCircle,
-  RefreshCw,
   Wallet,
   Loader2,
   Ban,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getMasterWalletByUser } from "@/actions/master-wallets";
@@ -123,10 +123,22 @@ const fmtPct = (v: number) => `${Number(v).toFixed(2)}%`;
 const fmtDate = (s?: string) =>
   s ? new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric" }).format(new Date(s)) : "—";
 
+const truncateHalf = (s?: string | null) => {
+  if (!s || s.length <= 8) return s ?? "—";
+  const half = Math.floor(s.length / 2);
+  return s.slice(0, half) + "...";
+};
+
 function userName(u?: { name?: string | null; firstName?: string | null; lastName?: string | null; email?: string | null } | null) {
   if (!u) return "—";
   if (u.name) return u.name;
-  if (u.firstName || u.lastName) return `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim();
+  if (u.firstName || u.lastName) {
+    const parts = [u.firstName ?? "", u.lastName ?? ""].filter(Boolean);
+    if (parts.length >= 3) {
+      return `${parts[0]} ${parts[1]} ${parts[2].charAt(0)}.`;
+    }
+    return parts.join(" ");
+  }
   return u.email ?? "—";
 }
 
@@ -569,13 +581,11 @@ function ViewDialog({
   open,
   onClose,
   onDelete,
-  onRecompute,
 }: {
   up:          UserPortfolioDTO | null;
   open:        boolean;
   onClose:     () => void;
   onDelete:    () => void;
-  onRecompute: (id: string) => void;
 }) {
   if (!up) return null;
   const assets     = up.userAssets ?? [];
@@ -592,10 +602,10 @@ function ViewDialog({
             <div className="w-8 h-8 rounded-lg bg-[#2B2F77]/10 dark:bg-[#3B82F6]/10 border border-[#2B2F77]/20 dark:border-[#3B82F6]/20 flex items-center justify-center shrink-0">
               <Briefcase className="w-4 h-4 text-[#2B2F77] dark:text-[#3B82F6]" />
             </div>
-            {up.customName}
+            {truncateHalf(up.customName)}
           </DialogTitle>
           <DialogDescription className="text-slate-500 dark:text-slate-400">
-            {userName(up.user)} · {up.portfolio?.name}
+            {userName(up.user)} · {truncateHalf(up.portfolio?.name)}
           </DialogDescription>
         </DialogHeader>
 
@@ -701,17 +711,9 @@ function ViewDialog({
           {/* Actions */}
           <div className="flex gap-2 pt-1">
             <Button
-              onClick={() => onRecompute(up.id)}
-              variant="outline"
-              className="flex-1 h-9 border-[#2B2F77]/30 dark:border-[#3B82F6]/30 text-[#2B2F77] dark:text-[#3B82F6] hover:bg-[#2B2F77]/10 dark:hover:bg-[#3B82F6]/10 text-sm"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-              Recompute Positions
-            </Button>
-            <Button
               onClick={onDelete}
               variant="outline"
-              className="h-9 border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+              className="flex-1 h-9 border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10"
             >
               <Trash2 className="w-3.5 h-3.5 mr-1.5" />
               Delete
@@ -792,21 +794,14 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected,   setSelected]   = useState<UserPortfolioDTO | null>(null);
   const [isPending,  startTransition] = useTransition();
+  const [page,       setPage]         = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   const openView   = (up: UserPortfolioDTO) => { setSelected(up); setViewOpen(true); };
   const openDelete = (up: UserPortfolioDTO) => { setSelected(up); setDeleteOpen(true); };
 
   const handleCreated  = (up: UserPortfolioDTO) => setItems((prev) => [up, ...prev]);
   const handleDeleted  = (id: string)           => setItems((prev) => prev.filter((p) => p.id !== id));
-
-  const handleRecompute = (id: string) => {
-    startTransition(async () => {
-      const res = await recomputeUserPortfolio(id);
-      if (!res.success) { toast.error(res.error ?? "Recompute failed."); return; }
-      toast.success("Positions recomputed.");
-      if (res.data) setItems((prev) => prev.map((p) => p.id === id ? res.data as UserPortfolioDTO : p));
-    });
-  };
 
   const filtered = query.trim()
     ? items.filter((up) =>
@@ -817,10 +812,19 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
       )
     : items;
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedItems = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const startIdx = (page - 1) * ITEMS_PER_PAGE + 1;
+  const endIdx = Math.min(page * ITEMS_PER_PAGE, filtered.length);
+
   const totalNAV = items.reduce((s, up) => s + (up.wallet?.netAssetValue ?? up.portfolioValue ?? 0), 0);
 
+  useEffect(() => {
+    setPage(1);
+  }, [query, items.length]);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080b1f]">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080b1f] overflow-x-hidden">
 
       {/* Header */}
       <div className="bg-white dark:bg-[#0a0d24] border-b border-slate-200 dark:border-[#2B2F77]/30">
@@ -846,7 +850,7 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-5">
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-5 overflow-x-hidden">
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4">
@@ -873,7 +877,7 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
         </div>
 
         {/* Table */}
-        <div className="bg-white dark:bg-[#0f1135] border border-slate-200 dark:border-[#2B2F77]/30 rounded-2xl overflow-hidden">
+        <div className="bg-white dark:bg-[#0f1135] border border-slate-200 dark:border-[#2B2F77]/30 rounded-2xl overflow-x-auto">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="w-14 h-14 rounded-2xl bg-[#2B2F77]/10 dark:bg-[#3B82F6]/10 border border-[#2B2F77]/20 dark:border-[#3B82F6]/20 flex items-center justify-center mb-4">
@@ -911,22 +915,22 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((up, i) => {
+                {paginatedItems.map((up, i) => {
                   const totalGain = (up.userAssets ?? []).reduce((s, a) => s + (a.lossGain ?? 0), 0);
                   const isPos     = totalGain >= 0;
                   return (
                     <TableRow key={up.id}
-                      className={`border-b border-slate-100 dark:border-[#2B2F77]/20 hover:bg-slate-50 dark:hover:bg-[#161b4a]/40 transition-colors ${i === filtered.length - 1 ? "border-b-0" : ""}`}>
+                      className={`border-b border-slate-100 dark:border-[#2B2F77]/20 hover:bg-slate-50 dark:hover:bg-[#161b4a]/40 transition-colors ${i === paginatedItems.length - 1 ? "border-b-0" : ""}`}>
                       <TableCell className="px-6 py-4">
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">{userName(up.user)}</p>
                         <p className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-[140px]">{up.user?.email}</p>
                       </TableCell>
                       <TableCell className="py-4">
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{up.customName}</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{truncateHalf(up.customName)}</span>
                       </TableCell>
                       <TableCell className="py-4">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#2B2F77]/10 dark:bg-[#3B82F6]/10 text-[#2B2F77] dark:text-[#3B82F6] border border-[#2B2F77]/20 dark:border-[#3B82F6]/20">
-                          {up.portfolio?.name ?? "—"}
+                          {truncateHalf(up.portfolio?.name)}
                         </span>
                       </TableCell>
                       <TableCell className="py-4 text-center">
@@ -956,11 +960,6 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
                             className="h-8 w-8 p-0 text-slate-400 hover:text-[#3B82F6] hover:bg-[#3B82F6]/10" title="View">
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleRecompute(up.id)}
-                            disabled={isPending}
-                            className="h-8 w-8 p-0 text-slate-400 hover:text-[#2B2F77] dark:hover:text-[#3B82F6] hover:bg-[#2B2F77]/10 dark:hover:bg-[#3B82F6]/10" title="Recompute">
-                            <RefreshCw className="w-3.5 h-3.5" />
-                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => openDelete(up)}
                             className="h-8 w-8 p-0 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10" title="Delete">
                             <Trash2 className="w-3.5 h-3.5" />
@@ -976,9 +975,26 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
         </div>
 
         {items.length > 0 && (
-          <p className="text-xs text-slate-400 dark:text-slate-500 text-right">
-            {query ? `${filtered.length} of ${items.length}` : items.length} assignment{items.length !== 1 ? "s" : ""}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              {query ? `${filtered.length} of ${items.length}` : `Showing ${startIdx}-${endIdx} of ${filtered.length}`} assignment{filtered.length !== 1 ? "s" : ""}
+            </p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="h-7 w-7 p-0 border-slate-200 dark:border-[#2B2F77]/50 text-slate-600 dark:text-slate-300">
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </Button>
+                <span className="text-xs text-slate-500 dark:text-slate-400 px-2">
+                  {page} / {totalPages}
+                </span>
+                <Button size="sm" variant="outline" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className="h-7 w-7 p-0 border-slate-200 dark:border-[#2B2F77]/50 text-slate-600 dark:text-slate-300">
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -995,7 +1011,6 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
         open={viewOpen}
         onClose={() => setViewOpen(false)}
         onDelete={() => { setViewOpen(false); setDeleteOpen(true); }}
-        onRecompute={(id) => { setViewOpen(false); handleRecompute(id); }}
       />
       <DeleteDialog
         up={selected}

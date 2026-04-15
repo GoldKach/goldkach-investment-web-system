@@ -3,6 +3,7 @@ import { fetchMe, getAllUsers, getSession } from "@/actions/auth"
 import { listPerformanceReports, PortfolioPerformanceReport } from "@/actions/portfolioPerformanceReports";
 import { listUserPortfolios, UserPortfolioDTO } from "@/actions/user-portfolios"
 import { getPortfolioSummary } from "@/actions/portfolio-summary"
+import { getDepositFeeSummary, DepositFeeSummary } from "@/actions/deposits"
 import ReportsClient from "@/components/front-end/reports-client"
 
 
@@ -59,6 +60,15 @@ export default async function ReportsPage() {
   const summaryRes = await getPortfolioSummary(userId);
   const portfolioSummary = summaryRes.success ? summaryRes.data : null;
 
+  // Fetch deposit fee summary for deductions in PDF
+  let depositFeeSummary: DepositFeeSummary | null = null;
+  if (userId) {
+    const feeSummaryRes = await getDepositFeeSummary(userId);
+    if (feeSummaryRes.success) {
+      depositFeeSummary = feeSummaryRes.data ?? null;
+    }
+  }
+
   console.log("Active User with Wallet:", activeUser);
 
   return (
@@ -69,6 +79,7 @@ export default async function ReportsPage() {
       initialPortfolios={initialPortfolios}
       initialError={initialError}
       portfolioSummary={portfolioSummary}
+      depositFeeSummary={depositFeeSummary}
     />
   )
 }

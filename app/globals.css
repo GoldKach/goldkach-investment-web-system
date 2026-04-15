@@ -196,3 +196,12 @@ div[data-ut-element="allowed-content"],
   background-color: hsl(var(--primary)) !important;
   color: hsl(var(--primary-foreground)) !important;
 }
+
+/* Prevent horizontal scroll */
+html {
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+}

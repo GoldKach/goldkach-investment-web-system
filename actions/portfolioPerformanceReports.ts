@@ -521,6 +521,9 @@ export interface PortfolioPerformanceReport {
   totalPercentage: number;
   totalFees:       number;       // fees accumulated across all slices
   netAssetValue:   number;       // totalCloseValue - totalFees
+  bankCost:        number;       // bank cost deduction
+  transactionCost: number;        // transaction cost deduction
+  cashAtBank:      number;       // cash at bank deduction
   createdAt?:      string;
   updatedAt?:      string;
   assetBreakdown?:        PortfolioAssetBreakdown[];

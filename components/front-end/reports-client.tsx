@@ -823,6 +823,14 @@ import { listPerformanceReports, ListPerformanceReportsParams, PortfolioPerforma
 import { UserPortfolioDTO } from "@/actions/user-portfolios"
 import { PortfolioSummary } from "@/actions/portfolio-summary"
 
+interface DepositFeeSummary {
+  totalBankCost: number;
+  totalTransactionCost: number;
+  totalCashAtBank: number;
+  totalFees: number;
+  depositCount: number;
+}
+
 interface ReportsClientProps {
   user: {
     id: string
@@ -830,7 +838,7 @@ interface ReportsClientProps {
     lastName?: string
     name?: string
     email?: string
-    wallet?: {
+    masterWallet?: {
       id: string
       accountNumber: string
       balance: number
@@ -848,6 +856,7 @@ interface ReportsClientProps {
   initialPortfolios?: UserPortfolioDTO[]
   initialError?: string | null
   portfolioSummary?: PortfolioSummary | null
+  depositFeeSummary?: DepositFeeSummary | null
 }
 
 type TabType = "portfolio"
@@ -859,6 +868,7 @@ export default function ReportsClient({
   initialPortfolios = [],
   initialError,
   portfolioSummary,
+  depositFeeSummary,
 }: ReportsClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>("portfolio")
   const [portfolioReports, setPortfolioReports] = useState<PortfolioPerformanceReport[]>(initialReports)
@@ -963,11 +973,11 @@ export default function ReportsClient({
   const generatePDF = async (report: PortfolioPerformanceReport) => {
     const doc = new jsPDF('portrait')
     
-    const walletData = user?.wallet
-    const bankFee = walletData?.bankFee ?? 0
-    const transactionFee = walletData?.transactionFee ?? 0
-    const feeAtBank = walletData?.feeAtBank ?? 0
-    const totalFees = walletData?.totalFees ?? 0
+    const walletData = user?.masterWallet
+    const bankCost = depositFeeSummary?.totalBankCost ?? report.bankCost ?? walletData?.bankFee ?? 0
+    const transactionCost = depositFeeSummary?.totalTransactionCost ?? report.transactionCost ?? walletData?.transactionFee ?? 0
+    const cashAtBank = depositFeeSummary?.totalCashAtBank ?? report.cashAtBank ?? walletData?.feeAtBank ?? 0
+    const totalFees = depositFeeSummary?.totalFees ?? report.totalFees ?? walletData?.totalFees ?? 0
     const accountNumber = walletData?.accountNumber ?? report.userPortfolio?.id?.slice(-8).toUpperCase() ?? 'N/A'
     
     const clientName = user?.name || 
@@ -1224,9 +1234,9 @@ export default function ReportsClient({
       currentY = (doc as any).lastAutoTable.finalY + 8
       
       const costsData = [
-        ['Bank Costs', formatCurrency(bankFee)],
-        ['Transaction Cost', formatCurrency(transactionFee)],
-        ['Cash at Bank', formatCurrency(feeAtBank)],
+        ['Bank Cost', formatCurrency(bankCost)],
+        ['Transaction Cost', formatCurrency(transactionCost)],
+        ['Cash at Bank', formatCurrency(cashAtBank)],
         ['Sub Total', formatCurrency(totalFees)],
         ['Total', formatCurrency(report.totalCloseValue + totalFees)]
       ]

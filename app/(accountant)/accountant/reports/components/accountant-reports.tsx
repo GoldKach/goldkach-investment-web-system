@@ -175,6 +175,41 @@ export function AccountantReports({ clientPortfolios }: Props) {
 
       y = (doc as any).lastAutoTable.finalY + 10;
 
+      // Deductions section
+      doc.setFillColor(25, 51, 136);
+      doc.rect(15, y, 90, 10, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Deductions", 20, y + 7);
+      doc.setTextColor(0, 0, 0);
+      y += 15;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Description", "Amount"]],
+        body: [
+          ["Bank Cost", fmt(report.bankCost ?? masterWallet?.bankFee ?? 0)],
+          ["Transaction Cost", fmt(report.transactionCost ?? masterWallet?.transactionFee ?? 0)],
+          ["Cash at Bank", fmt(report.cashAtBank ?? masterWallet?.feeAtBank ?? 0)],
+          ["Total Deductions", fmt(report.totalFees ?? 0)],
+        ],
+        theme: "grid",
+        headStyles: { fillColor: [25, 51, 136], textColor: [255, 255, 255], fontSize: 10 },
+        bodyStyles: { fontSize: 10 },
+        columnStyles: { 0: { halign: "left", cellWidth: 60 }, 1: { halign: "right", cellWidth: 60 } },
+        margin: { left: 20 },
+        tableWidth: 120,
+        didParseCell: (data) => {
+          if (data.row.index === 3 && data.section === "body") {
+            data.cell.styles.fontStyle = "bold";
+            data.cell.styles.fillColor = [230, 230, 230];
+          }
+        },
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 10;
+
       // Asset holdings
       const assets = portfolio.assets ?? [];
       if (assets.length > 0) {

@@ -2,11 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Download, Mail, MessageSquare, Search, Send, X } from "lucide-react";
+import { Download, Mail, MessageSquare, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -21,6 +20,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { RichTextEditor } from "@/components/front-end/rich-text-editor";
+import { sendBulkEmail } from "@/actions/communications";
 
 interface Contact {
   id: string;
@@ -136,7 +137,7 @@ function ContactTable({
 export function ContactsTable({ clients, agents }: ContactsTableProps) {
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
-  const [emailDialog, setEmailDialog] = useState<{ open: boolean; target: "clients" | "agents" | null }>({ open: false, target: null });
+  const [emailDialog, setEmailDialog] = useState<{ open: boolean; target: "clients" | "agents" | "all" | null }>({ open: false, target: null });
   const [emailForm, setEmailForm] = useState({ subject: "", message: "" });
   const [isSending, startSending] = useTransition();
 
@@ -150,9 +151,11 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
   const toggleAllAgents = (ids: string[], checked: boolean) =>
     setSelectedAgents((prev) => { const s = new Set(prev); ids.forEach((id) => checked ? s.add(id) : s.delete(id)); return s; });
 
-  const openEmailDialog = (target: "clients" | "agents") => {
-    const count = target === "clients" ? selectedClients.size : selectedAgents.size;
-    if (count === 0) { toast.error("Select at least one recipient first."); return; }
+  const openEmailDialog = (target: "clients" | "agents" | "all") => {
+    if (target !== "all") {
+      const count = target === "clients" ? selectedClients.size : selectedAgents.size;
+      if (count === 0) { toast.error("Select at least one recipient first."); return; }
+    }
     setEmailDialog({ open: true, target });
     setEmailForm({ subject: "", message: "" });
   };
@@ -162,23 +165,34 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
       toast.error("Subject and message are required.");
       return;
     }
-    const pool = emailDialog.target === "clients" ? clients : agents;
-    const selected = emailDialog.target === "clients" ? selectedClients : selectedAgents;
-    const recipients = pool.filter((c) => selected.has(c.id)).map((c) => c.email);
+    
+    let recipients: string[] = [];
+    if (emailDialog.target === "all") {
+      recipients = [...clients, ...agents].map((c) => c.email);
+    } else if (emailDialog.target === "clients") {
+      recipients = clients.filter((c) => selectedClients.has(c.id)).map((c) => c.email);
+    } else if (emailDialog.target === "agents") {
+      recipients = agents.filter((c) => selectedAgents.has(c.id)).map((c) => c.email);
+    }
+
+    if (recipients.length === 0) {
+      toast.error("No recipients to send to.");
+      return;
+    }
 
     startSending(async () => {
       try {
-        const res = await fetch("/api/communications/send-bulk-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ recipients, subject: emailForm.subject, message: emailForm.message }),
+        const result = await sendBulkEmail({
+          recipients,
+          subject: emailForm.subject,
+          message: emailForm.message,
         });
-        const data = await res.json();
-        if (data.success) {
-          toast.success(`Sent to ${data.sent} of ${data.total} recipients.`);
+        
+        if (result.success) {
+          toast.success(`Sent to ${result.sent || recipients.length} recipients.`);
           setEmailDialog({ open: false, target: null });
         } else {
-          toast.error(data.error || "Failed to send emails.");
+          toast.error(result.error || "Failed to send emails.");
         }
       } catch {
         toast.error("An unexpected error occurred.");
@@ -194,7 +208,6 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
           <TabsTrigger value="agents">Staff ({agents.length})</TabsTrigger>
         </TabsList>
 
-        {/* ── Clients ── */}
         <TabsContent value="clients" className="mt-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <p className="text-sm text-slate-500">
@@ -226,6 +239,16 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
               >
                 <Mail className="h-4 w-4" /> Email Selected ({selectedClients.size})
               </Button>
+              <Button
+                size="sm"
+                variant="default"
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+                onClick={() => openEmailDialog("all")}
+                disabled={clients.length === 0 && agents.length === 0}
+                title="Send to all clients and staff"
+              >
+                <Mail className="h-4 w-4" /> Send to All ({clients.length + agents.length})
+              </Button>
             </div>
           </div>
           <ContactTable
@@ -236,7 +259,6 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
           />
         </TabsContent>
 
-        {/* ── Agents ── */}
         <TabsContent value="agents" className="mt-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <p className="text-sm text-slate-500">
@@ -279,13 +301,16 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Email compose dialog */}
       <Dialog open={emailDialog.open} onOpenChange={(o) => !isSending && setEmailDialog({ open: o, target: emailDialog.target })}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
-              Send Email to {emailDialog.target === "clients" ? `${selectedClients.size} client(s)` : `${selectedAgents.size} staff member(s)`}
+              {emailDialog.target === "all" 
+                ? `Send to All (${clients.length + agents.length})` 
+                : emailDialog.target === "clients" 
+                  ? `Send to ${selectedClients.size} Client(s)` 
+                  : `Send to ${selectedAgents.size} Staff Member(s)`}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -300,13 +325,11 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="message">Message</Label>
-              <Textarea
-                id="message"
+              <Label>Message</Label>
+              <RichTextEditor
                 value={emailForm.message}
-                onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
-                placeholder="Write your message here…"
-                rows={6}
+                onChange={(value) => setEmailForm({ ...emailForm, message: value })}
+                placeholder="Write your message here..."
                 disabled={isSending}
               />
             </div>

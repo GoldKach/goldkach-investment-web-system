@@ -81,6 +81,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [bootstrap, setBootstrap] = useState<OnboardingUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const alert = searchParams.get("alert");
@@ -89,6 +90,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     async function init() {
+      setIsLoading(true);
       const entityTypeFromQuery = searchParams.get("entityType") as "individual" | "company" | null;
 
       // 1. Try localStorage first (new registration flow)
@@ -98,6 +100,7 @@ export default function OnboardingPage() {
           const parsed = JSON.parse(raw) as OnboardingUser | null;
           if (parsed?.id && parsed?.email) {
             setBootstrap({ ...parsed, entityType: parsed.entityType ?? entityTypeFromQuery ?? "individual" });
+            setIsLoading(false);
             return;
           }
         } catch {}
@@ -106,11 +109,40 @@ export default function OnboardingPage() {
       // 2. Fall back to session (existing USER redirected from dashboard)
       const session = await getSession();
       if (session?.user?.id && session?.user?.email) {
+        // Fetch the user's entity type from the database via API
+        let entityType: "individual" | "company" | null = entityTypeFromQuery;
+        
+        if (!entityType) {
+          try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            const baseUrl = API_URL.endsWith("/api/v1") ? API_URL : `${API_URL}/api/v1`;
+            const res = await fetch(`${baseUrl}/users/${session.user.id}`, {
+              headers: {
+                Authorization: `Bearer ${session.accessToken}`,
+              },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              // Check individual onboarding first
+              if (data.data?.individualOnboarding) {
+                entityType = "individual";
+              } else if (data.data?.companyOnboarding) {
+                entityType = "company";
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch user entity type:", err);
+          }
+        }
+
         setBootstrap({
           id: session.user.id,
           email: session.user.email,
-          entityType: entityTypeFromQuery ?? "individual",
+          firstName: session.user.firstName,
+          lastName: session.user.lastName,
+          entityType: entityType ?? "individual",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -120,6 +152,14 @@ export default function OnboardingPage() {
 
     init();
   }, [router, searchParams]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   if (!bootstrap) return null;
 
