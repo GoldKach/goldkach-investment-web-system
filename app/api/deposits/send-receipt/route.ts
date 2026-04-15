@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+export const dynamic = "force-dynamic"
+
 // Use verified sender — Resend requires a verified domain.
 // "onboarding@resend.dev" works for testing without domain verification.
 const FROM = process.env.MAIL_FROM || "GoldKach <onboarding@resend.dev>"
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
-    const result = await resend.emails.send({
+    const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
       from:    FROM,
       to:      deposit.user.email,
       subject: `GoldKach Deposit ${deposit.transactionStatus === "REJECTED" ? "Rejected" : "Receipt"} - $${deposit.amount.toLocaleString()} (#${deposit.id.slice(0, 8).toUpperCase()})`,

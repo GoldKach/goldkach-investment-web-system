@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+export const dynamic = "force-dynamic"
+
 const FROM = process.env.MAIL_FROM || "GoldKach <onboarding@resend.dev>"
 
 function row(label: string, value: string) {
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
-    const result = await resend.emails.send({
+    const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
       from:    FROM,
       to:      withdrawal.user.email,
       subject: `GoldKach Withdrawal Approved — UGX ${withdrawal.amount.toLocaleString()} (#${withdrawal.id.slice(0, 8).toUpperCase()})`,
