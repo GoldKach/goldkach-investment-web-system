@@ -90,14 +90,25 @@ export function ClientDetail({
   reports = {},
   portfolios = [],
   depositFeeSummary,
+  currentUserRole,
+  mainAccountBalance,
+  onboardingData,
 }: {
   user: UserForDashboard;
   portfolioSummary?: PortfolioSummary | null;
   reports?: Record<string, any[]>;
   portfolios?: Array<{ id: string; customName: string; portfolio?: { name: string } | null }>;
   depositFeeSummary?: DepositFeeSummary | null;
+  currentUserRole?: string;
+  mainAccountBalance?: number | null;
+  onboardingData?: { type: "individual"; data: any } | { type: "company"; data: any } | null;
 }) {
   const [user, setUser] = useState(initialUser);
+  
+  // Compute effective onboarding from both sources (onboardingData prop and user object) - after user is defined
+  const currentOnboardingData = onboardingData?.data || (user as any).individualOnboarding || (user as any).companyOnboarding;
+  const effectiveOnboarding = currentOnboardingData || null;
+  const effectiveOnboardingType = onboardingData?.type || ((user as any).companyOnboarding?.id ? "company" : "individual");
   const [isPending, startTransition] = useTransition();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [statusModalOpen, setStatusModalOpen] = useState(false);

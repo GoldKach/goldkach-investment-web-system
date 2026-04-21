@@ -473,6 +473,67 @@ export async function createAllocation(
   return createDeposit({ ...input, depositTarget: "ALLOCATION" }, opts);
 }
 
+/**
+ * Allocate funds from main account (master wallet) to user's portfolio.
+ * This creates an ALLOCATION deposit and immediately approves it in one step.
+ * For SUPER_ADMIN and CLIENT_RELATIONS roles only.
+ */
+export async function allocateToPortfolio(input: {
+  userId: string;
+  userPortfolioId: string;
+  amount: number;
+  description?: string;
+}) {
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { success: false, error: "Amount must be a positive number." };
+  }
+  if (!input.userId || !input.userPortfolioId) {
+    return { success: false, error: "userId and userPortfolioId are required." };
+  }
+  try {
+    const headers = await authHeaderFromCookies();
+
+    const createRes = await api.post(
+      "/deposits",
+      {
+        userId: input.userId,
+        userPortfolioId: input.userPortfolioId,
+        amount,
+        depositTarget: "ALLOCATION",
+        description: input.description ?? `Allocation to portfolio by admin`,
+      },
+      { headers }
+    );
+
+    if (!createRes.data?.success) {
+      return { success: false, error: createRes.data?.error || "Failed to create allocation" };
+    }
+
+    const deposit = createRes.data?.data as Deposit;
+    if (!deposit?.id) {
+      return { success: false, error: "Failed to retrieve created deposit" };
+    }
+
+    const approveRes = await api.post(
+      `/deposits/${deposit.id}/approve`,
+      { approvedById: null, approvedByName: null, assetPrices: null },
+      { headers }
+    );
+
+    if (!approveRes.data?.success) {
+      return {
+        success: false,
+        error: approveRes.data?.error || "Allocation created but approval failed. Please approve manually.",
+      };
+    }
+
+    return { success: true, data: approveRes.data?.data as Deposit };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to allocate funds") };
+  }
+}
+
 /** PATCH /deposits/:id — only while PENDING */
 export async function updateDeposit(
   id:    string,

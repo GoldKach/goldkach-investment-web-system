@@ -3,11 +3,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import { getUserById } from "@/actions/auth";
+import { getUserById, getSession } from "@/actions/auth";
 import { getPortfolioSummary } from "@/actions/portfolio-summary";
 import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
 import { listUserPortfolios } from "@/actions/user-portfolios";
 import { getDepositFeeSummary } from "@/actions/deposits";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
+import { getOnboardingByUserId } from "@/actions/onboarding-admin";
 import { ClientDetail } from "./components/client-detail";
 
 export default async function ClientDetailPage({
@@ -19,11 +21,25 @@ export default async function ClientDetailPage({
 
   async function ClientWithData() {
     try {
-      const [userResponse, portfolioResponse, portfoliosResponse] = await Promise.all([
+      const [sessionResponse, userResponse, portfolioResponse, portfoliosResponse] = await Promise.all([
+        getSession(),
         getUserById(id),
         getPortfolioSummary(id),
         listUserPortfolios({ userId: id, include: { portfolio: true, userAssets: true } }),
       ]);
+
+      const session = sessionResponse;
+      const currentUser = session?.user;
+      const currentUserRole = currentUser?.role as string | undefined;
+      const currentUserId = currentUser?.id as string | undefined;
+
+      let mainAccountBalance: number | null = null;
+      if (currentUserId && (currentUserRole === "SUPER_ADMIN" || currentUserRole === "CLIENT_RELATIONS")) {
+        const walletRes = await getMasterWalletByUser(currentUserId);
+        if (walletRes.success && walletRes.data?.masterWallet) {
+          mainAccountBalance = walletRes.data.masterWallet.balance;
+        }
+      }
 
       const user = userResponse.data;
 
@@ -60,6 +76,15 @@ export default async function ClientDetailPage({
         depositFeeSummary = feeSummaryRes.data ?? null;
       }
 
+      const allowedRoles = ["SUPER_ADMIN", "CLIENT_RELATIONS", "ADMIN", "MANAGER", "STAFF"];
+      let onboardingData: { type: "individual"; data: any } | { type: "company"; data: any } | null = null;
+      if (currentUserRole && allowedRoles.includes(currentUserRole.toUpperCase())) {
+        const onboardingRes = await getOnboardingByUserId(user.id);
+        if (onboardingRes.success && onboardingRes.data) {
+          onboardingData = onboardingRes.data;
+        }
+      }
+
       return (
         <ClientDetail
           user={user}
@@ -67,6 +92,9 @@ export default async function ClientDetailPage({
           reports={reports}
           portfolios={portfolios}
           depositFeeSummary={depositFeeSummary}
+          currentUserRole={currentUserRole}
+          mainAccountBalance={mainAccountBalance}
+          onboardingData={onboardingData}
         />
       );
     } catch (error) {
