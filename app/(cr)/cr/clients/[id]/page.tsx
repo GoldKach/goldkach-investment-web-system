@@ -3,8 +3,11 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { getClientsForAssignmentAction } from "@/actions/staff";
-import { getPortfolioSummary } from "@/actions/portfolio-summary";
-import { fetchMyIndividualOnboarding, fetchMyCompanyOnboarding } from "@/actions/onboarding";
+import { getPortfolioSummary, type PortfolioSummary } from "@/actions/portfolio-summary";
+import { getOnboardingByUserId } from "@/actions/onboarding-admin";
+import { getUserById } from "@/actions/auth";
+import { listUserPortfolios } from "@/actions/user-portfolios";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
 import { UserDetailPreview } from "@/components/user/user-detail-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,49 +20,137 @@ function fmt(n: number) {
   return `${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/** Build a PortfolioSummary-compatible object from listUserPortfolios + masterWallet */
+function buildPortfolioSummaryFromPortfolios(
+  portfolios: any[],
+  masterWallet: any | null,
+  user: any
+): PortfolioSummary {
+  const mapped = portfolios.map((p: any) => {
+    const assets = (p.userAssets ?? []).map((a: any) => ({
+      id: a.id,
+      assetId: a.assetId,
+      allocationPercentage: a.allocationPercentage ?? 0,
+      costPerShare: a.costPerShare ?? 0,
+      costPrice: a.costPrice ?? 0,
+      stock: a.stock ?? 0,
+      closeValue: a.closeValue ?? 0,
+      lossGain: a.lossGain ?? 0,
+      asset: a.asset ?? { id: a.assetId, symbol: "—", description: "—", assetClass: "—", closePrice: 0 },
+    }));
+
+    return {
+      id: p.id,
+      customName: p.customName,
+      portfolio: p.portfolio ?? { id: p.portfolioId, name: "—", riskTolerance: "—", timeHorizon: "—" },
+      wallet: p.wallet ?? null,
+      totalInvested: p.totalInvested ?? 0,
+      portfolioValue: p.portfolioValue ?? 0,
+      totalLossGain: p.totalLossGain ?? 0,
+      returnPct: p.totalInvested > 0
+        ? ((p.portfolioValue - p.totalInvested) / p.totalInvested) * 100
+        : 0,
+      assets,
+      subPortfolios: p.subPortfolios ?? [],
+      topupHistory: [],
+      latestReport: null,
+    };
+  });
+
+  const totalInvested = mapped.reduce((s: number, p: any) => s + p.totalInvested, 0);
+  const totalValue = mapped.reduce((s: number, p: any) => s + p.portfolioValue, 0);
+  const totalGainLoss = mapped.reduce((s: number, p: any) => s + p.totalLossGain, 0);
+  const totalFees = mapped.reduce((s: number, p: any) => s + (p.wallet?.totalFees ?? 0), 0);
+
+  return {
+    user: {
+      id: user?.id ?? "",
+      firstName: user?.firstName ?? "",
+      lastName: user?.lastName ?? "",
+      email: user?.email ?? "",
+    },
+    masterWallet: masterWallet ?? null,
+    aggregate: {
+      totalInvested,
+      totalValue,
+      totalGainLoss,
+      totalFees,
+      portfolioCount: mapped.length,
+      returnPct: totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0,
+    },
+    portfolios: mapped,
+  };
+}
+
 export default async function CRClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // Fetch all data in parallel — use endpoints accessible to CR role
-  const [clientsRes, summaryRes, individualRes, companyRes] = await Promise.allSettled([
+  // Fetch all data in parallel
+  const [clientsRes, userRes, summaryRes, onboardingRes] = await Promise.allSettled([
     getClientsForAssignmentAction(),
+    getUserById(id),
     getPortfolioSummary(id),
-    fetchMyIndividualOnboarding(id),
-    fetchMyCompanyOnboarding(id),
+    getOnboardingByUserId(id),
   ]);
 
   const clients = clientsRes.status === "fulfilled" ? (clientsRes.value?.data ?? []) : [];
   const baseUser = clients.find((c: any) => c.id === id) ?? null;
+  const fullUser = userRes.status === "fulfilled" && userRes.value?.data ? userRes.value.data : null;
 
-  const portfolioSummary =
+  // Try the fast portfolio-summary endpoint first
+  let portfolioSummary: PortfolioSummary | null =
     summaryRes.status === "fulfilled" && summaryRes.value?.success
-      ? summaryRes.value.data
+      ? (summaryRes.value.data ?? null)
       : null;
 
-  const individualOnboarding =
-    individualRes.status === "fulfilled" && individualRes.value?.success
-      ? individualRes.value.data
-      : null;
+  // If it failed (likely a role restriction), build from listUserPortfolios + masterWallet
+  if (!portfolioSummary) {
+    const [portfoliosRes, walletRes] = await Promise.allSettled([
+      listUserPortfolios({
+        userId: id,
+        include: { portfolio: true, userAssets: true, wallet: true, subPortfolios: true },
+      }),
+      getMasterWalletByUser(id),
+    ]);
 
-  const companyOnboarding =
-    companyRes.status === "fulfilled" && companyRes.value?.success
-      ? companyRes.value.data
-      : null;
+    const portfolios =
+      portfoliosRes.status === "fulfilled" && portfoliosRes.value?.success
+        ? portfoliosRes.value.data ?? []
+        : [];
 
-  // Build a full user object that UserDetailPreview expects
-  const user = baseUser
+    const masterWallet =
+      walletRes.status === "fulfilled" && walletRes.value?.success
+        ? (walletRes.value.data as any)?.masterWallet ?? walletRes.value.data ?? null
+        : null;
+
+    if (portfolios.length > 0 || masterWallet) {
+      const sourceUser = baseUser ?? fullUser;
+      portfolioSummary = buildPortfolioSummaryFromPortfolios(portfolios, masterWallet, sourceUser);
+    }
+  }
+
+  // Onboarding: embedded in baseUser first, then fullUser, then dedicated fetch
+  const onboardingFromUser =
+    baseUser?.individualOnboarding ?? baseUser?.companyOnboarding ??
+    fullUser?.individualOnboarding ?? fullUser?.companyOnboarding ?? null;
+  const onboardingFromAdmin =
+    onboardingRes.status === "fulfilled" && onboardingRes.value?.success
+      ? onboardingRes.value.data?.data ?? null
+      : null;
+  const entityOnboarding = onboardingFromUser ?? onboardingFromAdmin ?? null;
+
+  // Build user object
+  const sourceUser = baseUser ?? fullUser;
+  const user = sourceUser
     ? {
-        ...baseUser,
-        name: baseUser.name || [baseUser.firstName, baseUser.lastName].filter(Boolean).join(" "),
-        wallet: portfolioSummary?.masterWallet ?? null,
-        masterWallet: portfolioSummary?.masterWallet ?? null,
-        deposits: [],
-        withdrawals: [],
-        userPortfolios: portfolioSummary?.portfolios ?? [],
-        // Attach onboarding data — UserDetailPreview reads entityOnboarding
-        entityOnboarding: individualOnboarding ?? companyOnboarding ?? null,
-        individualOnboarding: individualOnboarding ?? null,
-        companyOnboarding: companyOnboarding ?? null,
+        ...sourceUser,
+        name: sourceUser.name || [sourceUser.firstName, sourceUser.lastName].filter(Boolean).join(" "),
+        wallet: portfolioSummary?.masterWallet ?? sourceUser.masterWallet ?? null,
+        masterWallet: portfolioSummary?.masterWallet ?? sourceUser.masterWallet ?? null,
+        deposits: sourceUser.deposits ?? [],
+        withdrawals: sourceUser.withdrawals ?? [],
+        userPortfolios: portfolioSummary?.portfolios ?? sourceUser.userPortfolios ?? [],
+        entityOnboarding,
       }
     : null;
 
@@ -79,7 +170,7 @@ export default async function CRClientDetailPage({ params }: { params: Promise<{
           </div>
         }
       >
-        <UserDetailPreview user={user as any} />
+        <UserDetailPreview user={user as any} portfolioSummary={portfolioSummary} />
       </Suspense>
 
       {/* Portfolio Reports */}

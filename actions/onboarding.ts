@@ -93,6 +93,18 @@ export async function fetchMyIndividualOnboarding(userId: string) {
   }
 }
 
+/** GET /onboarding/individual/user/:userId - fetch for any user */
+export async function fetchIndividualOnboardingByUserId(userId: string) {
+  if (!userId) return { success: true, data: null };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get(`/onboarding/individual/user/${userId}`, { headers });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to load individual onboarding.") };
+  }
+}
+
 // ─────────────────────────────────────────────
 // Company onboarding
 // ─────────────────────────────────────────────
@@ -120,6 +132,18 @@ export async function fetchMyCompanyOnboarding(userId: string) {
       headers,
       params: { userId },
     });
+    return { success: true, data: res.data?.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to load company onboarding.") };
+  }
+}
+
+/** GET /onboarding/company/user/:userId - fetch for any user */
+export async function fetchCompanyOnboardingByUserId(userId: string) {
+  if (!userId) return { success: true, data: null };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get(`/onboarding/company/user/${userId}`, { headers });
     return { success: true, data: res.data?.data };
   } catch (e: any) {
     return { success: false, error: msg(e, "Failed to load company onboarding.") };

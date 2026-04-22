@@ -2,8 +2,15 @@
 
 import axios from "axios";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 const BASE_API_URL = process.env.API_URL || "http://localhost:8000/api/v1";
+
+async function getAuthHeaders() {
+  const jar = await cookies();
+  const token = jar.get("accessToken")?.value;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const api = axios.create({
   baseURL: BASE_API_URL,
@@ -33,6 +40,12 @@ export interface ClientUser {
   imageUrl: string;
   status: string;
   isApproved: boolean;
+  individualOnboarding?: Record<string, any> | null;
+  companyOnboarding?: Record<string, any> | null;
+  masterWallet?: Record<string, any> | null;
+  deposits?: Record<string, any>[];
+  withdrawals?: Record<string, any>[];
+  userPortfolios?: Record<string, any>[];
 }
 
 export type StaffRole =
@@ -156,7 +169,9 @@ export async function createStaffAction(
   input: CreateStaffInput
 ): Promise<ActionResponse<StaffMember>> {
   try {
-    const { data } = await api.post("/staff", input);
+    const { data } = await api.post("/staff", input, {
+      headers: await getAuthHeaders(),
+    });
     revalidatePath("/dashboard/staff");
     return { success: true, data: data.data, message: data.message };
   } catch (e: any) {
@@ -188,7 +203,9 @@ export async function getAllStaffAction(
       params.set("isActive", String(filters.isActive));
 
     const query = params.toString() ? `?${params.toString()}` : "";
-    const { data } = await api.get(`/staff${query}`);
+    const { data } = await api.get(`/staff${query}`, {
+      headers: await getAuthHeaders(),
+    });
     return { success: true, data: data.data };
   } catch (e: any) {
     return {
@@ -205,7 +222,9 @@ export async function getStaffByIdAction(
   id: string
 ): Promise<ActionResponse<StaffMember>> {
   try {
-    const { data } = await api.get(`/staff/${id}`);
+    const { data } = await api.get(`/staff/${id}`, {
+      headers: await getAuthHeaders(),
+    });
     return { success: true, data: data.data };
   } catch (e: any) {
     return {
@@ -238,7 +257,9 @@ export async function updateStaffAction(
   input: UpdateStaffInput
 ): Promise<ActionResponse<StaffMember>> {
   try {
-    const { data } = await api.put(`/staff/${id}`, input);
+    const { data } = await api.put(`/staff/${id}`, input, {
+      headers: await getAuthHeaders(),
+    });
     revalidatePath("/dashboard/staff");
     revalidatePath(`/dashboard/staff/${id}`);
     revalidatePath("/agent");
@@ -260,7 +281,9 @@ export async function deactivateStaffAction(
   id: string
 ): Promise<ActionResponse> {
   try {
-    const { data } = await api.delete(`/staff/${id}`);
+    const { data } = await api.delete(`/staff/${id}`, {
+      headers: await getAuthHeaders(),
+    });
     revalidatePath("/dashboard/staff");
     return { success: true, data: null, message: data.message };
   } catch (e: any) {
@@ -278,7 +301,9 @@ export async function deleteStaffAction(
   id: string
 ): Promise<ActionResponse> {
   try {
-    const { data } = await api.delete(`/staff/${id}/delete`);
+    const { data } = await api.delete(`/staff/${id}/delete`, {
+      headers: await getAuthHeaders(),
+    });
     revalidatePath("/dashboard/staff");
     return { success: true, data: null, message: data.message ?? "Staff member deleted." };
   } catch (e: any) {
@@ -298,7 +323,9 @@ export async function getAgentClientsAction(
 ): Promise<ActionResponse<AgentClientAssignment[]>> {
   try {
     const query = includeInactive ? "?includeInactive=true" : "";
-    const { data } = await api.get(`/staff/${staffId}/clients${query}`);
+    const { data } = await api.get(`/staff/${staffId}/clients${query}`, {
+      headers: await getAuthHeaders(),
+    });
     return { success: true, data: data.data };
   } catch (e: any) {
     return {
@@ -320,6 +347,8 @@ export async function assignClientToAgentAction(
     const { data } = await api.post(`/staff/${staffId}/clients`, {
       clientId,
       assignedById,
+    }, {
+      headers: await getAuthHeaders(),
     });
     revalidatePath(`/dashboard/staff/${staffId}`);
     revalidatePath(`/dashboard/users/${clientId}`);
@@ -340,7 +369,9 @@ export async function unassignClientFromAgentAction(
   clientId: string
 ): Promise<ActionResponse> {
   try {
-    const { data } = await api.delete(`/staff/${staffId}/clients/${clientId}`);
+    const { data } = await api.delete(`/staff/${staffId}/clients/${clientId}`, {
+      headers: await getAuthHeaders(),
+    });
     revalidatePath(`/dashboard/staff/${staffId}`);
     revalidatePath(`/dashboard/users/${clientId}`);
     return { success: true, data: null, message: data.message };
@@ -359,7 +390,9 @@ export async function getAgentForClientAction(
   clientId: string
 ): Promise<ActionResponse<AgentForClientResponse>> {
   try {
-    const { data } = await api.get(`/staff/agent-for-client/${clientId}`);
+    const { data } = await api.get(`/staff/agent-for-client/${clientId}`, {
+      headers: await getAuthHeaders(),
+    });
     return { success: true, data: data.data };
   } catch (e: any) {
     return {
@@ -397,7 +430,9 @@ export async function getClientsForAssignmentAction(): Promise<
   ActionResponse<ClientUser[]>
 > {
   try {
-    const { data } = await api.get("/users?role=USER");
+    const { data } = await api.get("/users?role=USER", {
+      headers: await getAuthHeaders(),
+    });
     const users: ClientUser[] = Array.isArray(data.data)
       ? data.data
       : (data.data?.users ?? data.data?.data ?? []);

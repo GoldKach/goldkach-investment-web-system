@@ -31,6 +31,7 @@ const navLinks = [
     title: "Clients",
     icon: Users,
     items: [
+      { title: "My Clients", url: "/cr/my-clients" },
       { title: "All Clients", url: "/cr/clients" },
       { title: "Onboarding Approvals", url: "/cr/approvals" },
     ],

@@ -11,12 +11,13 @@ import {
   SidebarProvider, SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LayoutDashboard, LogOut, BarChart2, FileText } from "lucide-react";
+import { LayoutDashboard, LogOut, BarChart2, FileText, Users } from "lucide-react";
 import { ThemeToggle } from "@/components/front-end/theme-toggle";
 import { logoutUser } from "@/actions/auth";
 
 const navLinks = [
   { title: "Portfolio Summary",   url: "/accountant",           icon: LayoutDashboard },
+  { title: "Clients",             url: "/accountant/clients",   icon: Users },
   { title: "Financial Analytics", url: "/accountant/analytics", icon: BarChart2 },
   { title: "Reports",             url: "/accountant/reports",   icon: FileText },
 ];
