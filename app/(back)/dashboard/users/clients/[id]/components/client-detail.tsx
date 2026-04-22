@@ -35,10 +35,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp
+  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp, ClipboardEdit, ExternalLink
 } from "lucide-react";
 import { updateUserById } from "@/actions/auth";
 import { createDeposit } from "@/actions/deposits";
+import { updateIndividualOnboarding, updateCompanyOnboarding } from "@/actions/onboarding-admin";
+import { UploadButton } from "@/lib/uploadthing";
 import { UserDetailPreview } from "@/components/user/user-detail-view";
 import type { PortfolioSummary } from "@/actions/portfolio-summary";
 import { generatePerformanceReportPDF } from "@/components/front-end/generate-report-pdf";
@@ -84,6 +86,38 @@ interface DepositFeeSummary {
   depositCount: number;
 }
 
+// ─── Document upload row ──────────────────────────────────────────────────────
+
+function DocUploadRow({ label, url, onUploaded }: { label: string; url: string; onUploaded: (url: string) => void }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-foreground mb-0.5">{label}</p>
+        {url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1 truncate">
+            <ExternalLink className="h-3 w-3 shrink-0" />
+            <span className="truncate">{url.split("/").pop()}</span>
+          </a>
+        ) : (
+          <p className="text-xs text-muted-foreground">No document uploaded</p>
+        )}
+      </div>
+      <UploadButton
+        endpoint="documentUploader"
+        onClientUploadComplete={(res) => { if (res?.[0]?.url) onUploaded(res[0].url); }}
+        onUploadError={(err) => { console.error(err); }}
+        appearance={{
+          button: "h-7 px-3 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90 ut-uploading:opacity-60",
+          allowedContent: "hidden",
+        }}
+        content={{ button: url ? "Replace" : "Upload" }}
+      />
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function ClientDetail({
   user: initialUser,
   portfolioSummary,
@@ -113,6 +147,7 @@ export function ClientDetail({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
   const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -136,6 +171,74 @@ export function ClientDetail({
     amount: "",
     description: "",
   });
+
+  // Onboarding edit form state — seeded from effectiveOnboarding
+  const [onboardingForm, setOnboardingForm] = useState<Record<string, any>>(() => ({
+    fullName: effectiveOnboarding?.fullName ?? "",
+    dateOfBirth: effectiveOnboarding?.dateOfBirth ? effectiveOnboarding.dateOfBirth.split("T")[0] : "",
+    tin: effectiveOnboarding?.tin ?? "",
+    homeAddress: effectiveOnboarding?.homeAddress ?? "",
+    nationality: effectiveOnboarding?.nationality ?? "",
+    countryOfResidence: effectiveOnboarding?.countryOfResidence ?? "",
+    employmentStatus: effectiveOnboarding?.employmentStatus ?? "",
+    occupation: effectiveOnboarding?.occupation ?? "",
+    companyName: effectiveOnboarding?.companyName ?? "",
+    primaryGoal: effectiveOnboarding?.primaryGoal ?? "",
+    timeHorizon: effectiveOnboarding?.timeHorizon ?? "",
+    riskTolerance: effectiveOnboarding?.riskTolerance ?? "",
+    investmentExperience: effectiveOnboarding?.investmentExperience ?? "",
+    sourceOfIncome: effectiveOnboarding?.sourceOfIncome ?? effectiveOnboarding?.sourceOfWealth ?? "",
+    expectedInvestment: effectiveOnboarding?.expectedInvestment ?? "",
+    // company-specific
+    registrationNumber: effectiveOnboarding?.registrationNumber ?? "",
+    companyAddress: effectiveOnboarding?.companyAddress ?? "",
+    businessType: effectiveOnboarding?.businessType ?? "",
+    incorporationDate: effectiveOnboarding?.incorporationDate ? effectiveOnboarding.incorporationDate.split("T")[0] : "",
+    // individual documents
+    nationalIdUrl: effectiveOnboarding?.nationalIdUrl ?? "",
+    passportPhotoUrl: effectiveOnboarding?.passportPhotoUrl ?? "",
+    tinCertificateUrl: effectiveOnboarding?.tinCertificateUrl ?? "",
+    bankStatementUrl: effectiveOnboarding?.bankStatementUrl ?? "",
+    proofOfAddressUrl: effectiveOnboarding?.proofOfAddressUrl ?? "",
+    signatureUrl: effectiveOnboarding?.signatureUrl ?? "",
+    additionalDocumentUrl: effectiveOnboarding?.additionalDocumentUrl ?? "",
+    // company documents
+    certificateOfIncorporationUrl: effectiveOnboarding?.certificateOfIncorporationUrl ?? "",
+    memorandumUrl: effectiveOnboarding?.memorandumUrl ?? "",
+    articlesUrl: effectiveOnboarding?.articlesUrl ?? "",
+    companyTinUrl: effectiveOnboarding?.companyTinUrl ?? "",
+  }));
+
+  function handleOnboardingChange(field: string, value: string) {
+    setOnboardingForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleSaveOnboarding() {
+    if (!effectiveOnboarding?.id) {
+      toast.error("No onboarding record found to update.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const patch = { ...onboardingForm };
+        // Convert empty strings to null for optional fields
+        Object.keys(patch).forEach((k) => { if (patch[k] === "") patch[k] = null; });
+
+        const result = effectiveOnboardingType === "company"
+          ? await updateCompanyOnboarding(effectiveOnboarding.id, patch)
+          : await updateIndividualOnboarding(effectiveOnboarding.id, patch);
+
+        if (!result.success) {
+          toast.error((result as any).error ?? "Failed to update onboarding.");
+          return;
+        }
+        toast.success("Onboarding information updated successfully.");
+        setOnboardingModalOpen(false);
+      } catch {
+        toast.error("Failed to update onboarding information.");
+      }
+    });
+  }
 
   const displayName =
     user.name ||
@@ -380,7 +483,7 @@ export function ClientDetail({
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 onClick={() => setEditModalOpen(true)}
                 className="gap-2"
@@ -405,6 +508,16 @@ export function ClientDetail({
                 >
                   <DollarSign className="h-4 w-4" />
                   Request Deposit
+                </Button>
+              )}
+              {effectiveOnboarding && (
+                <Button
+                  onClick={() => setOnboardingModalOpen(true)}
+                  className="gap-2"
+                  variant="outline"
+                >
+                  <ClipboardEdit className="h-4 w-4" />
+                  Edit Onboarding
                 </Button>
               )}
             </div>
@@ -751,6 +864,189 @@ export function ClientDetail({
             >
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Deposit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Onboarding Edit Modal */}
+      <Dialog open={onboardingModalOpen} onOpenChange={setOnboardingModalOpen}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardEdit className="h-5 w-5 text-primary" />
+              Edit Onboarding Information
+            </DialogTitle>
+            <DialogDescription>
+              Update {displayName}'s onboarding details. Changes are saved immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-2">
+            {/* Personal Info */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Personal Information</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Full Name</Label>
+                  <Input value={onboardingForm.fullName ?? ""} onChange={(e) => handleOnboardingChange("fullName", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Date of Birth</Label>
+                  <Input type="date" value={onboardingForm.dateOfBirth ?? ""} onChange={(e) => handleOnboardingChange("dateOfBirth", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>TIN</Label>
+                  <Input value={onboardingForm.tin ?? ""} onChange={(e) => handleOnboardingChange("tin", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Nationality</Label>
+                  <Input value={onboardingForm.nationality ?? ""} onChange={(e) => handleOnboardingChange("nationality", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Country of Residence</Label>
+                  <Input value={onboardingForm.countryOfResidence ?? ""} onChange={(e) => handleOnboardingChange("countryOfResidence", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Home Address</Label>
+                  <Input value={onboardingForm.homeAddress ?? ""} onChange={(e) => handleOnboardingChange("homeAddress", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+              </div>
+            </div>
+
+            {/* Employment */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employment</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Employment Status</Label>
+                  <Input value={onboardingForm.employmentStatus ?? ""} onChange={(e) => handleOnboardingChange("employmentStatus", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Occupation</Label>
+                  <Input value={onboardingForm.occupation ?? ""} onChange={(e) => handleOnboardingChange("occupation", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Company Name</Label>
+                  <Input value={onboardingForm.companyName ?? ""} onChange={(e) => handleOnboardingChange("companyName", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+              </div>
+            </div>
+
+            {/* Investment Profile */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Investment Profile</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Primary Goal</Label>
+                  <Input value={onboardingForm.primaryGoal ?? ""} onChange={(e) => handleOnboardingChange("primaryGoal", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Time Horizon</Label>
+                  <Input value={onboardingForm.timeHorizon ?? ""} onChange={(e) => handleOnboardingChange("timeHorizon", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Risk Tolerance</Label>
+                  <Select value={onboardingForm.riskTolerance ?? ""} onValueChange={(v) => handleOnboardingChange("riskTolerance", v)}>
+                    <SelectTrigger className="bg-muted/50 border-border"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      {["Conservative", "Moderate", "Aggressive"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Investment Experience</Label>
+                  <Input value={onboardingForm.investmentExperience ?? ""} onChange={(e) => handleOnboardingChange("investmentExperience", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Source of Income</Label>
+                  <Input value={onboardingForm.sourceOfIncome ?? ""} onChange={(e) => handleOnboardingChange("sourceOfIncome", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Expected Investment</Label>
+                  <Input value={onboardingForm.expectedInvestment ?? ""} onChange={(e) => handleOnboardingChange("expectedInvestment", e.target.value)} className="bg-muted/50 border-border" />
+                </div>
+              </div>
+            </div>
+
+            {/* Company fields — only shown for company onboarding */}
+            {effectiveOnboardingType === "company" && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Company Details</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Registration Number</Label>
+                    <Input value={onboardingForm.registrationNumber ?? ""} onChange={(e) => handleOnboardingChange("registrationNumber", e.target.value)} className="bg-muted/50 border-border" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Business Type</Label>
+                    <Input value={onboardingForm.businessType ?? ""} onChange={(e) => handleOnboardingChange("businessType", e.target.value)} className="bg-muted/50 border-border" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Incorporation Date</Label>
+                    <Input type="date" value={onboardingForm.incorporationDate ?? ""} onChange={(e) => handleOnboardingChange("incorporationDate", e.target.value)} className="bg-muted/50 border-border" />
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <Label>Company Address</Label>
+                    <Input value={onboardingForm.companyAddress ?? ""} onChange={(e) => handleOnboardingChange("companyAddress", e.target.value)} className="bg-muted/50 border-border" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Documents — shared fields */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Identity &amp; Financial Documents</p>
+              <div className="grid grid-cols-1 gap-4">
+                {[
+                  { field: "nationalIdUrl", label: "National ID / Passport" },
+                  { field: "passportPhotoUrl", label: "Passport Photo" },
+                  { field: "tinCertificateUrl", label: "TIN Certificate" },
+                  { field: "bankStatementUrl", label: "Bank Statement" },
+                  { field: "proofOfAddressUrl", label: "Proof of Address" },
+                  { field: "signatureUrl", label: "Signature Specimen" },
+                  { field: "additionalDocumentUrl", label: "Additional Document" },
+                ].map(({ field, label }) => (
+                  <DocUploadRow
+                    key={field}
+                    label={label}
+                    url={onboardingForm[field] ?? ""}
+                    onUploaded={(url) => handleOnboardingChange(field, url)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Company-only documents */}
+            {effectiveOnboardingType === "company" && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Company Documents</p>
+                <div className="grid grid-cols-1 gap-4">
+                  {[
+                    { field: "certificateOfIncorporationUrl", label: "Certificate of Incorporation" },
+                    { field: "memorandumUrl", label: "Memorandum of Association" },
+                    { field: "articlesUrl", label: "Articles of Association" },
+                    { field: "companyTinUrl", label: "Company TIN Certificate" },
+                  ].map(({ field, label }) => (
+                    <DocUploadRow
+                      key={field}
+                      label={label}
+                      url={onboardingForm[field] ?? ""}
+                      onUploaded={(url) => handleOnboardingChange(field, url)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOnboardingModalOpen(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveOnboarding} disabled={isPending} className="gap-2">
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -21,10 +21,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ZustandHydration>
-               <ThemeProvider
+        <ThemeProvider
           attribute="class"
-          defaultTheme="light"
+          defaultTheme="system"
           enableSystem
+          storageKey="goldkach-theme"
           disableTransitionOnChange
         ></ThemeProvider>
         <Toaster />

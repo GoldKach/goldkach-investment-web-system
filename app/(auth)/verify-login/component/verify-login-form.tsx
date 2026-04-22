@@ -21,7 +21,15 @@ function routeForRole(role: UserRole) {
       return "/user";
     case "ADMIN":
     case "SUPER_ADMIN":
+    case "MANAGER":
+    case "STAFF":
       return "/dashboard";
+    case "AGENT":
+      return "/agent";
+    case "CLIENT_RELATIONS":
+      return "/cr";
+    case "ACCOUNT_MANAGER":
+      return "/accountant";
     default:
       return "/dashboard";
   }

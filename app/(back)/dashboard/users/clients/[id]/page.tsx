@@ -4,13 +4,62 @@ import { ArrowLeft } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { getUserById, getSession } from "@/actions/auth";
-import { getPortfolioSummary } from "@/actions/portfolio-summary";
+import { getPortfolioSummary, type PortfolioSummary } from "@/actions/portfolio-summary";
 import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
 import { listUserPortfolios } from "@/actions/user-portfolios";
 import { getDepositFeeSummary } from "@/actions/deposits";
 import { getMasterWalletByUser } from "@/actions/master-wallets";
 import { getOnboardingByUserId } from "@/actions/onboarding-admin";
 import { ClientDetail } from "./components/client-detail";
+
+/** Build a PortfolioSummary-compatible object from listUserPortfolios + masterWallet */
+function buildPortfolioSummaryFallback(
+  portfolios: any[],
+  masterWallet: any | null,
+  user: any
+): PortfolioSummary {
+  const mapped = portfolios.map((p: any) => {
+    const assets = (p.userAssets ?? []).map((a: any) => ({
+      id: a.id,
+      assetId: a.assetId,
+      allocationPercentage: a.allocationPercentage ?? 0,
+      costPerShare: a.costPerShare ?? 0,
+      costPrice: a.costPrice ?? 0,
+      stock: a.stock ?? 0,
+      closeValue: a.closeValue ?? 0,
+      lossGain: a.lossGain ?? 0,
+      asset: a.asset ?? { id: a.assetId, symbol: "—", description: "—", assetClass: "—", closePrice: 0 },
+    }));
+    return {
+      id: p.id,
+      customName: p.customName,
+      portfolio: p.portfolio ?? { id: p.portfolioId, name: "—", riskTolerance: "—", timeHorizon: "—" },
+      wallet: p.wallet ?? null,
+      totalInvested: p.totalInvested ?? 0,
+      portfolioValue: p.portfolioValue ?? 0,
+      totalLossGain: p.totalLossGain ?? 0,
+      returnPct: p.totalInvested > 0 ? ((p.portfolioValue - p.totalInvested) / p.totalInvested) * 100 : 0,
+      assets,
+      subPortfolios: p.subPortfolios ?? [],
+      topupHistory: [],
+      latestReport: null,
+    };
+  });
+  const totalInvested = mapped.reduce((s: number, p: any) => s + p.totalInvested, 0);
+  const totalValue = mapped.reduce((s: number, p: any) => s + p.portfolioValue, 0);
+  const totalGainLoss = mapped.reduce((s: number, p: any) => s + p.totalLossGain, 0);
+  const totalFees = mapped.reduce((s: number, p: any) => s + (p.wallet?.totalFees ?? 0), 0);
+  return {
+    user: { id: user?.id ?? "", firstName: user?.firstName ?? "", lastName: user?.lastName ?? "", email: user?.email ?? "" },
+    masterWallet: masterWallet ?? null,
+    aggregate: {
+      totalInvested, totalValue, totalGainLoss, totalFees,
+      portfolioCount: mapped.length,
+      returnPct: totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0,
+    },
+    portfolios: mapped,
+  };
+}
 
 export default async function ClientDetailPage({
   params,
@@ -25,7 +74,7 @@ export default async function ClientDetailPage({
         getSession(),
         getUserById(id),
         getPortfolioSummary(id),
-        listUserPortfolios({ userId: id, include: { portfolio: true, userAssets: true } }),
+        listUserPortfolios({ userId: id, include: { portfolio: true, userAssets: true, wallet: true, subPortfolios: true } }),
       ]);
 
       const session = sessionResponse;
@@ -59,6 +108,18 @@ export default async function ClientDetailPage({
       }
 
       const portfolios = portfoliosResponse.success && portfoliosResponse.data ? portfoliosResponse.data : [];
+
+      // Use getPortfolioSummary result; fall back to building from listUserPortfolios if it failed
+      let portfolioSummary: PortfolioSummary | null =
+        portfolioResponse.success && portfolioResponse.data ? portfolioResponse.data : null;
+
+      if (!portfolioSummary && portfolios.length > 0) {
+        const walletRes = await getMasterWalletByUser(id);
+        const masterWallet = walletRes.success
+          ? (walletRes.data as any)?.masterWallet ?? walletRes.data ?? null
+          : null;
+        portfolioSummary = buildPortfolioSummaryFallback(portfolios, masterWallet, user);
+      }
       let reports: Record<string, any[]> = {};
       
       for (const portfolio of portfolios) {
@@ -88,7 +149,7 @@ export default async function ClientDetailPage({
       return (
         <ClientDetail
           user={user}
-          portfolioSummary={portfolioResponse.success ? portfolioResponse.data : null}
+          portfolioSummary={portfolioSummary}
           reports={reports}
           portfolios={portfolios}
           depositFeeSummary={depositFeeSummary}

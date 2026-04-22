@@ -16,7 +16,7 @@ export default async function CRApprovalsPage() {
 
   return (
     <div className="container mx-auto px-8 py-8">
-      <PendingApprovals users={pendingOnly as any} />
+      <PendingApprovals users={pendingOnly as any} clientBasePath="/cr/clients" />
     </div>
   );
 }

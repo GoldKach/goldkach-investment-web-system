@@ -76,7 +76,7 @@ type PendingUser = {
   } | null;
 };
 
-export default function PendingApprovals({ users }: { users: PendingUser[] }) {
+export default function PendingApprovals({ users, clientBasePath = "/dashboard/users" }: { users: PendingUser[]; clientBasePath?: string }) {
   const [items, setItems] = useState<PendingUser[]>(users ?? []);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -236,7 +236,6 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
                 <TableHead>Applicant</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead>TIN</TableHead>
                 <TableHead>Risk Profile</TableHead>
                 <TableHead>Submitted</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -252,7 +251,6 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
                 const type: EntityType = isCompany ? "company" : "individual";
                 const risk = u.individualOnboarding?.riskTolerance;
                 const submitted = u.individualOnboarding?.createdAt ?? u.companyOnboarding?.createdAt ?? u.createdAt;
-                const tin = u.individualOnboarding?.tin ?? u.companyOnboarding?.tin;
 
                 return (
                   <TableRow key={u.id} className="group hover:bg-muted/50">
@@ -292,10 +290,6 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
                     </TableCell>
 
                     <TableCell>
-                      <code className="text-xs bg-muted px-2 py-1 rounded">{tin || "-"}</code>
-                    </TableCell>
-
-                    <TableCell>
                       <Badge
                         variant="outline"
                         className={
@@ -326,7 +320,7 @@ export default function PendingApprovals({ users }: { users: PendingUser[] }) {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/users/${u.id}`} className="cursor-pointer">
+                            <Link href={`${clientBasePath}/${u.id}`} className="cursor-pointer">
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </Link>

@@ -16,10 +16,11 @@ import { ThemeToggle } from "@/components/front-end/theme-toggle";
 import { logoutUser } from "@/actions/auth";
 
 const navLinks = [
-  { title: "Portfolio Summary",   url: "/accountant",           icon: LayoutDashboard },
-  { title: "Clients",             url: "/accountant/clients",   icon: Users },
-  { title: "Financial Analytics", url: "/accountant/analytics", icon: BarChart2 },
-  { title: "Reports",             url: "/accountant/reports",   icon: FileText },
+  { title: "Portfolio Summary",   url: "/accountant",                         icon: LayoutDashboard },
+  { title: "My Clients",          url: "/accountant/clients/my-clients",      icon: Users },
+  { title: "All Clients",         url: "/accountant/clients",                 icon: Users },
+  { title: "Financial Analytics", url: "/accountant/analytics",               icon: BarChart2 },
+  { title: "Reports",             url: "/accountant/reports",                 icon: FileText },
 ];
 
 function AccountantSidebar({ user }: { user: any }) {
