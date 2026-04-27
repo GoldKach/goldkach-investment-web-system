@@ -1039,7 +1039,6 @@ import {
   Layers, BarChart2, PieChartIcon, Banknote, Calendar, Hash, ChevronDown,
 } from "lucide-react"
 import type { PortfolioSummary } from "@/actions/portfolio-summary"
-import { createAllocation } from "@/actions/deposits"
 import { createRedemption } from "@/actions/withdraws"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -1159,7 +1158,7 @@ export function UserDetailPreview({
 }) {
   const [previewDocument, setPreviewDocument] = useState<{ url: string; name: string; type: string } | null>(null)
   const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set())
-  const [portfolioAction, setPortfolioAction] = useState<{ type: "topup" | "withdraw"; portfolioId: string; portfolioName: string; walletBalance: number; masterBalance: number; availableCloseValue: number } | null>(null)
+  const [portfolioAction, setPortfolioAction] = useState<{ portfolioId: string; portfolioName: string; walletBalance: number; masterBalance: number; availableCloseValue: number } | null>(null)
   const [actionAmount, setActionAmount] = useState("")
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
@@ -2293,23 +2292,9 @@ export function UserDetailPreview({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-8 gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 text-xs"
-                                    onClick={() => {
-                                      setPortfolioAction({ type: "topup", portfolioId: p.id, portfolioName: p.customName, walletBalance: p.wallet?.balance ?? 0, masterBalance: portfolioSummary.masterWallet?.netAssetValue ?? 0, availableCloseValue: 0 })
-                                      setActionAmount("")
-                                      setActionError(null)
-                                      setActionSuccess(null)
-                                    }}
-                                  >
-                                    <ArrowUpRight className="h-3.5 w-3.5" />
-                                    Top Up
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
                                     className="h-8 gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 text-xs"
                                     onClick={() => {
-                                      setPortfolioAction({ type: "withdraw", portfolioId: p.id, portfolioName: p.customName, walletBalance: p.wallet?.balance ?? 0, masterBalance: portfolioSummary.masterWallet?.netAssetValue ?? 0, availableCloseValue: p.assets.reduce((s: number, a: any) => s + (a.closeValue ?? 0), 0) })
+                                      setPortfolioAction({ portfolioId: p.id, portfolioName: p.customName, walletBalance: p.wallet?.balance ?? 0, masterBalance: portfolioSummary.masterWallet?.balance ?? 0, availableCloseValue: p.assets.reduce((s: number, a: any) => s + (a.closeValue ?? 0), 0) })
                                       setActionAmount("")
                                       setActionError(null)
                                       setActionSuccess(null)
@@ -2716,17 +2701,13 @@ export function UserDetailPreview({
       </Tabs>
 
       {/* Document Preview Dialog */}
-      {/* ===== Top Up / Withdraw Dialog ===== */}
+      {/* ===== Withdraw from Portfolio Dialog ===== */}
       <Dialog open={!!portfolioAction} onOpenChange={(open) => { if (!open) setPortfolioAction(null) }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {portfolioAction?.type === "topup" ? "Top Up Portfolio" : "Withdraw from Portfolio"}
-            </DialogTitle>
+            <DialogTitle>Withdraw from Portfolio</DialogTitle>
             <DialogDescription>
-              {portfolioAction?.type === "topup"
-                ? `Allocate funds from master wallet into "${portfolioAction?.portfolioName}"`
-                : `Redeem funds from "${portfolioAction?.portfolioName}" back to master wallet`}
+              Redeem funds from "{portfolioAction?.portfolioName}" back to master wallet
             </DialogDescription>
           </DialogHeader>
 
@@ -2737,12 +2718,8 @@ export function UserDetailPreview({
                 <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.masterBalance ?? 0)}</p>
               </div>
               <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">
-                  {portfolioAction?.type === "withdraw" ? "Current Value" : "Portfolio Wallet"}
-                </p>
-                <p className="font-semibold text-sm">
-                  {fmtUGX.format(portfolioAction?.type === "withdraw" ? (portfolioAction?.availableCloseValue ?? 0) : (portfolioAction?.walletBalance ?? 0))}
-                </p>
+                <p className="text-xs text-muted-foreground mb-0.5">Current Value</p>
+                <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}</p>
               </div>
             </div>
 
@@ -2752,19 +2729,14 @@ export function UserDetailPreview({
                 id="action-amount"
                 type="number"
                 min={1}
-                max={portfolioAction?.type === "withdraw" ? (portfolioAction?.availableCloseValue ?? undefined) : undefined}
+                max={portfolioAction?.availableCloseValue ?? undefined}
                 step={1000}
                 placeholder="Enter amount"
                 value={actionAmount}
                 onChange={(e) => { setActionAmount(e.target.value); setActionError(null); setActionSuccess(null) }}
                 disabled={isPending}
               />
-              {portfolioAction?.type === "topup" && Number(actionAmount) > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Remaining master wallet balance after topup: <span className="font-semibold text-foreground">{fmtUGX.format((portfolioAction?.masterBalance ?? 0) - Number(actionAmount))}</span>
-                </p>
-              )}
-              {portfolioAction?.type === "withdraw" && Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0) && (
+              {Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0) && (
                 <p className="text-xs text-red-400">You cannot withdraw more than the portfolio current value of {fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}.</p>
               )}
             </div>
@@ -2782,10 +2754,8 @@ export function UserDetailPreview({
               Cancel
             </Button>
             <Button
-              disabled={isPending || !actionAmount || Number(actionAmount) <= 0 || (portfolioAction?.type === "withdraw" && Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0))}
-              className={portfolioAction?.type === "topup"
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                : "bg-amber-600 hover:bg-amber-700 text-white"}
+              disabled={isPending || !actionAmount || Number(actionAmount) <= 0 || Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0)}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
               onClick={() => {
                 if (!portfolioAction) return
                 const amount = Number(actionAmount)
@@ -2793,23 +2763,16 @@ export function UserDetailPreview({
                   setActionError("Enter a valid positive amount.")
                   return
                 }
-                if (portfolioAction.type === "withdraw" && amount > (portfolioAction.availableCloseValue ?? 0)) {
+                if (amount > (portfolioAction.availableCloseValue ?? 0)) {
                   setActionError(`Amount exceeds current portfolio value of ${fmtUGX.format(portfolioAction.availableCloseValue ?? 0)}.`)
                   return
                 }
                 startTransition(async () => {
                   setActionError(null)
                   setActionSuccess(null)
-                  let result: { success: boolean; error?: string }
-                  if (portfolioAction.type === "topup") {
-                    result = await createAllocation({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
-                  } else {
-                    result = await createRedemption({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
-                  }
+                  const result = await createRedemption({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
                   if (result.success) {
-                    setActionSuccess(portfolioAction.type === "topup"
-                      ? `Allocation of ${fmtUGX.format(amount)} submitted. Awaiting approval.`
-                      : `${fmtUGX.format(amount)} redeemed successfully and added to your master wallet.`)
+                    setActionSuccess(`${fmtUGX.format(amount)} redeemed successfully and added to your master wallet.`)
                     setActionAmount("")
                   } else {
                     setActionError(result.error ?? "Request failed.")
@@ -2817,7 +2780,7 @@ export function UserDetailPreview({
                 })
               }}
             >
-              {isPending ? "Processing…" : portfolioAction?.type === "topup" ? "Submit Top Up" : "Submit Withdrawal"}
+              {isPending ? "Processing…" : "Submit Withdrawal"}
             </Button>
           </div>
         </DialogContent>
