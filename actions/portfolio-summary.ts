@@ -123,6 +123,7 @@ export interface PortfolioSummary {
   masterWallet: {
     id:             string;
     accountNumber:  string;
+    balance:        number;
     totalDeposited: number;
     totalWithdrawn: number;
     totalFees:      number;
