@@ -130,3 +130,29 @@ export async function runBackfill(fees?: {
     defaultFeeAtBank:     fees?.feeAtBank,
   });
 }
+
+/**
+ * POST /migrations/reactivate-all-users
+ *
+ * Reactivates ALL deactivated/inactive users and their wallets.
+ * Also clears zero-balance tracking fields.
+ * Safe to call multiple times (idempotent).
+ */
+export async function reactivateAllUsers() {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/migrations/reactivate-all-users", {}, { headers });
+    return {
+      success: true,
+      data:    res.data?.data as {
+        usersReactivated:            number;
+        masterWalletsReactivated:    number;
+        portfolioWalletsReactivated: number;
+      },
+      message: res.data?.message ?? "All users reactivated.",
+      error:   null,
+    };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to reactivate users.") };
+  }
+}

@@ -3,12 +3,12 @@
 
 import React, { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { previewBackfill, runBackfill, type MigrationPortfolioResult } from "@/actions/migrations";
+import { previewBackfill, runBackfill, reactivateAllUsers, type MigrationPortfolioResult } from "@/actions/migrations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle2, SkipForward, XCircle, Database, Play, Eye, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, SkipForward, XCircle, Database, Play, Eye, RefreshCw, UserCheck } from "lucide-react";
 
 const inputCls = "bg-slate-50 dark:bg-[#161b4a]/60 border-slate-200 dark:border-[#2B2F77]/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus-visible:ring-[#3B82F6]/30 focus-visible:border-[#3B82F6]";
 
@@ -24,6 +24,19 @@ export default function MigrationsClient() {
   const [summary, setSummary] = useState<any>(null);
   const [mode,    setMode]   = useState<"preview" | "run" | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Reactivate all users state
+  const [reactivateResult, setReactivateResult] = useState<{ usersReactivated: number; masterWalletsReactivated: number; portfolioWalletsReactivated: number } | null>(null);
+  const [isReactivating, startReactivateTransition] = useTransition();
+
+  const handleReactivateAll = () => {
+    startReactivateTransition(async () => {
+      const res = await reactivateAllUsers();
+      if (!res.success) { toast.error(res.error ?? "Reactivation failed."); return; }
+      setReactivateResult(res.data ?? null);
+      toast.success(res.message ?? "All users reactivated successfully.");
+    });
+  };
 
   const handlePreview = () => {
     startTransition(async () => {
@@ -71,6 +84,47 @@ export default function MigrationsClient() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
+
+        {/* Reactivate All Users */}
+        <div className="bg-white dark:bg-[#0f1135] border border-emerald-500/30 rounded-2xl p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <UserCheck className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Reactivate All Users</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Reactivates all deactivated or inactive users and their wallets. No user will be deactivated due to zero balance — this is permanent.
+              </p>
+            </div>
+          </div>
+
+          {reactivateResult && (
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[
+                { label: "Users Reactivated",            value: reactivateResult.usersReactivated },
+                { label: "Master Wallets Reactivated",   value: reactivateResult.masterWalletsReactivated },
+                { label: "Portfolio Wallets Reactivated", value: reactivateResult.portfolioWalletsReactivated },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                  <p className="text-2xl font-bold text-emerald-500 mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Button
+            onClick={handleReactivateAll}
+            disabled={isReactivating}
+            className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-2"
+          >
+            {isReactivating
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Reactivating…</>
+              : <><UserCheck className="w-4 h-4" /> Reactivate All Users Now</>
+            }
+          </Button>
+        </div>
 
         {/* Warning banner */}
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-start gap-3">
