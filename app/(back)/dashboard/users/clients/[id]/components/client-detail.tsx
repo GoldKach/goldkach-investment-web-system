@@ -220,9 +220,29 @@ export function ClientDetail({
     }
     startTransition(async () => {
       try {
-        const patch = { ...onboardingForm };
+        const raw = { ...onboardingForm };
         // Convert empty strings to null for optional fields
-        Object.keys(patch).forEach((k) => { if (patch[k] === "") patch[k] = null; });
+        Object.keys(raw).forEach((k) => { if (raw[k] === "") raw[k] = null; });
+
+        // Only send fields relevant to the onboarding type to avoid schema validation errors
+        let patch: Record<string, any>;
+        if (effectiveOnboardingType === "company") {
+          const {
+            fullName, dateOfBirth, nationality, countryOfResidence,
+            employmentStatus, occupation,
+            nationalIdUrl, passportPhotoUrl, tinCertificateUrl,
+            bankStatementUrl, proofOfAddressUrl, signatureUrl, additionalDocumentUrl,
+            ...companyFields
+          } = raw;
+          patch = companyFields;
+        } else {
+          const {
+            registrationNumber, companyAddress, businessType, incorporationDate,
+            certificateOfIncorporationUrl, memorandumUrl, articlesUrl, companyTinUrl,
+            ...individualFields
+          } = raw;
+          patch = individualFields;
+        }
 
         const result = effectiveOnboardingType === "company"
           ? await updateCompanyOnboarding(effectiveOnboarding.id, patch)
@@ -234,8 +254,8 @@ export function ClientDetail({
         }
         toast.success("Onboarding information updated successfully.");
         setOnboardingModalOpen(false);
-      } catch {
-        toast.error("Failed to update onboarding information.");
+      } catch (err: any) {
+        toast.error(err?.message ?? "Failed to update onboarding information.");
       }
     });
   }

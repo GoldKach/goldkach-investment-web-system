@@ -1036,10 +1036,11 @@ import {
   Wallet as WalletIcon, DollarSign, Activity,
   Shield, Target, Briefcase, CreditCard, FileText, Download, Eye,
   Image as ImageIcon, File, Building2, CheckCircle2, Clock, XCircle,
-  Layers, BarChart2, PieChartIcon, Banknote, Calendar, Hash, ChevronDown,
+  Layers, BarChart2, PieChartIcon, Banknote, Calendar, Hash, ChevronDown, Loader2,
 } from "lucide-react"
 import type { PortfolioSummary } from "@/actions/portfolio-summary"
 import { createRedemption } from "@/actions/withdraws"
+import { createAllocation } from "@/actions/deposits"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -1158,7 +1159,7 @@ export function UserDetailPreview({
 }) {
   const [previewDocument, setPreviewDocument] = useState<{ url: string; name: string; type: string } | null>(null)
   const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set())
-  const [portfolioAction, setPortfolioAction] = useState<{ portfolioId: string; portfolioName: string; walletBalance: number; masterBalance: number; availableCloseValue: number } | null>(null)
+  const [portfolioAction, setPortfolioAction] = useState<{ type: "withdraw" | "allocate"; portfolioId: string; portfolioName: string; walletBalance: number; masterBalance: number; availableCloseValue: number } | null>(null)
   const [actionAmount, setActionAmount] = useState("")
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
@@ -2292,9 +2293,24 @@ export function UserDetailPreview({
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    className="h-8 gap-1.5 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 text-xs"
+                                    onClick={() => {
+                                      setPortfolioAction({ type: "allocate", portfolioId: p.id, portfolioName: p.customName, walletBalance: p.wallet?.balance ?? 0, masterBalance: portfolioSummary.masterWallet?.balance ?? 0, availableCloseValue: p.assets.reduce((s: number, a: any) => s + (a.closeValue ?? 0), 0) })
+                                      setActionAmount("")
+                                      setActionError(null)
+                                      setActionSuccess(null)
+                                    }}
+                                    disabled={!portfolioSummary.masterWallet || portfolioSummary.masterWallet.balance <= 0}
+                                  >
+                                    <ArrowUpRight className="h-3.5 w-3.5" />
+                                    Allocate
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
                                     className="h-8 gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 text-xs"
                                     onClick={() => {
-                                      setPortfolioAction({ portfolioId: p.id, portfolioName: p.customName, walletBalance: p.wallet?.balance ?? 0, masterBalance: portfolioSummary.masterWallet?.balance ?? 0, availableCloseValue: p.assets.reduce((s: number, a: any) => s + (a.closeValue ?? 0), 0) })
+                                      setPortfolioAction({ type: "withdraw", portfolioId: p.id, portfolioName: p.customName, walletBalance: p.wallet?.balance ?? 0, masterBalance: portfolioSummary.masterWallet?.balance ?? 0, availableCloseValue: p.assets.reduce((s: number, a: any) => s + (a.closeValue ?? 0), 0) })
                                       setActionAmount("")
                                       setActionError(null)
                                       setActionSuccess(null)
@@ -2700,25 +2716,31 @@ export function UserDetailPreview({
 
       </Tabs>
 
-      {/* Document Preview Dialog */}
-      {/* ===== Withdraw from Portfolio Dialog ===== */}
+      {/* ===== Portfolio Action Dialog (Withdraw or Allocate) ===== */}
       <Dialog open={!!portfolioAction} onOpenChange={(open) => { if (!open) setPortfolioAction(null) }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Withdraw from Portfolio</DialogTitle>
+            <DialogTitle>
+              {portfolioAction?.type === "allocate" ? "Allocate to Portfolio" : "Withdraw from Portfolio"}
+            </DialogTitle>
             <DialogDescription>
-              Redeem funds from "{portfolioAction?.portfolioName}" back to master wallet
+              {portfolioAction?.type === "allocate" 
+                ? `Allocate funds from master wallet to "${portfolioAction?.portfolioName}"`
+                : `Redeem funds from "${portfolioAction?.portfolioName}" back to master wallet`
+              }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Master Wallet</p>
+                <p className="text-xs text-muted-foreground mb-0.5">Master Wallet Balance</p>
                 <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.masterBalance ?? 0)}</p>
               </div>
               <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Current Value</p>
+                <p className="text-xs text-muted-foreground mb-0.5">
+                  {portfolioAction?.type === "allocate" ? "Portfolio NAV" : "Current Value"}
+                </p>
                 <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}</p>
               </div>
             </div>
@@ -2729,14 +2751,17 @@ export function UserDetailPreview({
                 id="action-amount"
                 type="number"
                 min={1}
-                max={portfolioAction?.availableCloseValue ?? undefined}
+                max={portfolioAction?.type === "allocate" ? portfolioAction?.masterBalance : portfolioAction?.availableCloseValue}
                 step={1000}
                 placeholder="Enter amount"
                 value={actionAmount}
                 onChange={(e) => { setActionAmount(e.target.value); setActionError(null); setActionSuccess(null) }}
                 disabled={isPending}
               />
-              {Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0) && (
+              {portfolioAction?.type === "allocate" && Number(actionAmount) > (portfolioAction?.masterBalance ?? 0) && (
+                <p className="text-xs text-red-400">You cannot allocate more than the master wallet balance of {fmtUGX.format(portfolioAction?.masterBalance ?? 0)}.</p>
+              )}
+              {portfolioAction?.type === "withdraw" && Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0) && (
                 <p className="text-xs text-red-400">You cannot withdraw more than the portfolio current value of {fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}.</p>
               )}
             </div>
@@ -2754,8 +2779,14 @@ export function UserDetailPreview({
               Cancel
             </Button>
             <Button
-              disabled={isPending || !actionAmount || Number(actionAmount) <= 0 || Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0)}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={
+                isPending || 
+                !actionAmount || 
+                Number(actionAmount) <= 0 || 
+                (portfolioAction?.type === "allocate" && Number(actionAmount) > (portfolioAction?.masterBalance ?? 0)) ||
+                (portfolioAction?.type === "withdraw" && Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0))
+              }
+              className={portfolioAction?.type === "allocate" ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}
               onClick={() => {
                 if (!portfolioAction) return
                 const amount = Number(actionAmount)
@@ -2763,24 +2794,50 @@ export function UserDetailPreview({
                   setActionError("Enter a valid positive amount.")
                   return
                 }
-                if (amount > (portfolioAction.availableCloseValue ?? 0)) {
-                  setActionError(`Amount exceeds current portfolio value of ${fmtUGX.format(portfolioAction.availableCloseValue ?? 0)}.`)
-                  return
-                }
-                startTransition(async () => {
-                  setActionError(null)
-                  setActionSuccess(null)
-                  const result = await createRedemption({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
-                  if (result.success) {
-                    setActionSuccess(`${fmtUGX.format(amount)} redeemed successfully and added to your master wallet.`)
-                    setActionAmount("")
-                  } else {
-                    setActionError(result.error ?? "Request failed.")
+                
+                if (portfolioAction.type === "allocate") {
+                  if (amount > (portfolioAction.masterBalance ?? 0)) {
+                    setActionError(`Amount exceeds master wallet balance of ${fmtUGX.format(portfolioAction.masterBalance ?? 0)}.`)
+                    return
                   }
-                })
+                  startTransition(async () => {
+                    setActionError(null)
+                    setActionSuccess(null)
+                    const result = await createAllocation({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
+                    if (result.success) {
+                      setActionSuccess(`${fmtUGX.format(amount)} allocated successfully. Awaiting admin approval.`)
+                      setActionAmount("")
+                    } else {
+                      setActionError(result.error ?? "Allocation failed.")
+                    }
+                  })
+                } else {
+                  if (amount > (portfolioAction.availableCloseValue ?? 0)) {
+                    setActionError(`Amount exceeds current portfolio value of ${fmtUGX.format(portfolioAction.availableCloseValue ?? 0)}.`)
+                    return
+                  }
+                  startTransition(async () => {
+                    setActionError(null)
+                    setActionSuccess(null)
+                    const result = await createRedemption({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
+                    if (result.success) {
+                      setActionSuccess(`${fmtUGX.format(amount)} redeemed successfully and added to your master wallet.`)
+                      setActionAmount("")
+                    } else {
+                      setActionError(result.error ?? "Request failed.")
+                    }
+                  })
+                }
               }}
             >
-              {isPending ? "Processing…" : "Submit Withdrawal"}
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                portfolioAction?.type === "allocate" ? "Allocate Funds" : "Withdraw Funds"
+              )}
             </Button>
           </div>
         </DialogContent>

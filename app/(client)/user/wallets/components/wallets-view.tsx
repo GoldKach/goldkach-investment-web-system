@@ -18,7 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { createHardWithdrawal, createRedemption } from "@/actions/withdraws";
-import { createAllocation, listDeposits, type Deposit } from "@/actions/deposits";
+import { listDeposits, type Deposit } from "@/actions/deposits";
 import type { MasterWalletDetail } from "@/actions/master-wallets";
 import type { PortfolioSummary } from "@/actions/portfolio-summary";
 
@@ -31,7 +31,7 @@ interface Props {
   portfolioSummary: PortfolioSummary | null;
 }
 
-type ModalType = "withdraw" | "redeem" | "allocate" | null;
+type ModalType = "withdraw" | "redeem" | null;
 
 export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
   const master = walletDetail?.masterWallet ?? null;
@@ -115,35 +115,12 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
     });
   };
 
-  const handleAllocate = () => {
-    const amt = parseFloat(amount);
-    if (!amt || amt <= 0) { toast.error("Enter a valid amount."); return; }
-    if (!selectedPortfolioId) { toast.error("Select a portfolio."); return; }
-    if (master && amt > master.balance) {
-      toast.error(`Insufficient balance. Available: ${fmt(master.balance)}`); return;
-    }
-    startTransition(async () => {
-      const res = await createAllocation({
-        userId,
-        userPortfolioId: selectedPortfolioId,
-        amount: amt,
-        description: description || null,
-      });
-      if (res.success) {
-        toast.success("Allocation request submitted. Awaiting admin approval.");
-        setModal(null); resetForm();
-      } else {
-        toast.error(res.error || "Failed to submit allocation.");
-      }
-    });
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">My Wallets</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          View your wallets, withdraw to bank, or reallocate between portfolios
+          View your wallets and withdraw to bank
         </p>
       </div>
 
@@ -220,15 +197,6 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
               disabled={!master || master.balance <= 0}
             >
               <ArrowDownCircle className="h-4 w-4" /> Withdraw to Bank
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2"
-              onClick={() => openModal("allocate")}
-              disabled={!master || master.balance <= 0 || portfolios.length === 0}
-            >
-              <TrendingUp className="h-4 w-4" /> Allocate to Portfolio
             </Button>
           </div>
 
@@ -400,52 +368,6 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setModal(null)} disabled={isPending}>Cancel</Button>
             <Button onClick={handleWithdraw} disabled={isPending} className="gap-2">
-              {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Submit Request"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Allocate to Portfolio Modal */}
-      <Dialog open={modal === "allocate"} onOpenChange={(o) => !isPending && !o && setModal(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-500" /> Allocate to Portfolio
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="rounded-lg bg-muted/30 p-3 text-sm">
-              Available: <span className="font-bold text-green-500">{fmt(master?.balance ?? 0)}</span>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Select Portfolio</Label>
-              <select
-                value={selectedPortfolioId}
-                onChange={(e) => setSelectedPortfolioId(e.target.value)}
-                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground"
-              >
-                <option value="">Choose a portfolio…</option>
-                {portfolios.map((p) => (
-                  <option key={p.id} value={p.id}>{p.customName} — {p.portfolio.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Amount</Label>
-              <Input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} min="0" step="0.01" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description (optional)</Label>
-              <Input placeholder="Notes" value={description} onChange={(e) => setDescription(e.target.value)} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Allocation requests require admin approval. Funds will be deducted from your master wallet balance.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModal(null)} disabled={isPending}>Cancel</Button>
-            <Button onClick={handleAllocate} disabled={isPending} className="gap-2">
               {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Submit Request"}
             </Button>
           </DialogFooter>
