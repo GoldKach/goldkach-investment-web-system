@@ -5,7 +5,7 @@ import { getPortfolioSummary } from "@/actions/portfolio-summary";
 import { listUserPortfolios } from "@/actions/user-portfolios";
 import { getMasterWalletByUser } from "@/actions/master-wallets";
 import { getDepositFeeSummary } from "@/actions/deposits";
-import { AccountantReports } from "@/app/(accountant)/accountant/reports/components/accountant-reports";
+import { AccountantReports } from "@/components/back/aum-reports";
 
 export const dynamic = "force-dynamic";
 
