@@ -9,6 +9,21 @@ import { AccountantReports } from "./components/accountant-reports";
 
 export const dynamic = "force-dynamic";
 
+/** Process an array in chunks to avoid overwhelming the API with concurrent requests */
+async function batchSettled<T>(
+  items: any[],
+  fn: (item: any) => Promise<T>,
+  batchSize = 10
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    const chunkResults = await Promise.allSettled(chunk.map(fn));
+    results.push(...chunkResults);
+  }
+  return results;
+}
+
 export default async function AccountantReportsPage() {
   const session = await getSession();
   if (!session?.user) redirect("/login");
@@ -16,18 +31,19 @@ export default async function AccountantReportsPage() {
   const clientsRes = await getClientsForAssignmentAction();
   const clients = (clientsRes.data ?? []).filter((c: any) => !c.role || c.role === "USER");
 
-  // Fetch portfolio summaries for ALL clients — no slice limit
-  const summaryResults = await Promise.allSettled(
-    clients.map((c: any) => getPortfolioSummary(c.id))
+  // Fetch portfolio summaries in batches of 10 to avoid overwhelming the API
+  const summaryResults = await batchSettled(
+    clients,
+    (c: any) => getPortfolioSummary(c.id),
+    10
   );
 
-  // For clients where getPortfolioSummary failed, fall back to listUserPortfolios
+  // For each client build the full portfolio data
   const clientPortfolios = await Promise.all(
     summaryResults.map(async (r, i) => {
       const client = clients[i];
 
-      // Always fetch portfolio wallets with fee breakdown (bankFee, transactionFee, feeAtBank)
-      // AND deposit fee summary (the authoritative source for bank/transaction/cash fees)
+      // Fetch portfolio wallets + deposit fee summary in parallel
       const [portfoliosRes, depositFeeRes] = await Promise.allSettled([
         listUserPortfolios({
           userId: client.id,
@@ -62,7 +78,7 @@ export default async function AccountantReportsPage() {
         };
       }
 
-      // Full fallback
+      // Full fallback — use listUserPortfolios result
       const walletRes = await getMasterWalletByUser(client.id);
       const masterWallet = walletRes.success
         ? (walletRes.data as any)?.masterWallet ?? walletRes.data ?? null
