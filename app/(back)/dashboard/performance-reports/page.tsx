@@ -2,10 +2,27 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/actions/auth";
 import { getClientsForAssignmentAction } from "@/actions/staff";
 import { getPortfolioSummary } from "@/actions/portfolio-summary";
-import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
-import { PerformanceReportsManager } from "./components/performance-reports-manager";
+import { listUserPortfolios } from "@/actions/user-portfolios";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
+import { getDepositFeeSummary } from "@/actions/deposits";
+import { AccountantReports } from "@/app/(accountant)/accountant/reports/components/accountant-reports";
 
 export const dynamic = "force-dynamic";
+
+/** Process an array in batches to avoid overwhelming the API */
+async function batchSettled<T>(
+  items: any[],
+  fn: (item: any) => Promise<T>,
+  batchSize = 10
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    const chunkResults = await Promise.allSettled(chunk.map(fn));
+    results.push(...chunkResults);
+  }
+  return results;
+}
 
 export default async function PerformanceReportsPage() {
   const session = await getSession();
@@ -14,62 +31,75 @@ export default async function PerformanceReportsPage() {
   const clientsRes = await getClientsForAssignmentAction();
   const clients = (clientsRes.data ?? []).filter((c: any) => !c.role || c.role === "USER");
 
-  // Fetch portfolio summaries for all clients
-  const summaryResults = await Promise.allSettled(
-    clients.slice(0, 30).map((c: any) => getPortfolioSummary(c.id))
+  // Fetch portfolio summaries in batches of 10 — same as accountant page
+  const summaryResults = await batchSettled(
+    clients,
+    (c: any) => getPortfolioSummary(c.id),
+    10
   );
 
-  const clientPortfoliosRaw = summaryResults
-    .map((r, i) => ({
-      client: clients[i],
-      portfolios: r.status === "fulfilled" && r.value?.success
-        ? (r.value.data?.portfolios ?? [])
-        : [],
-    }))
-    .filter((x) => x.portfolios.length > 0);
+  const clientPortfolios = await Promise.all(
+    summaryResults.map(async (r, i) => {
+      const client = clients[i];
 
-  // Fetch recent reports for each portfolio (monthly, last 6)
-  const allPortfolioIds = clientPortfoliosRaw.flatMap((cp) => cp.portfolios.map((p: any) => p.id));
+      const [portfoliosRes, depositFeeRes] = await Promise.allSettled([
+        listUserPortfolios({
+          userId: client.id,
+          include: { portfolio: true, userAssets: true, wallet: true },
+        }),
+        getDepositFeeSummary(client.id),
+      ]);
 
-  const reportResults = await Promise.allSettled(
-    allPortfolioIds.map((id: string) =>
-      listPerformanceReports({ userPortfolioId: id, period: "monthly" })
-    )
+      const portfoliosWithWallets: any[] =
+        portfoliosRes.status === "fulfilled" && portfoliosRes.value?.success
+          ? (portfoliosRes.value.data ?? [])
+          : [];
+
+      const depositFeeSummary =
+        depositFeeRes.status === "fulfilled" && depositFeeRes.value?.success
+          ? depositFeeRes.value.data ?? null
+          : null;
+
+      const feeTotals = portfoliosWithWallets.reduce(
+        (acc, p) => ({
+          bankFee:       acc.bankFee       + (p.wallet?.bankFee       ?? 0),
+          transactionFee: acc.transactionFee + (p.wallet?.transactionFee ?? 0),
+          feeAtBank:     acc.feeAtBank     + (p.wallet?.feeAtBank     ?? 0),
+        }),
+        { bankFee: 0, transactionFee: 0, feeAtBank: 0 }
+      );
+
+      if (r.status === "fulfilled" && r.value?.success && r.value.data?.portfolios?.length) {
+        return {
+          client,
+          portfolios:      r.value.data.portfolios,
+          masterWallet:    r.value.data.masterWallet ?? null,
+          feeTotals,
+          depositFeeSummary,
+        };
+      }
+
+      // Fallback
+      const walletRes = await getMasterWalletByUser(client.id);
+      const masterWallet = walletRes.success
+        ? (walletRes.data as any)?.masterWallet ?? walletRes.data ?? null
+        : null;
+
+      return { client, portfolios: portfoliosWithWallets, masterWallet, feeTotals, depositFeeSummary };
+    })
   );
 
-  const reportsByPortfolio: Record<string, any[]> = {};
-  allPortfolioIds.forEach((id: string, i: number) => {
-    const r = reportResults[i];
-    reportsByPortfolio[id] =
-      r.status === "fulfilled" && r.value?.success
-        ? (r.value.data ?? []).sort(
-            (a: any, b: any) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()
-          ).slice(0, 6)
-        : [];
-  });
-
-  // Attach reports to each portfolio
-  const clientPortfolios = clientPortfoliosRaw.map((cp) => ({
-    ...cp,
-    portfolios: cp.portfolios.map((p: any) => ({
-      ...p,
-      reports: reportsByPortfolio[p.id] ?? [],
-    })),
-  }));
+  const withPortfolios = clientPortfolios.filter((x) => x.portfolios.length > 0);
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-800 dark:text-white">Performance Reports</h1>
         <p className="text-sm text-slate-400 mt-1">
-          View, generate and manage portfolio performance reports
+          View, generate and download portfolio performance reports for all clients
         </p>
       </div>
-      <PerformanceReportsManager
-        clientPortfolios={clientPortfolios}
-        adminId={session.user.id}
-        adminName={session.user.name || session.user.email || "Admin"}
-      />
+      <AccountantReports clientPortfolios={withPortfolios} />
     </div>
   );
 }
