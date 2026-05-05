@@ -27,7 +27,7 @@ import {
   Paperclip, X as XIcon, DollarSign, Layers,
 } from "lucide-react";
 import { toast } from "sonner";
-import { approveWithdrawal, rejectWithdrawal, type Withdrawal } from "@/actions/withdraws";
+import { approveWithdrawal, rejectWithdrawal, updateWithdrawal, type Withdrawal } from "@/actions/withdraws";
 import { getUserPortfolioById } from "@/actions/user-portfolios";
 
 /* -------------------------------------------------------------------------- */
@@ -126,6 +126,26 @@ function ApproveDialog({
   const [assetMap, setAssetMap] = useState<Record<string, { symbol: string; currentClose: number }>>({});
   const [loadingAssets, setLoadingAssets] = useState(false);
 
+  // Editable bank details (pre-filled from withdrawal)
+  const [bankName,        setBankName]        = useState(withdrawal.bankName        ?? "");
+  const [bankAccountName, setBankAccountName] = useState(withdrawal.bankAccountName ?? "");
+  const [bankBranch,      setBankBranch]      = useState(withdrawal.bankBranch      ?? "");
+  const [accountNo,       setAccountNo]       = useState(withdrawal.accountNo       ?? "");
+
+  // Reset bank fields when dialog opens with a new withdrawal
+  useEffect(() => {
+    if (open) {
+      setBankName(withdrawal.bankName        ?? "");
+      setBankAccountName(withdrawal.bankAccountName ?? "");
+      setBankBranch(withdrawal.bankBranch      ?? "");
+      setAccountNo(withdrawal.accountNo       ?? "");
+      setTxId("");
+      setProofFile(null);
+      setProofPreview(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, withdrawal.id]);
+
   const fetchAssets = async () => {
     if (!isRedemption || !withdrawal.userPortfolioId) return;
     setLoadingAssets(true);
@@ -189,6 +209,28 @@ function ApproveDialog({
       return;
     }
     startTransition(async () => {
+      // For HARD_WITHDRAWAL: update bank details first if they changed
+      if (!isRedemption) {
+        const hasChanges =
+          bankName        !== (withdrawal.bankName        ?? "") ||
+          bankAccountName !== (withdrawal.bankAccountName ?? "") ||
+          bankBranch      !== (withdrawal.bankBranch      ?? "") ||
+          accountNo       !== (withdrawal.accountNo       ?? "");
+
+        if (hasChanges) {
+          const updateRes = await updateWithdrawal(withdrawal.id, {
+            bankName:        bankName        || undefined,
+            bankAccountName: bankAccountName || undefined,
+            bankBranch:      bankBranch      || undefined,
+            accountNo:       accountNo       || undefined,
+          });
+          if (!updateRes.success) {
+            toast.error(updateRes.error ?? "Failed to update bank details.");
+            return;
+          }
+        }
+      }
+
       const assetPrices: Record<string, number> = {};
       for (const a of uniqueAssets) {
         const v = parseFloat(closePrices[a.assetId] ?? "");
@@ -217,6 +259,10 @@ function ApproveDialog({
           const payload = {
             ...withdrawal,
             ...(result.data ?? {}),
+            bankName,
+            bankAccountName,
+            bankBranch,
+            accountNo,
             transactionId:     txId.trim(),
             transactionStatus: "APPROVED" as const,
             approvedByName:    adminName,
@@ -318,28 +364,58 @@ function ApproveDialog({
             </>
           ) : (
             <>
-              {/* Bank details summary */}
-              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Bank</span>
-                  <span className="font-medium">{withdrawal.bankName || "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Account Name</span>
-                  <span className="font-medium">{withdrawal.bankAccountName || "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Branch</span>
-                  <span className="font-medium">{withdrawal.bankBranch || "—"}</span>
-                </div>
-                {withdrawal.accountNo && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Account No.</span>
-                    <span className="font-mono font-medium">{withdrawal.accountNo}</span>
+              {/* Editable bank details */}
+              <div className="space-y-3">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Bank Details — Edit if needed
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bankName" className="text-xs">Bank Name</Label>
+                    <Input
+                      id="bankName"
+                      placeholder="e.g. Stanbic Bank"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      disabled={isPending}
+                      className="bg-muted/50 border-border text-sm"
+                    />
                   </div>
-                )}
-                <Separator />
-                <div className="flex justify-between">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bankBranch" className="text-xs">Branch</Label>
+                    <Input
+                      id="bankBranch"
+                      placeholder="e.g. Kampala Road"
+                      value={bankBranch}
+                      onChange={(e) => setBankBranch(e.target.value)}
+                      disabled={isPending}
+                      className="bg-muted/50 border-border text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bankAccountName" className="text-xs">Account Name</Label>
+                    <Input
+                      id="bankAccountName"
+                      placeholder="Account holder name"
+                      value={bankAccountName}
+                      onChange={(e) => setBankAccountName(e.target.value)}
+                      disabled={isPending}
+                      className="bg-muted/50 border-border text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="accountNo" className="text-xs">Account Number</Label>
+                    <Input
+                      id="accountNo"
+                      placeholder="e.g. 9030012345"
+                      value={accountNo}
+                      onChange={(e) => setAccountNo(e.target.value)}
+                      disabled={isPending}
+                      className="bg-muted/50 border-border text-sm font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-2.5 flex justify-between text-sm">
                   <span className="text-muted-foreground">Amount</span>
                   <span className="font-bold text-foreground">{fmt.format(withdrawal.amount)}</span>
                 </div>
