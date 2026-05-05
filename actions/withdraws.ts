@@ -694,7 +694,8 @@ export async function createHardWithdrawal(
   },
   opts?: { include?: WithdrawalInclude | WithdrawalInclude[] }
 ) {
-  return createWithdrawal({ ...input, withdrawalType: "HARD_WITHDRAWAL" }, opts);
+  const referenceNo = input.referenceNo?.trim() || `WDR-${Date.now()}`;
+  return createWithdrawal({ ...input, referenceNo, withdrawalType: "HARD_WITHDRAWAL" }, opts);
 }
 
 /**

@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp, ClipboardEdit, ExternalLink
+  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp, ClipboardEdit, ExternalLink, ShieldCheck
 } from "lucide-react";
 import { updateUserById } from "@/actions/auth";
 import { createDeposit } from "@/actions/deposits";
@@ -148,6 +148,10 @@ export function ClientDetail({
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
+  const [approvingOnboarding, setApprovingOnboarding] = useState(false);
+  const [onboardingApproved, setOnboardingApproved] = useState<boolean>(
+    effectiveOnboarding?.isApproved ?? false
+  );
   const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -406,6 +410,33 @@ export function ClientDetail({
 
   const statusOption = STATUS_OPTIONS.find((s) => s.value === user.status);
 
+  async function handleApproveOnboarding() {
+    if (!effectiveOnboarding?.id) {
+      toast.error("No onboarding record found.");
+      return;
+    }
+    setApprovingOnboarding(true);
+    try {
+      const updateFn = effectiveOnboardingType === "company"
+        ? updateCompanyOnboarding
+        : updateIndividualOnboarding;
+      const result = await updateFn(effectiveOnboarding.id, { isApproved: true });
+      if (!result.success) {
+        toast.error((result as any).error ?? "Failed to approve onboarding.");
+        return;
+      }
+      // Also approve the user account
+      await updateUserById(user.id, { isApproved: true });
+      setOnboardingApproved(true);
+      setUser((prev) => ({ ...prev, isApproved: true }));
+      toast.success("Onboarding approved successfully.");
+    } catch {
+      toast.error("Failed to approve onboarding.");
+    } finally {
+      setApprovingOnboarding(false);
+    }
+  }
+
   const togglePortfolio = useCallback((portfolioId: string) => {
     setExpandedPortfolios((prev) => {
       const s = new Set(prev);
@@ -539,6 +570,25 @@ export function ClientDetail({
                   <ClipboardEdit className="h-4 w-4" />
                   Edit Onboarding
                 </Button>
+              )}
+              {effectiveOnboarding && !onboardingApproved && (
+                <Button
+                  onClick={handleApproveOnboarding}
+                  disabled={approvingOnboarding}
+                  className="gap-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/20"
+                  variant="outline"
+                >
+                  {approvingOnboarding
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <ShieldCheck className="h-4 w-4" />}
+                  {approvingOnboarding ? "Approving…" : "Approve Onboarding"}
+                </Button>
+              )}
+              {effectiveOnboarding && onboardingApproved && (
+                <Badge className="gap-1.5 border-emerald-500/20 bg-emerald-500/10 text-emerald-400 px-3 py-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Onboarding Approved
+                </Badge>
               )}
             </div>
           </div>
