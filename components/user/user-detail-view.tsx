@@ -2303,7 +2303,7 @@ export function UserDetailPreview({
                                     disabled={!portfolioSummary.masterWallet || portfolioSummary.masterWallet.balance <= 0}
                                   >
                                     <ArrowUpRight className="h-3.5 w-3.5" />
-                                    Allocate
+                                    Top Up
                                   </Button>
                                   <Button
                                     size="sm"
@@ -2716,34 +2716,41 @@ export function UserDetailPreview({
 
       </Tabs>
 
-      {/* ===== Portfolio Action Dialog (Withdraw or Allocate) ===== */}
+      {/* ===== Portfolio Action Dialog (Top Up or Withdraw) ===== */}
       <Dialog open={!!portfolioAction} onOpenChange={(open) => { if (!open) setPortfolioAction(null) }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {portfolioAction?.type === "allocate" ? "Allocate to Portfolio" : "Withdraw from Portfolio"}
+              {portfolioAction?.type === "allocate" ? "Top Up Portfolio" : "Withdraw from Portfolio"}
             </DialogTitle>
             <DialogDescription>
               {portfolioAction?.type === "allocate" 
-                ? `Allocate funds from master wallet to "${portfolioAction?.portfolioName}"`
+                ? `Add funds from master wallet to "${portfolioAction?.portfolioName}"`
                 : `Redeem funds from "${portfolioAction?.portfolioName}" back to master wallet`
               }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Master Wallet Balance</p>
-                <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.masterBalance ?? 0)}</p>
+            {/* For Top Up: show available balance prominently */}
+            {portfolioAction?.type === "allocate" ? (
+              <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3">
+                <p className="text-xs text-muted-foreground mb-0.5">Available Balance in Master Wallet</p>
+                <p className="font-bold text-lg text-blue-400">{fmtUGX.format(portfolioAction?.masterBalance ?? 0)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">This is the amount available to top up into portfolios</p>
               </div>
-              <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">
-                  {portfolioAction?.type === "allocate" ? "Portfolio NAV" : "Current Value"}
-                </p>
-                <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Master Wallet Balance</p>
+                  <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.masterBalance ?? 0)}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">Current Value</p>
+                  <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}</p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="action-amount">Amount (UGX)</Label>
@@ -2805,7 +2812,7 @@ export function UserDetailPreview({
                     setActionSuccess(null)
                     const result = await createAllocation({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
                     if (result.success) {
-                      setActionSuccess(`${fmtUGX.format(amount)} allocated successfully. Awaiting admin approval.`)
+                      setActionSuccess(`${fmtUGX.format(amount)} top up submitted successfully. Awaiting admin approval.`)
                       setActionAmount("")
                     } else {
                       setActionError(result.error ?? "Allocation failed.")
@@ -2836,7 +2843,7 @@ export function UserDetailPreview({
                   Processing...
                 </>
               ) : (
-                portfolioAction?.type === "allocate" ? "Allocate Funds" : "Withdraw Funds"
+                portfolioAction?.type === "allocate" ? "Top Up Portfolio" : "Withdraw Funds"
               )}
             </Button>
           </div>
