@@ -2174,6 +2174,7 @@ export function UserDetailPreview({
                     <CardContent className="pt-4">
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         {[
+                          { label: "Available Balance", value: fmtUGX.format(portfolioSummary.masterWallet.balance ?? 0), cls: "text-green-400" },
                           { label: "Net Asset Value", value: fmtUGX.format(portfolioSummary.masterWallet.netAssetValue), cls: "text-blue-400" },
                           { label: "Total Deposited", value: fmtUGX.format(portfolioSummary.masterWallet.totalDeposited), cls: "text-emerald-400" },
                           { label: "Total Withdrawn", value: fmtUGX.format(portfolioSummary.masterWallet.totalWithdrawn), cls: "text-red-400" },
