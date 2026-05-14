@@ -111,9 +111,9 @@ export default async function PerformanceReportsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-800 dark:text-white">Performance Reports</h1>
+        <h1 className="text-xl font-bold text-slate-800 dark:text-white">Bulk Client Reports</h1>
         <p className="text-sm text-slate-400 mt-1">
-          View, generate and download portfolio performance reports for all clients
+          Generate and download combined AUM reports and individual performance reports for all clients
         </p>
       </div>
       <AccountantReports clientPortfolios={withPortfolios} />

@@ -104,7 +104,7 @@ const sidebarLinks = [
     title: "Investment Tracking",
     icon: LineChart,
     items: [
-      { title: "Performance Reports", url: "/dashboard/performance-reports" },
+      { title: "Bulk Client Reports", url: "/dashboard/performance-reports" },
     ],
   },
   {
