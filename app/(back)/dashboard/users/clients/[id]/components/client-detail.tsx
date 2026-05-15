@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp, ClipboardEdit, ExternalLink, ShieldCheck
+  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp, ClipboardEdit, ExternalLink, ShieldCheck, FileDown
 } from "lucide-react";
 import { updateUserById } from "@/actions/auth";
 import { createDeposit } from "@/actions/deposits";
@@ -44,6 +44,8 @@ import { UploadButton } from "@/lib/uploadthing";
 import { UserDetailPreview } from "@/components/user/user-detail-view";
 import type { PortfolioSummary } from "@/actions/portfolio-summary";
 import { generatePerformanceReportPDF } from "@/components/front-end/generate-report-pdf";
+import { TransactionLedger } from "./transaction-ledger";
+import { downloadKycPdf } from "@/lib/generate-kyc-pdf";
 
 const fmt = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -590,6 +592,28 @@ export function ClientDetail({
                   Onboarding Approved
                 </Badge>
               )}
+              {/* Download KYC PDF */}
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => downloadKycPdf({
+                  id: user.id,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  name: user.name,
+                  email: user.email,
+                  phone: user.phone,
+                  status: user.status,
+                  isApproved: user.isApproved,
+                  createdAt: user.createdAt,
+                  masterWallet: (user as any).masterWallet,
+                  individualOnboarding: (user as any).individualOnboarding,
+                  companyOnboarding: (user as any).companyOnboarding,
+                })}
+              >
+                <FileDown className="h-4 w-4" />
+                Download KYC
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -779,6 +803,12 @@ export function ClientDetail({
           </CardContent>
         </Card>
       )}
+
+      {/* Transaction Ledger */}
+      <TransactionLedger
+        userId={user.id}
+        clientName={displayName}
+      />
 
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
