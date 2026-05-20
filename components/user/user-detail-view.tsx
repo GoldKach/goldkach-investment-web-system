@@ -1417,9 +1417,9 @@ export function UserDetailPreview({
   ]
 
   const fmtUSD = {
-    format: (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    format: (v: number | null | undefined) => `$${(v ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
   }
-  const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`
+  const fmtPct = (n: number | null | undefined) => { const v = n ?? 0; return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%` }
   const fmtDate = (d: string | null | undefined) =>
     d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"
 
