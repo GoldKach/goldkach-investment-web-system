@@ -24,7 +24,7 @@ import {
   Search, RefreshCw, Eye, CheckCircle, XCircle, Clock,
   Banknote, ArrowDownToLine, Building2, User,
   CalendarDays, Hash, FileText, TrendingDown, Wallet,
-  Paperclip, X as XIcon, DollarSign, Layers,
+  Paperclip, X as XIcon, DollarSign, Layers, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { approveWithdrawal, rejectWithdrawal, updateWithdrawal, type Withdrawal } from "@/actions/withdraws";
@@ -132,7 +132,11 @@ function ApproveDialog({
   const [bankBranch,      setBankBranch]      = useState(withdrawal.bankBranch      ?? "");
   const [accountNo,       setAccountNo]       = useState(withdrawal.accountNo       ?? "");
 
-  // Reset bank fields when dialog opens with a new withdrawal
+  // Approval date picker
+  const [dateMode,   setDateMode]   = useState<"now" | "custom">("now");
+  const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 16));
+
+  // Reset all fields when dialog opens with a new withdrawal
   useEffect(() => {
     if (open) {
       setBankName(withdrawal.bankName        ?? "");
@@ -142,6 +146,8 @@ function ApproveDialog({
       setTxId("");
       setProofFile(null);
       setProofPreview(null);
+      setDateMode("now");
+      setCustomDate(new Date().toISOString().slice(0, 16));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, withdrawal.id]);
@@ -237,13 +243,18 @@ function ApproveDialog({
         assetPrices[a.assetId] = Number.isFinite(v) && v > 0 ? v : a.currentClose;
       }
 
+      const resolvedAt = dateMode === "custom" && customDate
+        ? new Date(customDate).toISOString()
+        : null;
+
       const result = await approveWithdrawal(
         withdrawal.id,
         isRedemption ? "" : txId.trim(),
         {
-          approvedById:  adminId,
+          approvedById:   adminId,
           approvedByName: adminName,
           withdrawalType: withdrawal.withdrawalType,
+          approvedAt:     resolvedAt,
           ...(isRedemption ? { assetPrices } : {}),
         },
         { include: ["user", "masterWallet"] },
@@ -474,6 +485,46 @@ function ApproveDialog({
           )}
         </div>
 
+        {/* Approval date picker */}
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" /> Approval Date
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setDateMode("now")}
+              className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                dateMode === "now"
+                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+                  : "border-border text-muted-foreground hover:bg-muted/40"
+              }`}
+            >
+              Now (auto)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDateMode("custom"); setCustomDate(new Date().toISOString().slice(0, 16)); }}
+              className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                dateMode === "custom"
+                  ? "border-blue-500 bg-blue-500/10 text-blue-400"
+                  : "border-border text-muted-foreground hover:bg-muted/40"
+              }`}
+            >
+              Pick Date
+            </button>
+          </div>
+          {dateMode === "custom" && (
+            <Input
+              type="datetime-local"
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+              disabled={isPending}
+              className="bg-muted/50 border-border text-sm"
+            />
+          )}
+        </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => { onOpenChange(false); clearFile(); }} disabled={isPending}>
             Cancel
@@ -610,6 +661,10 @@ function RedemptionApproveDialog({
   const [assetMap, setAssetMap] = useState<Record<string, { symbol: string; currentClose: number }>>({});
   const [loadingAssets, setLoadingAssets] = useState(false);
 
+  // Approval date picker
+  const [dateMode,   setDateMode]   = useState<"now" | "custom">("now");
+  const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 16));
+
   // Fetch portfolio assets when dialog opens
   const fetchAssets = async () => {
     if (!open || pendingRedemptions.length === 0) return;
@@ -671,12 +726,16 @@ function RedemptionApproveDialog({
         assetPrices[a.assetId] = Number.isFinite(v) && v > 0 ? v : a.currentClose;
       }
 
+      const resolvedAt = dateMode === "custom" && customDate
+        ? new Date(customDate).toISOString()
+        : null;
+
       for (let i = 0; i < pendingRedemptions.length; i++) {
         const w = pendingRedemptions[i];
         const result = await approveWithdrawal(
           w.id,
           "",
-          { approvedById: adminId, approvedByName: adminName, withdrawalType: "REDEMPTION", assetPrices },
+          { approvedById: adminId, approvedByName: adminName, withdrawalType: "REDEMPTION", assetPrices, approvedAt: resolvedAt },
           { include: ["user", "masterWallet"] },
         );
         if (result.success) successCount++;
@@ -788,6 +847,46 @@ function RedemptionApproveDialog({
               </p>
             </div>
           )}
+
+          {/* Approval date picker */}
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" /> Approval Date
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDateMode("now")}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  dateMode === "now"
+                    ? "border-cyan-500 bg-cyan-500/10 text-cyan-400"
+                    : "border-border text-muted-foreground hover:bg-muted/40"
+                }`}
+              >
+                Now (auto)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDateMode("custom"); setCustomDate(new Date().toISOString().slice(0, 16)); }}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  dateMode === "custom"
+                    ? "border-blue-500 bg-blue-500/10 text-blue-400"
+                    : "border-border text-muted-foreground hover:bg-muted/40"
+                }`}
+              >
+                Pick Date
+              </button>
+            </div>
+            {dateMode === "custom" && (
+              <Input
+                type="datetime-local"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                disabled={isPending}
+                className="bg-muted/50 border-border text-sm"
+              />
+            )}
+          </div>
         </div>
 
         <DialogFooter>

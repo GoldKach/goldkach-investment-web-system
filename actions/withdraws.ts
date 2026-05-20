@@ -648,7 +648,7 @@ export async function approveWithdrawal(
   id:            string,
   /** Required for HARD_WITHDRAWAL; pass empty string or omit for REDEMPTION */
   transactionId: string,
-  approver?:     { approvedById?: string; approvedByName?: string; withdrawalType?: WithdrawalType; assetPrices?: Record<string, number> },
+  approver?:     { approvedById?: string; approvedByName?: string; withdrawalType?: WithdrawalType; assetPrices?: Record<string, number>; approvedAt?: string | null },
   opts?:         { include?: WithdrawalInclude | WithdrawalInclude[] }
 ) {
   try {
@@ -664,6 +664,7 @@ export async function approveWithdrawal(
       ...(txId ? { transactionId: txId } : {}),
       approvedById:   approver?.approvedById  ?? null,
       approvedByName: approver?.approvedByName ?? null,
+      approvedAt:     approver?.approvedAt     ?? null,
       ...(isRedemption && approver?.assetPrices ? { assetPrices: approver.assetPrices } : {}),
     };
 

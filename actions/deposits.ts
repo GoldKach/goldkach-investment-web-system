@@ -569,7 +569,7 @@ export async function updateDeposit(
  */
 export async function approveDeposit(
   id:       string,
-  approver: { approvedById?: string; approvedByName?: string },
+  approver: { approvedById?: string; approvedByName?: string; approvedAt?: string | null },
   /** For ALLOCATION (top-up) deposits: map of assetId → { costPerShare, closePrice } at approval time */
   assetPrices?: Record<string, { costPerShare: number; closePrice: number }>,
   opts?:    { include?: DepositInclude | DepositInclude[] }
@@ -582,6 +582,7 @@ export async function approveDeposit(
       {
         approvedById:   approver.approvedById   ?? null,
         approvedByName: approver.approvedByName ?? null,
+        approvedAt:     approver.approvedAt     ?? null,
         assetPrices:    assetPrices ?? null,
       },
       { headers, params: { include: toIncludeParam(opts?.include) } }

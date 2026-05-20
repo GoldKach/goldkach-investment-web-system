@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import {
   CheckCircle, XCircle, Clock, User, Wallet, CreditCard,
   FileText, AlertCircle, Image as ImageIcon, ExternalLink,
-  Download, Printer, Mail, Loader2, UserCheck, PieChart,
+  Download, Printer, Mail, Loader2, UserCheck, PieChart, CalendarDays,
 } from "lucide-react"
 import { type Deposit, approveDeposit, rejectDeposit } from "@/actions/deposits"
 import { getUserPortfolioById, type UserPortfolioAssetDTO } from "@/actions/user-portfolios"
@@ -41,6 +41,10 @@ export function DepositDetailsModal({
   const [costPerShareInputs, setCostPerShareInputs] = useState<Record<string, string>>({})
   const [closePriceInputs,   setClosePriceInputs]   = useState<Record<string, string>>({})
   const [assetsLoading,      setAssetsLoading]      = useState(false)
+
+  // Approval date picker
+  const [dateMode,    setDateMode]    = useState<"now" | "custom">("now")
+  const [customDate,  setCustomDate]  = useState(() => new Date().toISOString().slice(0, 16))
 
   const receiptRef = useRef<HTMLDivElement>(null)
 
@@ -118,7 +122,15 @@ export function DepositDetailsModal({
             )
           : undefined
 
-      const r = await approveDeposit(deposit.id, { approvedById: adminId, approvedByName: adminName }, assetPricesMap)
+      const resolvedAt = dateMode === "custom" && customDate
+        ? new Date(customDate).toISOString()
+        : undefined
+
+      const r = await approveDeposit(
+        deposit.id,
+        { approvedById: adminId, approvedByName: adminName, approvedAt: resolvedAt ?? null },
+        assetPricesMap,
+      )
       if (r.success) {
         toast.success("Deposit approved!")
         onSuccess()
@@ -468,19 +480,65 @@ export function DepositDetailsModal({
 
           {/* Actions */}
           {isPending && (
-            <div className="flex gap-3 pt-2">
-              <Button
-                onClick={handleApprove}
-                disabled={isApproving || isRejecting || (isAllocation && assetsLoading)}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                {isApproving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                {isApproving ? "Approving…" : "Approve Deposit"}
-              </Button>
-              <Button onClick={handleReject} disabled={isApproving || isRejecting} variant="destructive" className="flex-1">
-                <XCircle className="h-4 w-4 mr-2" />
-                {isRejecting ? "Rejecting…" : "Reject Deposit"}
-              </Button>
+            <div className="space-y-4 pt-2">
+              {/* Approval date picker */}
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3 space-y-2.5">
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" /> Approval Date
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDateMode("now")}
+                    className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      dateMode === "now"
+                        ? "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400"
+                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    Now (auto)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDateMode("custom"); setCustomDate(new Date().toISOString().slice(0, 16)); }}
+                    className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      dateMode === "custom"
+                        ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    Pick Date
+                  </button>
+                </div>
+                {dateMode === "custom" && (
+                  <Input
+                    type="datetime-local"
+                    value={customDate}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                    className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-sm"
+                  />
+                )}
+                {dateMode === "now" && (
+                  <p className="text-xs text-slate-400">
+                    Will record approval at the current server time.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleApprove}
+                  disabled={isApproving || isRejecting || (isAllocation && assetsLoading)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isApproving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                  {isApproving ? "Approving…" : "Approve Deposit"}
+                </Button>
+                <Button onClick={handleReject} disabled={isApproving || isRejecting} variant="destructive" className="flex-1">
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {isRejecting ? "Rejecting…" : "Reject Deposit"}
+                </Button>
+              </div>
             </div>
           )}
 
