@@ -38,15 +38,29 @@ export default async function WithdrawalsPage() {
     );
   }
 
-  const wallet      = walletRes.data.masterWallet;
+  const wallet         = walletRes.data.masterWallet;
+  const portfolioWallets = walletRes.data.portfolioWallets ?? [];
   const allWithdrawals = withdrawalsRes.success ? (withdrawalsRes.data ?? []) : [];
 
-  // Only show HARD_WITHDRAWALs on this page (redemptions are shown on portfolio pages)
   const withdrawals = allWithdrawals.filter((w) => w.withdrawalType === "HARD_WITHDRAWAL");
+  const redemptions  = allWithdrawals.filter((w) => w.withdrawalType === "REDEMPTION");
+
+  // Build portfolio list for the redemption dialog — active portfolios with a value > 0
+  const portfolios = portfolioWallets
+    .filter((pw) => pw.userPortfolio?.isActive)
+    .map((pw) => ({
+      userPortfolioId: pw.userPortfolio!.id,
+      customName:      pw.userPortfolio!.customName,
+      portfolioValue:  pw.userPortfolio!.portfolioValue,
+      totalInvested:   pw.userPortfolio!.totalInvested,
+      portfolioName:   pw.userPortfolio!.portfolio?.name ?? null,
+    }));
 
   return (
     <WithdrawalsPageContent
       withdrawals={withdrawals}
+      redemptions={redemptions}
+      portfolios={portfolios}
       wallet={{
         id:             wallet.id,
         accountNumber:  wallet.accountNumber,
