@@ -34,7 +34,7 @@ import { createUserPortfolio } from "@/actions/user-portfolios"
 import { getAllUsers } from "@/actions/auth"
 import { getPortfolios } from "@/actions/portfolios"
 import { getPortfolioAssets } from "@/actions/portfolioassets"
-import { getMasterWalletByUser } from "@/actions/master-wallets"
+import { getMasterWalletByUser, syncMasterWallet } from "@/actions/master-wallets"
 
 type User = {
   id: string
@@ -108,6 +108,7 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
   // Master wallet balance for the selected user
   const [masterBalance, setMasterBalance] = useState<number | null>(null)
   const [loadingBalance, setLoadingBalance] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   // Load users and portfolios on mount
   useEffect(() => {
@@ -135,6 +136,24 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
       .catch(() => setMasterBalance(0))
       .finally(() => setLoadingBalance(false))
   }, [selectedUserId])
+
+  async function handleSyncBalance() {
+    if (!selectedUserId) return
+    setSyncing(true)
+    try {
+      const res = await syncMasterWallet(selectedUserId)
+      if (res.success && res.data) {
+        setMasterBalance(Number(res.data.balance ?? 0))
+        toast.success("Balance recalculated from approved transactions.")
+      } else {
+        toast.error(res.error ?? "Sync failed.")
+      }
+    } catch {
+      toast.error("Sync failed.")
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   // When portfolio is selected, populate asset allocations with defaults
   useEffect(() => {
@@ -452,9 +471,22 @@ export function CreateUserPortfolioDialog({ open, onOpenChange, onUserPortfolioC
                   Checking available balance…
                 </div>
               ) : masterBalance !== null && masterBalance <= 0 ? (
-                <div className="flex items-center gap-2 p-3 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950 text-sm text-amber-700 dark:text-amber-300">
-                  <Ban className="h-4 w-4 shrink-0" />
-                  No funds available — Please deposit to this account first before allocating to a portfolio.
+                <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950 text-sm text-amber-700 dark:text-amber-300">
+                  <Ban className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold">No funds available</p>
+                    <p className="text-xs mt-0.5">Please deposit to this account first before allocating to a portfolio.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 text-xs border-amber-400 text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900"
+                    disabled={syncing}
+                    onClick={handleSyncBalance}
+                  >
+                    {syncing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Recalculate"}
+                  </Button>
                 </div>
               ) : masterBalance !== null ? (
                 <div className="flex items-center gap-2 p-3 rounded-lg border border-green-400 bg-green-50 dark:bg-green-950 text-sm text-green-700 dark:text-green-300">

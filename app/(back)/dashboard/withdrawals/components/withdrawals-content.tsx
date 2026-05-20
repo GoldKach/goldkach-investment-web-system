@@ -27,8 +27,10 @@ import {
   Paperclip, X as XIcon, DollarSign, Layers, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
-import { approveWithdrawal, rejectWithdrawal, updateWithdrawal, type Withdrawal } from "@/actions/withdraws";
+import { approveWithdrawal, rejectWithdrawal, updateWithdrawal, createWithdrawal, type Withdrawal } from "@/actions/withdraws";
 import { getUserPortfolioById } from "@/actions/user-portfolios";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
+import { getClientsForAssignmentAction, type ClientUser } from "@/actions/staff";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                     */
@@ -1143,6 +1145,354 @@ function DetailsModal({
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Admin Withdraw Dialog                                                       */
+/*  Lets an admin initiate a HARD_WITHDRAWAL from any client's master wallet.  */
+/* -------------------------------------------------------------------------- */
+
+function AdminWithdrawDialog({
+  open,
+  onOpenChange,
+  adminId,
+  adminName,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  adminId: string;
+  adminName: string;
+  onSuccess: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  // Step 1 — client search
+  const [clients,       setClients]       = useState<ClientUser[]>([]);
+  const [clientSearch,  setClientSearch]  = useState("");
+  const [loadingClients,setLoadingClients]= useState(false);
+  const [selectedClient,setSelectedClient]= useState<ClientUser | null>(null);
+
+  // Step 2 — wallet info
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletId,      setWalletId]      = useState<string | null>(null);
+  const [loadingWallet, setLoadingWallet] = useState(false);
+
+  // Step 3 — form fields
+  const [amount,          setAmount]          = useState("");
+  const [bankName,        setBankName]        = useState("");
+  const [bankBranch,      setBankBranch]      = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [accountNo,       setAccountNo]       = useState("");
+  const [description,     setDescription]     = useState("");
+
+  // Derived
+  const amountNum = parseFloat(amount);
+  const amountOk  = Number.isFinite(amountNum) && amountNum > 0 &&
+                    (walletBalance == null || amountNum <= walletBalance);
+  const formOk    = selectedClient && amountOk && bankName.trim() && bankBranch.trim() &&
+                    bankAccountName.trim() && accountNo.trim();
+
+  // Load clients once on open
+  useEffect(() => {
+    if (!open) return;
+    setLoadingClients(true);
+    getClientsForAssignmentAction()
+      .then((res) => setClients(res.success ? (res.data ?? []) : []))
+      .finally(() => setLoadingClients(false));
+  }, [open]);
+
+  // Load master wallet when client changes
+  useEffect(() => {
+    setWalletBalance(null);
+    setWalletId(null);
+    if (!selectedClient) return;
+    setLoadingWallet(true);
+    getMasterWalletByUser(selectedClient.id)
+      .then((res) => {
+        if (res.success && res.data) {
+          setWalletBalance(res.data.masterWallet.balance ?? 0);
+          setWalletId(res.data.masterWallet.id);
+        }
+      })
+      .finally(() => setLoadingWallet(false));
+  }, [selectedClient]);
+
+  function reset() {
+    setClientSearch("");
+    setSelectedClient(null);
+    setWalletBalance(null);
+    setWalletId(null);
+    setAmount("");
+    setBankName("");
+    setBankBranch("");
+    setBankAccountName("");
+    setAccountNo("");
+    setDescription("");
+  }
+
+  function handleClose(v: boolean) {
+    if (!isPending) { if (!v) reset(); onOpenChange(v); }
+  }
+
+  const filteredClients = clients.filter((c) => {
+    const q = clientSearch.toLowerCase();
+    return !q ||
+      c.firstName?.toLowerCase().includes(q) ||
+      c.lastName?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.phone?.toLowerCase().includes(q);
+  });
+
+  function handleSubmit() {
+    if (!selectedClient || !formOk) return;
+    startTransition(async () => {
+      const res = await createWithdrawal({
+        userId:          selectedClient.id,
+        withdrawalType:  "HARD_WITHDRAWAL",
+        amount:          amountNum,
+        referenceNo:     `WDR-${Date.now()}`,
+        bankName:        bankName.trim(),
+        bankBranch:      bankBranch.trim(),
+        bankAccountName: bankAccountName.trim(),
+        accountNo:       accountNo.trim(),
+        description:     description.trim() || null,
+      });
+      if (res.success) {
+        toast.success(`Cash-out of ${fmt.format(amountNum)} created for ${selectedClient.firstName} ${selectedClient.lastName ?? ""}.`);
+        reset();
+        onOpenChange(false);
+        onSuccess();
+      } else {
+        toast.error(res.error ?? "Failed to create withdrawal.");
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-lg border-border bg-card max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowDownToLine className="h-5 w-5 text-orange-400" />
+            Withdraw for Client
+          </DialogTitle>
+          <DialogDescription>
+            Initiate a cash-out from a client&apos;s master wallet. The request will appear as PENDING for approval.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          {/* ── Client selector ─────────────────────────────── */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Client
+            </Label>
+
+            {selectedClient ? (
+              <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">
+                    {selectedClient.firstName} {selectedClient.lastName ?? ""}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{selectedClient.email}</p>
+                  {loadingWallet ? (
+                    <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 animate-spin" /> Loading wallet…
+                    </p>
+                  ) : walletBalance != null ? (
+                    <p className="text-xs font-medium text-emerald-400 mt-0.5">
+                      Balance: {fmt.format(walletBalance)}
+                    </p>
+                  ) : null}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground shrink-0"
+                  onClick={() => { setSelectedClient(null); setAmount(""); }}
+                  disabled={isPending}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, email or phone…"
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    className="pl-9 bg-muted/50 border-border"
+                    disabled={loadingClients}
+                  />
+                </div>
+                {loadingClients ? (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 px-1">
+                    <RefreshCw className="h-3 w-3 animate-spin" /> Loading clients…
+                  </p>
+                ) : filteredClients.length === 0 ? (
+                  <p className="text-xs text-muted-foreground px-1">No clients found.</p>
+                ) : (
+                  <div className="rounded-lg border border-border bg-muted/20 max-h-48 overflow-y-auto divide-y divide-border">
+                    {filteredClients.slice(0, 30).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2.5 hover:bg-muted/40 transition-colors"
+                        onClick={() => { setSelectedClient(c); setClientSearch(""); }}
+                      >
+                        <p className="text-sm font-medium">
+                          {c.firstName} {c.lastName ?? ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{c.email}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Amount ──────────────────────────────────────── */}
+          <div className="space-y-1.5">
+            <Label htmlFor="aw-amount" className="text-xs">
+              Amount <span className="text-red-400">*</span>
+              {walletBalance != null && (
+                <span className="ml-2 text-muted-foreground font-normal">
+                  (max {fmt.format(walletBalance)})
+                </span>
+              )}
+            </Label>
+            <Input
+              id="aw-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={isPending || !selectedClient}
+              className="bg-muted/50 border-border"
+            />
+            {walletBalance != null && Number.isFinite(amountNum) && amountNum > walletBalance && (
+              <p className="text-xs text-red-400">Amount exceeds wallet balance of {fmt.format(walletBalance)}.</p>
+            )}
+          </div>
+
+          {/* ── Bank details ─────────────────────────────────── */}
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5" /> Bank Details
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="aw-bank" className="text-xs">Bank Name <span className="text-red-400">*</span></Label>
+                <Input
+                  id="aw-bank"
+                  placeholder="e.g. Equity Bank"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  disabled={isPending || !selectedClient}
+                  className="bg-muted/50 border-border text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="aw-branch" className="text-xs">Branch <span className="text-red-400">*</span></Label>
+                <Input
+                  id="aw-branch"
+                  placeholder="e.g. Kampala Road"
+                  value={bankBranch}
+                  onChange={(e) => setBankBranch(e.target.value)}
+                  disabled={isPending || !selectedClient}
+                  className="bg-muted/50 border-border text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="aw-acname" className="text-xs">Account Name <span className="text-red-400">*</span></Label>
+                <Input
+                  id="aw-acname"
+                  placeholder="Account holder name"
+                  value={bankAccountName}
+                  onChange={(e) => setBankAccountName(e.target.value)}
+                  disabled={isPending || !selectedClient}
+                  className="bg-muted/50 border-border text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="aw-acno" className="text-xs">Account No. <span className="text-red-400">*</span></Label>
+                <Input
+                  id="aw-acno"
+                  placeholder="e.g. 9030012345"
+                  value={accountNo}
+                  onChange={(e) => setAccountNo(e.target.value)}
+                  disabled={isPending || !selectedClient}
+                  className="bg-muted/50 border-border text-sm font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Description ──────────────────────────────────── */}
+          <div className="space-y-1.5">
+            <Label htmlFor="aw-desc" className="text-xs">Note / Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              id="aw-desc"
+              placeholder="Reason for withdrawal…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={isPending || !selectedClient}
+              className="bg-muted/50 border-border text-sm"
+            />
+          </div>
+
+          {/* ── Summary box ─────────────────────────────────── */}
+          {selectedClient && amountOk && (
+            <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 space-y-1 text-sm">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Summary</p>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Client</span>
+                <span className="font-medium">{selectedClient.firstName} {selectedClient.lastName ?? ""}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-bold text-orange-400">{fmt.format(amountNum)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Bank</span>
+                <span>{bankName || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Status after creation</span>
+                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs">
+                  PENDING
+                </Badge>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleClose(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isPending || !formOk}
+            className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+          >
+            {isPending ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowDownToLine className="h-4 w-4" />
+            )}
+            Create Withdrawal
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Main content                                                                */
 /* -------------------------------------------------------------------------- */
 
@@ -1163,6 +1513,7 @@ export function WithdrawalsContent({
   const [selected,     setSelected]     = useState<Withdrawal | null>(null);
   const [detailsOpen,  setDetailsOpen]  = useState(false);
   const [redemptionApproveOpen, setRedemptionApproveOpen] = useState(false);
+  const [adminWithdrawOpen, setAdminWithdrawOpen] = useState(false);
 
   /* ---- stats ---- */
   const stats = useMemo(() => {
@@ -1224,7 +1575,15 @@ export function WithdrawalsContent({
             Manage cash-out requests and portfolio redemptions.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <Button
+            size="sm"
+            className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+            onClick={() => setAdminWithdrawOpen(true)}
+          >
+            <ArrowDownToLine className="h-3.5 w-3.5" />
+            Withdraw for Client
+          </Button>
           {stats.pendingRedemptions.length > 0 && (
             <Button
               size="sm"
@@ -1415,6 +1774,15 @@ export function WithdrawalsContent({
         pendingRedemptions={stats.pendingRedemptions}
         open={redemptionApproveOpen}
         onOpenChange={setRedemptionApproveOpen}
+        adminId={adminId}
+        adminName={adminName}
+        onSuccess={handleRefresh}
+      />
+
+      {/* Admin-initiated cash-out on behalf of a client */}
+      <AdminWithdrawDialog
+        open={adminWithdrawOpen}
+        onOpenChange={setAdminWithdrawOpen}
         adminId={adminId}
         adminName={adminName}
         onSuccess={handleRefresh}
