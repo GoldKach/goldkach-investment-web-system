@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/actions/auth";
 import { getAllStaffAction, getAgentClientsAction } from "@/actions/staff";
+import { getPortfolioSummary } from "@/actions/portfolio-summary";
 import AgentShell from "@/components/agent/agent-shell";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +27,21 @@ export default async function AgentLayout({ children }: { children: ReactNode })
     }
   }
 
+  // Detect whether this agent also has personal investments
+  let hasPersonalPortfolio = false;
+  try {
+    const summaryRes = await getPortfolioSummary(session.user.id);
+    hasPersonalPortfolio = (summaryRes.data?.portfolios?.length ?? 0) > 0;
+  } catch {
+    // non-fatal — switcher simply won't appear
+  }
+
   return (
-    <AgentShell staff={staff} activeClientCount={activeClientCount}>
+    <AgentShell
+      staff={staff}
+      activeClientCount={activeClientCount}
+      hasPersonalPortfolio={hasPersonalPortfolio}
+    >
       {children}
     </AgentShell>
   );

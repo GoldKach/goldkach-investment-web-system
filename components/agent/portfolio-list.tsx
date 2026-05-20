@@ -11,6 +11,7 @@ import type { PortfolioSummaryItem } from "@/actions/portfolio-summary";
 interface PortfolioListProps {
   portfolios: PortfolioSummaryItem[];
   clientId: string;
+  basePath?: string;
 }
 
 function fmt(n: number) {
@@ -25,7 +26,7 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function PortfolioList({ portfolios, clientId }: PortfolioListProps) {
+export function PortfolioList({ portfolios, clientId, basePath = "/agent/clients" }: PortfolioListProps) {
   const [expandedSnapshots, setExpandedSnapshots] = useState<Set<string>>(new Set());
 
   const toggleSnapshots = (id: string) => {
@@ -54,7 +55,7 @@ export function PortfolioList({ portfolios, clientId }: PortfolioListProps) {
             className="rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 bg-white dark:bg-[#0a0d24] p-5 hover:border-[#2B2F77]/50 dark:hover:border-[#3B82F6]/40 hover:shadow-md transition-all"
           >
             {/* Card body — navigates to portfolio */}
-            <Link href={`/agent/clients/${clientId}/portfolios/${p.id}`} className="block">
+            <Link href={`${basePath}/${clientId}/portfolios/${p.id}`} className="block">
               {/* Header */}
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -76,9 +77,9 @@ export function PortfolioList({ portfolios, clientId }: PortfolioListProps) {
               {/* Financials */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div><p className="text-slate-400 mb-0.5">Invested</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.totalInvested)}</p></div>
-                <div><p className="text-slate-400 mb-0.5">Current Value</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.portfolioValue)}</p></div>
+                <div><p className="text-slate-400 mb-0.5">Investment Return</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.portfolioValue)}</p></div>
                 <div><p className="text-slate-400 mb-0.5">Gain / Loss</p><p className={`font-semibold ${isPositive ? "text-green-600" : "text-red-500"}`}>{fmt(p.totalLossGain)}</p></div>
-                <div><p className="text-slate-400 mb-0.5">NAV</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.wallet?.netAssetValue ?? 0)}</p></div>
+                <div><p className="text-slate-400 mb-0.5">Total Invested</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.wallet?.netAssetValue ?? 0)}</p></div>
               </div>
 
               {/* Latest report badge */}
@@ -148,12 +149,12 @@ export function PortfolioList({ portfolios, clientId }: PortfolioListProps) {
 
             {/* Action buttons */}
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Link href={`/agent/clients/${clientId}/portfolios/${p.id}`}>
+              <Link href={`${basePath}/${clientId}/portfolios/${p.id}`}>
                 <Button size="sm" variant="outline" className="w-full gap-2 text-xs">
                   <BarChart2 className="h-3.5 w-3.5" /> View Portfolio
                 </Button>
               </Link>
-              <Link href={`/agent/clients/${clientId}/portfolios/${p.id}/reports`}>
+              <Link href={`${basePath}/${clientId}/portfolios/${p.id}/reports`}>
                 <Button size="sm" variant="outline" className="w-full gap-2 text-xs border-[#2B2F77]/30 text-[#2B2F77] dark:text-[#3B82F6] hover:bg-[#2B2F77]/10">
                   <FileText className="h-3.5 w-3.5" /> View Reports & PDF
                 </Button>

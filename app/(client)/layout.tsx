@@ -4,7 +4,8 @@
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import UserDashboardShell from "@/components/back/user-dashboard-shell";
-import { fetchMe, getAllUsers, getSession } from "@/actions/auth";
+import { getAllUsers, getSession } from "@/actions/auth";
+import { getAgentClientsAction } from "@/actions/staff";
 import { ZustandHydration } from "@/components/providers/zustand-hydration";
 export const dynamic = "force-dynamic";
 
@@ -35,13 +36,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect("/onboarding?alert=Please+complete+your+onboarding+to+access+your+account");
   }
 
+  // Check whether this client is also registered as an agent (has a StaffProfile)
+  const agentClientsRes = await getAgentClientsAction(session.user.id).catch(() => null);
+  const isAlsoAgent = agentClientsRes?.success === true;
+
   return  <ZustandHydration
     fallback={
       // Simple loading skeleton while store rehydrates
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 animate-pulse" />
     }
   >
-    <UserDashboardShell user={user}>{children}</UserDashboardShell>
+    <UserDashboardShell user={user} isAlsoAgent={isAlsoAgent}>{children}</UserDashboardShell>
   </ZustandHydration>;
 }
 

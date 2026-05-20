@@ -38,6 +38,12 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
   const portfolioWallets = walletDetail?.portfolioWallets ?? [];
   const portfolios = portfolioSummary?.portfolios ?? [];
 
+  // Investment Return = sum of all portfolio portfolioValues (market value, updated by cascade)
+  // Computed from portfolioWallets directly so it doesn't depend on masterWallet.netAssetValue being synced
+  const investmentReturn = portfolioWallets.reduce(
+    (s, pw) => s + Number(pw.userPortfolio?.portfolioValue ?? 0), 0
+  );
+
   const [modal, setModal] = useState<ModalType>(null);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState("");
   const [amount, setAmount] = useState("");
@@ -99,6 +105,17 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { toast.error("Enter a valid amount."); return; }
     if (!selectedPortfolioId) { toast.error("Select a portfolio."); return; }
+
+    // Calculate portfolio investment return (sum of close values)
+    const pw = portfolioWallets.find((pw) => pw.userPortfolio?.id === selectedPortfolioId);
+    const p = portfolios.find((p) => p.wallet?.id === pw?.id);
+    const rawMax = p?.assets?.reduce((s: number, a: any) => s + (a.closeValue ?? 0), 0) ?? p?.portfolioValue ?? pw?.netAssetValue ?? 0;
+    const maxRedeemable = Math.floor(rawMax * 100) / 100;
+
+    if (amt > maxRedeemable + 0.001) {
+      toast.error(`Cannot redeem more than the portfolio investment return of ${fmt(maxRedeemable)}.`);
+      return;
+    }
     startTransition(async () => {
       const res = await createRedemption({
         userId,
@@ -153,7 +170,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: "Available Balance", value: fmt(master?.balance ?? 0), color: "text-green-500" },
-              { label: "Net Asset Value",   value: fmt(master?.netAssetValue ?? 0), color: "text-blue-500" },
+              { label: "Investment Return",  value: fmt(investmentReturn), color: "text-blue-500" },
               { label: "Total Deposited",   value: fmt(master?.totalDeposited ?? 0), color: "text-foreground" },
               { label: "Total Fees",        value: fmt(master?.totalFees ?? 0), color: "text-amber-500" },
             ].map((m) => (
@@ -169,20 +186,20 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
             <div className="rounded-lg border border-amber-400/30 bg-amber-50/50 dark:bg-amber-500/5 p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Receipt className="h-3.5 w-3.5 text-amber-500" />
-                <p className="text-xs font-medium text-amber-600 dark:text-amber-400">One-Time Fees (First Deposit)</p>
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400">Deposit Fees</p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bank Cost</span>
-                  <span className="font-medium text-amber-600 dark:text-amber-400">${fmt(firstDeposit.bankCost ?? 0)}</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">{fmt(firstDeposit.bankCost ?? 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Transaction Cost</span>
-                  <span className="font-medium text-amber-600 dark:text-amber-400">${fmt(firstDeposit.transactionCost ?? 0)}</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">{fmt(firstDeposit.transactionCost ?? 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Cash at Bank</span>
-                  <span className="font-medium text-amber-600 dark:text-amber-400">${fmt(firstDeposit.cashAtBank ?? 0)}</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">{fmt(firstDeposit.cashAtBank ?? 0)}</span>
                 </div>
               </div>
             </div>
@@ -217,9 +234,9 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
           <p className="text-sm text-muted-foreground">No portfolio wallets found.</p>
         ) : (
           portfolioWallets.map((pw) => {
-            const portfolio = portfolios.find((p) => p.wallet?.id === pw.id);
+            const up = pw.userPortfolio;
             const isExpanded = expandedWallet === pw.id;
-            const isPositive = (portfolio?.totalLossGain ?? 0) >= 0;
+            const isPositive = (up?.totalLossGain ?? 0) >= 0;
 
             return (
               <Card key={pw.id} className="border-l-4 border-l-violet-500">
@@ -259,12 +276,14 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
                 <CardContent className="pt-0 space-y-3">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-xs text-muted-foreground">NAV</p>
-                      <p className="text-base font-bold text-blue-500">{fmt(pw.netAssetValue)}</p>
+                      <p className="text-xs text-muted-foreground">Total Invested</p>
+                      <p className="text-base font-bold text-blue-500">{fmt(up?.totalInvested ?? 0)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-xs text-muted-foreground">Balance</p>
-                      <p className="text-base font-bold">{fmt(pw.balance)}</p>
+                      <p className="text-xs text-muted-foreground">Portfolio Investment Return</p>
+                      <p className="text-base font-bold">
+                        {fmt(up?.portfolioValue ?? 0)}
+                      </p>
                     </div>
                     <div className="rounded-lg bg-muted/30 p-3">
                       <p className="text-xs text-muted-foreground">Total Fees</p>
@@ -272,19 +291,13 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
                     </div>
                   </div>
 
-                  {portfolio && (
+                  {up && (
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>Invested: <span className="font-semibold text-foreground">{fmt(portfolio.totalInvested)}</span></span>
-                      <span>·</span>
-                      <span>Return:
-                        <span className={`font-semibold ml-1 ${isPositive ? "text-green-500" : "text-red-500"}`}>
-                          {isPositive ? "+" : ""}{portfolio.returnPct.toFixed(2)}%
-                        </span>
-                      </span>
+                      <span>Invested: <span className="font-semibold text-foreground">{fmt(up.totalInvested)}</span></span>
                       <span>·</span>
                       <span>Gain/Loss:
                         <span className={`font-semibold ml-1 ${isPositive ? "text-green-500" : "text-red-500"}`}>
-                          {fmt(portfolio.totalLossGain)}
+                          {fmt(up.totalLossGain)}
                         </span>
                       </span>
                     </div>
@@ -293,8 +306,8 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
                   <div className="pt-2 border-t border-border flex flex-wrap gap-2">
                       <Button
                         size="sm" variant="outline" className="gap-2"
-                        onClick={() => openModal("redeem", pw.userPortfolio?.id)}
-                        disabled={pw.netAssetValue <= 0}
+                        onClick={() => openModal("redeem", up?.id)}
+                        disabled={(up?.portfolioValue ?? 0) <= 0}
                       >
                         <RefreshCw className="h-3.5 w-3.5" /> Redeem to Master Wallet
                       </Button>
@@ -307,27 +320,6 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
           })
         )}
       </div>
-
-      {/* Aggregate */}
-      {walletDetail?.aggregateTotals && (
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              {[
-                { label: "Total Balance",    value: fmt(walletDetail.aggregateTotals.totalBalance) },
-                { label: "Total NAV",        value: fmt(walletDetail.aggregateTotals.totalNAV) },
-                { label: "Total Fees",       value: fmt(walletDetail.aggregateTotals.totalFees) },
-                { label: "Portfolio Count",  value: walletDetail.aggregateTotals.portfolioCount.toString() },
-              ].map((s) => (
-                <div key={s.label} className="flex justify-between items-center py-1 border-b border-border last:border-0">
-                  <span className="text-muted-foreground">{s.label}</span>
-                  <span className="font-semibold">{s.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Withdraw to Bank Modal */}
       <Dialog open={modal === "withdraw"} onOpenChange={(o) => !isPending && !o && setModal(null)}>
@@ -364,6 +356,9 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
             <p className="text-xs text-muted-foreground">
               Withdrawal requests require admin approval before funds are transferred.
             </p>
+            <p className="text-xs text-amber-500/80">
+              Note: First withdrawal is recommended after 1 year from your initial deposit.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModal(null)} disabled={isPending}>Cancel</Button>
@@ -383,31 +378,66 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {selectedPortfolioId && (
-              <div className="rounded-lg bg-muted/30 p-3 text-sm">
-                Portfolio NAV: <span className="font-bold text-blue-500">
-                  {fmt(portfolioWallets.find((pw) => pw.userPortfolio?.id === selectedPortfolioId)?.netAssetValue ?? 0)}
-                </span>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label>Amount to Redeem</Label>
-              <Input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} min="0" step="0.01" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Description (optional)</Label>
-              <Input placeholder="Reason for redemption" value={description} onChange={(e) => setDescription(e.target.value)} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Redemption moves funds from your portfolio wallet back to your master wallet. Requires admin approval.
-            </p>
+            {selectedPortfolioId && (() => {
+              const pw = portfolioWallets.find((pw) => pw.userPortfolio?.id === selectedPortfolioId);
+              const p = portfolios.find((p) => p.wallet?.id === pw?.id);
+              const rawMax = pw?.userPortfolio?.portfolioValue ?? 0;
+              const maxRedeemable = Math.floor(rawMax * 100) / 100; // floor to 2dp to avoid float overshoot
+              const enteredAmt = parseFloat(amount) || 0;
+              const overLimit = enteredAmt > maxRedeemable + 0.001; // small epsilon for float safety
+
+              return (
+                <>
+                  <div className="rounded-lg bg-muted/30 p-3 text-sm flex items-center justify-between">
+                    <span>Portfolio Investment Return:</span>
+                    <span className="font-bold text-blue-500">{fmt(maxRedeemable)}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label>Amount to Redeem</Label>
+                      <button
+                        type="button"
+                        className="text-xs text-violet-500 hover:underline font-medium"
+                        onClick={() => setAmount(maxRedeemable.toFixed(2))}
+                      >
+                        Redeem All
+                      </button>
+                    </div>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className={overLimit ? "border-red-500 focus-visible:ring-red-500" : ""}
+                    />
+                    {overLimit && (
+                      <p className="text-xs text-red-500">
+                        Cannot exceed portfolio investment return of {fmt(maxRedeemable)}.
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Description (optional)</Label>
+                    <Input placeholder="Reason for redemption" value={description} onChange={(e) => setDescription(e.target.value)} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Redemption moves funds from your portfolio wallet back to your master wallet. Requires admin approval.
+                  </p>
+                  <p className="text-xs text-amber-500/80">
+                    Note: First redemption is recommended after 1 year from your initial deposit.
+                  </p>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setModal(null)} disabled={isPending}>Cancel</Button>
+                    <Button onClick={handleRedeem} disabled={isPending || overLimit || enteredAmt <= 0} className="gap-2">
+                      {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Submit Request"}
+                    </Button>
+                  </DialogFooter>
+                </>
+              );
+            })()}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModal(null)} disabled={isPending}>Cancel</Button>
-            <Button onClick={handleRedeem} disabled={isPending} className="gap-2">
-              {isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : "Submit Request"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

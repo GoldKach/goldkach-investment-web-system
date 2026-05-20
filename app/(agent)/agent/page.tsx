@@ -3,6 +3,7 @@ import { getSession } from "@/actions/auth";
 import { getAllStaffAction, getAgentClientsAction } from "@/actions/staff";
 import { ClientList } from "@/components/agent/client-list";
 import { ErrorSection } from "@/components/agent/error-section";
+import { ReferralLinkCard } from "@/components/agent/referral-link-card";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,8 @@ export default async function AgentHomePage() {
     return <ErrorSection message={clientsRes.error || "Failed to load your clients."} />;
   }
 
+  const staffProfileId = staffMember.staffProfile?.id ?? "";
+
   return (
     <div className="space-y-6">
       <div>
@@ -35,6 +38,7 @@ export default async function AgentHomePage() {
           {(clientsRes.data?.length ?? 0) === 1 ? "client" : "clients"} assigned to you
         </p>
       </div>
+      {staffProfileId && <ReferralLinkCard staffProfileId={staffProfileId} />}
       <ClientList assignments={clientsRes.data ?? []} />
     </div>
   );

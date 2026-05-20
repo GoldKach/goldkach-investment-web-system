@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const accountNo = withdrawal.masterWallet?.accountNumber || "N/A"
 
-    const fmt     = (v: number) => `UGX ${v.toLocaleString("en-UG", { minimumFractionDigits: 0 })}`
+    const fmt     = (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     const fmtDate = (d: string) => new Date(d).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
 
     const statusColor: Record<string, string> = {
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
       from:    FROM,
       to:      withdrawal.user.email,
-      subject: `GoldKach Withdrawal Approved — UGX ${withdrawal.amount.toLocaleString()} (#${withdrawal.id.slice(0, 8).toUpperCase()})`,
+      subject: `GoldKach Withdrawal Approved — $${withdrawal.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (#${withdrawal.id.slice(0, 8).toUpperCase()})`,
       html,
     })
 

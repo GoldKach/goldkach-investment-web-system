@@ -85,11 +85,12 @@
 @layer base {
   * {
     @apply border-border; 
-    outline-color: var(--ring);   /* set outline color in plain CSS */
-
+    outline-color: var(--ring);
+    font-family: var(--font-poppins), Poppins, sans-serif;
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-poppins), Poppins, sans-serif;
   }
 }
 

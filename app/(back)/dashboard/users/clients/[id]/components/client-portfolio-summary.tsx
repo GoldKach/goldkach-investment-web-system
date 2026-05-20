@@ -675,7 +675,7 @@ function PortfolioCard({ p }: { p: PortfolioSummaryItem }) {
                 ? "border-emerald-500/20 bg-emerald-500/5"
                 : "border-red-500/20 bg-red-500/5",
             },
-            { label: "NAV", value: fmt.format(p.wallet.netAssetValue), cls: "text-blue-400" },
+            { label: "Investment Return", value: fmt.format(p.wallet.netAssetValue), cls: "text-blue-400" },
           ].map((item) => (
             <div
               key={item.label}

@@ -368,6 +368,7 @@ export default function CompanyOnboardingForm({ user }: Props) {
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
   const [agreementConfirmed, setAgreementConfirmed] = useState(false)
+  const [lockedAgentId, setLockedAgentId] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -398,6 +399,13 @@ export default function CompanyOnboardingForm({ user }: Props) {
           email: user.email ?? p.email,
           companyName: user.firstName ?? p.companyName,
         }))
+      }
+
+      // Apply referral agent lock if present
+      const agentRef = typeof window !== "undefined" ? localStorage.getItem("onboardingAgentRef") : null
+      if (agentRef) {
+        setLockedAgentId(agentRef)
+        setFormData((p) => ({ ...p, agentId: agentRef }))
       }
     } catch {
       // ignore
@@ -558,6 +566,7 @@ export default function CompanyOnboardingForm({ user }: Props) {
 
       localStorage.removeItem("onboardingUser")
       localStorage.removeItem("companyOnboardingProgress")
+      localStorage.removeItem("onboardingAgentRef")
       await clearOnboardingSession()
       router.push("/confirmation")
     } catch {
@@ -646,12 +655,20 @@ export default function CompanyOnboardingForm({ user }: Props) {
                   <Input placeholder="Registered business address" value={formData.companyAddress} onChange={(e) => update("companyAddress", e.target.value)} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                                <div className="md:col-span-2">
-                <AgentSelector
-                  value={formData.agentId}
-                  onChange={(id) => update("agentId", id)}
-                />
-</div>
+                  <div className="md:col-span-2">
+                    {lockedAgentId ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm">
+                        <span className="text-muted-foreground font-medium">Agent:</span>
+                        <span className="text-slate-800 dark:text-white font-semibold">Pre-assigned via referral link</span>
+                        <span className="ml-auto text-xs text-primary border border-primary/30 rounded px-1.5 py-0.5">Locked</span>
+                      </div>
+                    ) : (
+                      <AgentSelector
+                        value={formData.agentId}
+                        onChange={(id) => update("agentId", id)}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 

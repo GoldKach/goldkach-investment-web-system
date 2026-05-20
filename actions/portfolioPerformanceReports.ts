@@ -519,16 +519,33 @@ export interface PortfolioPerformanceReport {
   totalCloseValue: number;
   totalLossGain:   number;
   totalPercentage: number;
-  totalFees:       number;       // fees accumulated across all slices
-  netAssetValue:   number;       // totalCloseValue - totalFees
-  bankCost:        number;       // bank cost deduction
-  transactionCost: number;        // transaction cost deduction
-  cashAtBank:      number;       // cash at bank deduction
+  totalFees:       number;
+  netAssetValue:   number;
+  bankCost:        number;
+  transactionCost: number;
+  cashAtBank:      number;
   createdAt?:      string;
   updatedAt?:      string;
   assetBreakdown?:        PortfolioAssetBreakdown[];
-  subPortfolioSnapshots?: SubPortfolioSnapshot[]; // X, X1, X2-source history
+  subPortfolioSnapshots?: SubPortfolioSnapshot[];
+  assetSnapshots?:        AssetSnapshot[];   // historical per-asset prices at report date
   userPortfolio?:         UserPortfolio | null;
+}
+
+/** Historical per-asset snapshot captured at report generation time */
+export interface AssetSnapshot {
+  id?:         string;
+  reportId?:   string;
+  assetId:     string;
+  symbol:      string;
+  description: string;
+  stock:       number;
+  costPerShare: number;
+  costPrice:   number;
+  closePrice:  number;  // historical close price at report date
+  closeValue:  number;
+  lossGain:    number;
+  createdAt?:  string;
 }
 
 export interface PerformanceStats {

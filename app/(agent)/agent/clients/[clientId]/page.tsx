@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { getSession } from "@/actions/auth";
 import { getUserById } from "@/actions/auth";
-import { fetchMyIndividualOnboarding, fetchMyCompanyOnboarding } from "@/actions/onboarding";
+import { fetchIndividualOnboardingByUserId, fetchCompanyOnboardingByUserId } from "@/actions/onboarding";
 import { getPortfolioSummary } from "@/actions/portfolio-summary";
 import { ClientProfileView } from "@/components/agent/client-profile-view";
 import { PortfolioList } from "@/components/agent/portfolio-list";
@@ -34,8 +34,8 @@ export default async function ClientProfilePage({ params }: Props) {
   }
 
   const [individualRes, companyRes, summaryRes] = await Promise.allSettled([
-    fetchMyIndividualOnboarding(clientId),
-    fetchMyCompanyOnboarding(clientId),
+    fetchIndividualOnboardingByUserId(clientId),
+    fetchCompanyOnboardingByUserId(clientId),
     getPortfolioSummary(clientId),
   ]);
 

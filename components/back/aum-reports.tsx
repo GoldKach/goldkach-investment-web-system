@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Download, Eye, FileText, ChevronDown, ChevronUp, Loader2, RefreshCw, Calendar, X, Search, TableIcon, Sheet } from "lucide-react";
+import { Download, Eye, FileText, ChevronDown, ChevronUp, Loader2, RefreshCw, Calendar, X, Search, TableIcon, Sheet, Wallet } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,13 @@ interface Props {
     masterWallet: any;
     feeTotals?: { bankFee: number; transactionFee: number; feeAtBank: number };
     depositFeeSummary?: { totalBankCost: number; totalTransactionCost: number; totalCashAtBank: number; totalFees: number; depositCount: number } | null;
+    isCashOnly?: boolean;
+    cashBalance?: number;
   }>;
+  /** True while the shell is still fetching per-client portfolio data */
+  isLoadingClients?: boolean;
+  /** Total number of clients on the system (for progress display) */
+  totalClients?: number;
 }
 
 // ── Combined AUM Report types & helpers ───────────────────────────────────────
@@ -47,7 +53,7 @@ function buildCombinedRows(
   date: string
 ): CombinedRow[] {
   const rows: CombinedRow[] = [];
-  for (const { client, portfolios, feeTotals, depositFeeSummary } of clientPortfolios) {
+  for (const { client, portfolios, masterWallet, feeTotals, depositFeeSummary, isCashOnly, cashBalance } of clientPortfolios) {
     const investorName = [client.firstName, client.lastName].filter(Boolean).join(" ") || client.email;
 
     // Fees: use deposit summary (most accurate) → portfolio wallet totals
@@ -55,38 +61,75 @@ function buildCombinedRows(
     const transactionCost = depositFeeSummary?.totalTransactionCost ?? feeTotals?.transactionFee ?? 0;
     const cashAtBank = depositFeeSummary?.totalCashAtBank ?? feeTotals?.feeAtBank ?? 0;
 
+    // Cash-only client: no portfolios, money sitting in the master wallet
+    if (isCashOnly) {
+      const balance = cashBalance ?? masterWallet?.balance ?? masterWallet?.netAssetValue ?? 0;
+      if (balance > 0) {
+        rows.push({
+          investorName,
+          symbol: "CASH",
+          description: "Cash Available for Investment",
+          stocks: 0,
+          costPerShare: 0,
+          costPrice: 0,
+          closePrice: 1,
+          closeValue: balance,
+          unrealizedGainLoss: 0,
+          bankCost,
+          transactionCost,
+          cashAtBank,
+        });
+      }
+      continue;
+    }
+
     let clientRowAdded = false;
 
     for (const p of portfolios) {
-      // If a date is selected, use the report for that date to get accurate historical values
+      // If a date is selected, find the report for that date.
+      // Use a ±12h window around UTC midnight to handle reports stored with local-timezone
+      // midnight (e.g. EAT UTC+3 stores Dec 12 as 2024-12-11T21:00:00Z in UTC).
       const report = date
-        ? (reportsByPortfolio[p.id] ?? []).find((r: any) => r.reportDate?.startsWith(date))
+        ? (() => {
+            const selectedMidnight = new Date(date + "T00:00:00.000Z").getTime();
+            const candidates = (reportsByPortfolio[p.id] ?? [])
+              .map((r: any) => ({ r, diff: Math.abs(new Date(r.reportDate).getTime() - selectedMidnight) }))
+              .filter(({ diff }) => diff < 12 * 60 * 60 * 1000) // within ±12h
+              .sort((a, b) => a.diff - b.diff);                 // closest first
+            return candidates[0]?.r ?? null;
+          })()
         : null;
 
-      // Assets come from the report's sub-portfolio snapshots if available, else current portfolio
-      const assets: any[] = p.assets ?? p.userAssets ?? [];
+      // When a report exists and has per-asset snapshots, use those for historical accuracy.
+      // Otherwise fall back to current portfolio assets.
+      const snapshotAssets: any[] | null =
+        report?.assetSnapshots?.length ? report.assetSnapshots : null;
+
+      const assets: any[] = snapshotAssets ?? p.assets ?? p.userAssets ?? [];
       if (assets.length === 0) continue;
 
       assets.forEach((a, idx) => {
-        // When a report exists for the date, scale asset values proportionally
-        // Otherwise use current portfolio values
-        const closeValue = a.closeValue ?? 0;
-        const costPrice = a.costPrice ?? 0;
-        const lossGain = a.lossGain ?? 0;
+        const isSnapshot = !!snapshotAssets;
+
+        // Snapshot shape: { symbol, description, stock, costPerShare, costPrice, closePrice, closeValue, lossGain }
+        // Live asset shape: { asset: { symbol, description, closePrice }, stock, costPerShare, costPrice, closeValue, lossGain }
+        const symbol      = isSnapshot ? (a.symbol      ?? "—") : (a.asset?.symbol      ?? "—");
+        const description = isSnapshot ? (a.description ?? "—") : (a.asset?.description ?? "—");
+        const closePrice  = isSnapshot ? (a.closePrice  ?? 0)   : (a.asset?.closePrice  ?? 0);
 
         rows.push({
           investorName: !clientRowAdded && idx === 0 ? investorName : "",
-          symbol: a.asset?.symbol ?? "—",
-          description: a.asset?.description ?? "—",
-          stocks: a.stock ?? 0,
-          costPerShare: a.costPerShare ?? 0,
-          costPrice,
-          closePrice: a.asset?.closePrice ?? 0,
-          closeValue,
-          unrealizedGainLoss: lossGain,
-          bankCost: !clientRowAdded && idx === 0 ? bankCost : 0,
+          symbol,
+          description,
+          stocks:             a.stock       ?? 0,
+          costPerShare:       a.costPerShare ?? 0,
+          costPrice:          a.costPrice   ?? 0,
+          closePrice,
+          closeValue:         a.closeValue  ?? 0,
+          unrealizedGainLoss: a.lossGain    ?? 0,
+          bankCost:        !clientRowAdded && idx === 0 ? bankCost        : 0,
           transactionCost: !clientRowAdded && idx === 0 ? transactionCost : 0,
-          cashAtBank: !clientRowAdded && idx === 0 ? cashAtBank : 0,
+          cashAtBank:      !clientRowAdded && idx === 0 ? cashAtBank      : 0,
         });
 
         if (idx === 0) clientRowAdded = true;
@@ -194,7 +237,7 @@ function exportToExcel(rows: CombinedRow[], date: string) {
   exportToCSV(rows, date);
 }
 
-export function AccountantReports({ clientPortfolios }: Props) {
+export function AccountantReports({ clientPortfolios, isLoadingClients = false, totalClients }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [reports, setReports] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState<Set<string>>(new Set());
@@ -412,11 +455,18 @@ export function AccountantReports({ clientPortfolios }: Props) {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {isLoadingClients && (
+                <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading clients… {clientPortfolios.length}{totalClients ? ` / ${totalClients}` : ""}
+                </span>
+              )}
               <Input
                 type="date"
                 value={combinedDate}
                 onChange={(e) => { setCombinedDate(e.target.value); setCombinedFetched(false); }}
                 className="w-40 text-sm h-8"
+                disabled={isLoadingClients}
               />
               {combinedDate && (
                 <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs"
@@ -424,9 +474,15 @@ export function AccountantReports({ clientPortfolios }: Props) {
                   <X className="h-3.5 w-3.5" /> Clear
                 </Button>
               )}
-              <Button size="sm" onClick={generateCombinedReport} disabled={combinedLoading} className="h-8 gap-1.5">
+              <Button
+                size="sm"
+                onClick={generateCombinedReport}
+                disabled={combinedLoading || isLoadingClients}
+                className="h-8 gap-1.5"
+                title={isLoadingClients ? "Wait for all clients to finish loading" : undefined}
+              >
                 {combinedLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <TableIcon className="h-3.5 w-3.5" />}
-                {combinedLoading ? "Generating…" : "Generate Report"}
+                {combinedLoading ? "Generating…" : isLoadingClients ? "Loading clients…" : "Generate Report"}
               </Button>
               {combinedFetched && combinedRows.length > 0 && (
                 <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs"
@@ -468,23 +524,33 @@ export function AccountantReports({ clientPortfolios }: Props) {
                   <tbody className="divide-y divide-border/40">
                     {combinedRows.map((row, idx) => {
                       const isFirstForInvestor = row.investorName !== "";
+                      const isCashRow = row.symbol === "CASH";
                       const rowNum = combinedRows.slice(0, idx + 1).filter((r) => r.investorName !== "").length;
                       const gainPos = row.unrealizedGainLoss >= 0;
                       return (
-                        <tr key={idx} className={isFirstForInvestor ? "bg-muted/30" : "bg-background"}>
+                        <tr key={idx} className={isCashRow ? "bg-amber-50/60 dark:bg-amber-900/10" : isFirstForInvestor ? "bg-muted/30" : "bg-background"}>
                           <td className="px-3 py-1.5 text-muted-foreground">{isFirstForInvestor ? rowNum : ""}</td>
                           <td className="px-3 py-1.5 font-medium text-foreground">{row.investorName}</td>
                           <td className="px-3 py-1.5 text-foreground">
-                            <span className="font-semibold">{row.symbol}</span>
-                            {row.description !== "—" && <span className="text-muted-foreground ml-1">— {row.description}</span>}
+                            {isCashRow ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className="font-semibold text-amber-600 dark:text-amber-400">CASH</span>
+                                <span className="text-muted-foreground text-[10px]">— Cash Available for Investment</span>
+                              </span>
+                            ) : (
+                              <>
+                                <span className="font-semibold">{row.symbol}</span>
+                                {row.description !== "—" && <span className="text-muted-foreground ml-1">— {row.description}</span>}
+                              </>
+                            )}
                           </td>
-                          <td className="px-3 py-1.5 text-right">{row.stocks.toFixed(2)}</td>
-                          <td className="px-3 py-1.5 text-right">{fmt(row.costPerShare)}</td>
-                          <td className="px-3 py-1.5 text-right">{fmt(row.costPrice)}</td>
-                          <td className="px-3 py-1.5 text-right">{fmt(row.closePrice)}</td>
-                          <td className="px-3 py-1.5 text-right">{fmt(row.closeValue)}</td>
-                          <td className={`px-3 py-1.5 text-right font-medium ${gainPos ? "text-green-600" : "text-red-500"}`}>
-                            {gainPos ? "+" : ""}{fmt(row.unrealizedGainLoss)}
+                          <td className="px-3 py-1.5 text-right">{isCashRow ? "—" : row.stocks.toFixed(2)}</td>
+                          <td className="px-3 py-1.5 text-right">{isCashRow ? "—" : fmt(row.costPerShare)}</td>
+                          <td className="px-3 py-1.5 text-right">{isCashRow ? "—" : fmt(row.costPrice)}</td>
+                          <td className="px-3 py-1.5 text-right">{isCashRow ? "—" : fmt(row.closePrice)}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold">{fmt(row.closeValue)}</td>
+                          <td className={`px-3 py-1.5 text-right font-medium ${isCashRow ? "text-muted-foreground" : gainPos ? "text-green-600" : "text-red-500"}`}>
+                            {isCashRow ? "—" : `${gainPos ? "+" : ""}${fmt(row.unrealizedGainLoss)}`}
                           </td>
                           <td className="px-3 py-1.5 text-right">{row.bankCost > 0 ? fmt(row.bankCost) : ""}</td>
                           <td className="px-3 py-1.5 text-right">{row.transactionCost > 0 ? fmt(row.transactionCost) : ""}</td>
@@ -557,6 +623,9 @@ export function AccountantReports({ clientPortfolios }: Props) {
             )}
             <span className="text-xs text-slate-400 ml-auto">
               {filteredClients.length} client{filteredClients.length !== 1 ? "s" : ""} · {filteredClients.reduce((s, cp) => s + cp.portfolios.length, 0)} portfolios
+              {filteredClients.some((cp) => cp.isCashOnly) && (
+                <span className="ml-1 text-amber-500">· {filteredClients.filter((cp) => cp.isCashOnly).length} cash-only</span>
+              )}
             </span>
           </div>
         </CardContent>
@@ -571,8 +640,38 @@ export function AccountantReports({ clientPortfolios }: Props) {
           </CardContent>
         </Card>
       ) : (
-        filteredClients.map(({ client, portfolios, masterWallet, feeTotals, depositFeeSummary }) => {
+        filteredClients.map(({ client, portfolios, masterWallet, feeTotals, depositFeeSummary, isCashOnly, cashBalance }) => {
         const clientName = [client.firstName, client.lastName].filter(Boolean).join(" ") || client.email;
+        const balance = cashBalance ?? masterWallet?.balance ?? masterWallet?.netAssetValue ?? 0;
+
+        if (isCashOnly) {
+          return (
+            <Card key={client.id} className="border-amber-200/60 dark:border-amber-700/30">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <CardTitle className="text-sm font-semibold">{clientName}</CardTitle>
+                    <CardDescription className="text-xs">{client.email}</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-amber-400/50 text-amber-600 dark:text-amber-400 gap-1 shrink-0">
+                    <Wallet className="h-3 w-3" /> Cash — No Portfolio
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="rounded-lg border border-amber-200/50 dark:border-amber-700/30 bg-amber-50/40 dark:bg-amber-900/10 px-4 py-3 flex items-center gap-3">
+                  <Wallet className="h-5 w-5 text-amber-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Cash Available for Investment</p>
+                    <p className="text-base font-bold text-amber-600 dark:text-amber-400">{fmt(balance)}</p>
+                  </div>
+                  <p className="ml-auto text-[10px] text-muted-foreground italic">No portfolio assigned yet</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+
         return (
           <Card key={client.id}>
             <CardHeader className="pb-3">
@@ -598,7 +697,7 @@ export function AccountantReports({ clientPortfolios }: Props) {
                         <p className="text-[10px] text-muted-foreground">{p.portfolio?.name}</p>
                       </div>
                       <div className="hidden md:flex items-center gap-4 text-xs">
-                        <span className="text-muted-foreground">NAV: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span></span>
+                        <span className="text-muted-foreground">Investment Return: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span></span>
                         <span className={`font-semibold ${isPos ? "text-green-600" : "text-red-500"}`}>
                           {(p.returnPct ?? 0) >= 0 ? "+" : ""}{(p.returnPct ?? 0).toFixed(2)}%
                         </span>
@@ -637,7 +736,7 @@ export function AccountantReports({ clientPortfolios }: Props) {
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold">{fmtDate(r.reportDate)}</p>
                                     <div className="flex gap-3 mt-0.5 text-[10px] text-muted-foreground flex-wrap">
-                                      <span>NAV: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
+                                      <span>Investment Return: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
                                       <span>Close: <span className="font-medium">{fmt(r.totalCloseValue)}</span></span>
                                       <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>{fmt(r.totalLossGain)}</span>
                                       <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>

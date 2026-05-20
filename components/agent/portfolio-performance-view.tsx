@@ -77,7 +77,7 @@ export function PortfolioPerformanceView({
       {/* Latest metrics */}
       {latestReport ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-          <MetricCard label="NAV" value={fmt(latestReport.netAssetValue)} highlight />
+          <MetricCard label="Investment Return" value={fmt(latestReport.netAssetValue)} highlight />
           <MetricCard label="Close Value" value={fmt(latestReport.totalCloseValue)} />
           <MetricCard label="Cost Price" value={fmt(latestReport.totalCostPrice)} />
           <MetricCard

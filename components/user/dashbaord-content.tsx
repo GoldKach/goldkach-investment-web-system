@@ -626,6 +626,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatDistanceToNow } from "date-fns"
+import { TransactionLedger } from "@/app/(back)/dashboard/users/clients/[id]/components/transaction-ledger"
 
 type TxStatus = "PENDING" | "APPROVED" | "REJECTED"
 
@@ -883,6 +884,12 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
   // Portfolio breakdown from userPortfolios
   const portfolios = (user.userPortfolios ?? []).filter(Boolean)
 
+  // Investment return — sum of portfolioValue (current market value) across all portfolios
+  const totalLossGain    = portfolios.reduce((s, p) => s + Number(p.totalLossGain ?? 0), 0)
+  const totalInvested    = portfolios.reduce((s, p) => s + Number(p.totalInvested  ?? 0), 0)
+  const investmentReturn = portfolios.reduce((s, p) => s + Number(p.portfolioValue ?? 0), 0)
+  const returnPct        = totalInvested > 0 ? (totalLossGain / totalInvested) * 100 : 0
+
   // ---------- BUILD SIMPLE SERIES FROM TX ----------
   const byMonth = new Map<string, { deposits: number; withdrawals: number }>()
   for (const t of recentTx) {
@@ -1020,12 +1027,13 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
   return (
     <div className="flex-1 space-y-6 p-6">
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="statement">Statement</TabsTrigger>
         </TabsList>
 
         {/* ===== Overview ===== */}
@@ -1037,22 +1045,23 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                 <WalletIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${cashBalance.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">Available for withdrawal / allocation</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Invested (NAV)</CardTitle>
+                <CardTitle className="text-sm font-medium">Investment Return</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${netAssetValue.toLocaleString()}</div>
-                <div className={`flex items-center text-xs ${portfolioChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                <div className="text-2xl font-bold">
+                  ${investmentReturn.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <div className={`flex items-center text-xs ${returnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
                   <ArrowUpRight className="mr-1 h-3 w-3" />
-                  {portfolioChange >= 0 ? "+" : ""}
-                  {portfolioChangePercent}% (${portfolioChange.toLocaleString()})
+                  {returnPct >= 0 ? "+" : ""}{returnPct.toFixed(2)}% return on invested capital
                 </div>
               </CardContent>
             </Card>
@@ -1063,7 +1072,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalDeposited.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${totalDeposited.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">All-time external deposits</p>
               </CardContent>
             </Card>
@@ -1074,7 +1083,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalWithdrawn.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${totalWithdrawn.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">All-time hard withdrawals</p>
               </CardContent>
             </Card>
@@ -1090,7 +1099,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
               <CardContent>
                 <div className="space-y-4">
                   {portfolios.map((p) => {
-                    const nav      = Number(p.wallet?.netAssetValue ?? p.portfolioValue ?? 0)
+                    const nav      = Number(p.portfolioValue ?? p.wallet?.netAssetValue ?? 0)
                     const invested = Number(p.totalInvested ?? 0)
                     const gain     = Number(p.totalLossGain ?? 0)
                     const pct      = invested > 0 ? +((gain / invested) * 100).toFixed(2) : 0
@@ -1113,10 +1122,10 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                           </div>
                         </div>
                         <div className="text-right space-y-1">
-                          <p className="text-sm font-bold">${nav.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">Invested: ${invested.toLocaleString()}</p>
+                          <p className="text-sm font-bold">${nav.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          <p className="text-xs text-muted-foreground">Invested: ${invested.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           <p className={`text-xs font-medium ${gain >= 0 ? "text-green-600" : "text-red-600"}`}>
-                            {gain >= 0 ? "+" : ""}${gain.toLocaleString()} ({pct}%)
+                            {gain >= 0 ? "+" : ""}${Math.abs(gain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({pct.toFixed(2)}%)
                           </p>
                         </div>
                       </div>
@@ -1666,17 +1675,17 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Cash Balance</p>
-                  <p className="text-2xl font-bold">${cashBalance.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <p className="text-xs text-muted-foreground">Available for withdrawal / allocation</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Total Invested (NAV)</p>
-                  <p className="text-2xl font-bold">${netAssetValue.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">Investment Return</p>
+                  <p className="text-2xl font-bold">${investmentReturn.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <p className="text-xs text-muted-foreground">Sum of all portfolio values</p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Total Fees Paid</p>
-                  <p className="text-2xl font-bold">${Number(wallet.totalFees ?? 0).toLocaleString()}</p>
+                  <p className="text-2xl font-bold">${Number(wallet.totalFees ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <p className="text-xs text-muted-foreground">All charges to date</p>
                 </div>
               </div>
@@ -1684,11 +1693,11 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <span className="text-sm text-muted-foreground">Total Deposited</span>
-                    <span className="font-semibold text-green-600">${Number(wallet.totalDeposited ?? 0).toLocaleString()}</span>
+                    <span className="font-semibold text-green-600">${Number(wallet.totalDeposited ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <span className="text-sm text-muted-foreground">Total Withdrawn</span>
-                    <span className="font-semibold text-red-500">${Number(wallet.totalWithdrawn ?? 0).toLocaleString()}</span>
+                    <span className="font-semibold text-red-500">${Number(wallet.totalWithdrawn ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>
@@ -1705,7 +1714,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
               <CardContent>
                 <div className="space-y-4">
                   {portfolios.map((p) => {
-                    const pNav      = Number(p.wallet?.netAssetValue ?? 0)
+                    const pNav      = Number(p.portfolioValue ?? p.wallet?.netAssetValue ?? 0)
                     const pBalance  = Number(p.wallet?.balance       ?? 0)
                     const pInvested = Number(p.totalInvested          ?? 0)
                     const pGain     = Number(p.totalLossGain           ?? 0)
@@ -1730,21 +1739,21 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                           <div>
-                            <p className="text-muted-foreground">NAV</p>
-                            <p className="font-semibold">${pNav.toLocaleString()}</p>
+                            <p className="text-muted-foreground">Investment Return</p>
+                            <p className="font-semibold">${pNav.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Cash</p>
-                            <p className="font-semibold">${pBalance.toLocaleString()}</p>
+                            <p className="font-semibold">${pBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Invested</p>
-                            <p className="font-semibold">${pInvested.toLocaleString()}</p>
+                            <p className="font-semibold">${pInvested.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Gain / Loss</p>
                             <p className={`font-semibold ${pGain >= 0 ? "text-green-600" : "text-red-600"}`}>
-                              {pGain >= 0 ? "+" : ""}${pGain.toLocaleString()} ({pPct}%)
+                              {pGain >= 0 ? "+" : ""}${Math.abs(pGain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({pPct.toFixed(2)}%)
                             </p>
                           </div>
                         </div>
@@ -1890,6 +1899,11 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ===== Statement ===== */}
+        <TabsContent value="statement" className="space-y-6">
+          <TransactionLedger userId={user.id} clientName={displayName} />
         </TabsContent>
 
       </Tabs>

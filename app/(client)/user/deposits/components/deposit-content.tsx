@@ -20,7 +20,6 @@ interface DepositsPageContentProps {
 const bankDetails = {
   bankName: "STANBIC BANK UGANDA LIMITED",
   accountName: "GoldKach Uganda Ltd",
-  accountNumberUGX: "9030024940933",
   accountNumberUSD: "9030024940992",
   swiftCode: "SBICUGKK",
   address: "Plot 17 HANNINGTON ROAD, CRESTED TOWERS, SHORT TOWER KAMPALA",
@@ -239,6 +238,7 @@ export function DepositsPageContent({ deposits, user }: DepositsPageContentProps
               </h3>
               <ul className="space-y-1 text-slate-700 dark:text-slate-300 text-xs">
                 <li>• Minimum deposit: $1,000</li>
+                <li>• Minimum top-up: $500</li>
                 <li>• Processing time: 24–48 hours</li>
                 <li>• Keep your transaction ID for reference</li>
                 <li>• Contact support if not approved within 48 hours</li>
@@ -257,7 +257,6 @@ export function DepositsPageContent({ deposits, user }: DepositsPageContentProps
               {[
                 { label: "Bank Name",            value: bankDetails.bankName,          key: "bank",    mono: false },
                 { label: "Account Name",         value: bankDetails.accountName,       key: "account", mono: false },
-                { label: "Account Number (UGX)", value: bankDetails.accountNumberUGX,  key: "ugx",     mono: true  },
                 { label: "Account Number (USD)", value: bankDetails.accountNumberUSD,  key: "usd",     mono: true  },
                 { label: "Swift Code",           value: bankDetails.swiftCode,         key: "swift",   mono: true  },
                 { label: "Branch Address",       value: bankDetails.address,           key: "address", mono: false },
@@ -275,17 +274,8 @@ export function DepositsPageContent({ deposits, user }: DepositsPageContentProps
               ))}
             </div>
 
-            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg">
-              <h3 className="text-blue-700 dark:text-blue-400 font-medium mb-2 flex items-center gap-2 text-sm">
-                <Smartphone className="h-4 w-4" /> Mobile Money
-              </h3>
-              <ul className="space-y-1 text-slate-700 dark:text-slate-300 text-xs">
-                <li>• MTN Mobile Money: Dial *165#</li>
-                <li>• Airtel Money: Dial *185#</li>
-                <li>• Remember to save your transaction ID</li>
-              </ul>
             </div>
-          </div>
+
         </div>
 
         {/* Deposit History */}

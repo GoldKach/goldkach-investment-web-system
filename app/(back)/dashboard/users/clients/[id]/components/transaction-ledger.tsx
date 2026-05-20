@@ -33,8 +33,8 @@ interface LedgerEntry {
 /*  Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
-const fmtUGX = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmt = (n: number) => fmtUGX.format(n);
+const fmtUSD = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n: number) => fmtUSD.format(n);
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -96,14 +96,20 @@ function downloadLedgerPDF(
     ? `${fmtDate(fromDate + "T00:00:00")} — ${fmtDate(toDate + "T00:00:00")}`
     : fromDate ? `From ${fmtDate(fromDate + "T00:00:00")}` : toDate ? `To ${fmtDate(toDate + "T00:00:00")}` : "All Dates";
 
+  const logoUrl = `${window.location.origin}/logos/GoldKach-Logo-New-3.png`;
+
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-  <title>Transaction Ledger — ${clientName}</title>
+  <title>Transaction Statement — ${clientName}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial,sans-serif;font-size:12px;color:#111827;padding:24px}
     .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #1e3a8a}
-    .header h1{font-size:20px;font-weight:700;color:#1e3a8a}
-    .header p{font-size:11px;color:#6b7280;margin-top:3px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{width:48px;height:48px;border-radius:8px;object-fit:contain}
+    .brand-text h1{font-size:20px;font-weight:700;color:#1e3a8a;letter-spacing:.5px}
+    .brand-text .addr{font-size:10px;color:#6b7280;margin-top:2px}
+    .doc-title{font-size:13px;font-weight:600;color:#374151;margin-top:8px}
+    .doc-meta{font-size:11px;color:#6b7280;margin-top:2px}
     .meta{text-align:right;font-size:11px;color:#6b7280}
     .meta strong{color:#111827}
     .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
@@ -116,13 +122,21 @@ function downloadLedgerPDF(
     thead th:nth-child(5),thead th:nth-child(6){text-align:right}
     tfoot tr{background:#f3f4f6;font-weight:700}
     tfoot td{padding:9px 10px;font-size:11px;border-top:2px solid #1e3a8a}
+    .footer-note{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;text-align:center}
     @media print{body{padding:12px}}
   </style></head><body>
   <div class="header">
     <div>
-      <h1>GoldKach Investment</h1>
-      <p>Transaction Ledger — <strong>${clientName}</strong></p>
-      <p>Period: ${dateRange}</p>
+      <div class="brand">
+        <img src="${logoUrl}" alt="GoldKach" onerror="this.style.display='none'" />
+        <div class="brand-text">
+          <h1>GOLDKACH INVESTMENT</h1>
+          <div class="addr">Plot 17 Hannington Road, Crested Towers, Kampala, Uganda</div>
+          <div class="addr">info@goldkach.com | www.goldkach.com</div>
+        </div>
+      </div>
+      <div class="doc-title">Transaction Statement — ${clientName}</div>
+      <div class="doc-meta">Period: ${dateRange}</div>
     </div>
     <div class="meta">
       <p>Generated: <strong>${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</strong></p>
@@ -169,6 +183,9 @@ function downloadLedgerPDF(
       <td colspan="2"></td>
     </tr></tfoot>
   </table>
+  <div class="footer-note">
+    This is a computer-generated statement. GoldKach Investment · Plot 17 Hannington Road, Crested Towers, Kampala, Uganda
+  </div>
   </body></html>`;
 
   const win = window.open("", "_blank", "width=1200,height=850");

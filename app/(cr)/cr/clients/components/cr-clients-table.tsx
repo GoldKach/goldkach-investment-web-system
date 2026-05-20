@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { downloadBulkKycPdf } from "@/lib/generate-kyc-pdf";
+import { downloadKycPdf, downloadBulkKycPdf } from "@/lib/generate-kyc-pdf";
 
 function getAddress(u: any) {
   return (
@@ -92,6 +92,8 @@ export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients:
     (u) => u.status !== "ACTIVE" && u.status !== "PENDING"
   ).length;
 
+  const noPortfolio = clients.filter((u) => (u.userPortfolios?.length ?? 0) === 0);
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -99,15 +101,18 @@ export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients:
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">Clients</h1>
           <p className="text-sm text-slate-400 mt-1">All registered investment clients</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => downloadBulkKycPdf(clients)}
-        >
-          <FileDown className="h-4 w-4" />
-          Bulk KYC PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => downloadBulkKycPdf(clients)}
+            title="Download KYC for all clients"
+          >
+            <FileDown className="h-4 w-4" />
+            All KYC PDF
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -129,22 +134,38 @@ export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients:
 
       <Tabs defaultValue="clients">
         <TabsList>
-          <TabsTrigger value="clients">Clients</TabsTrigger>
+          <TabsTrigger value="clients">Clients ({clients.length})</TabsTrigger>
+          <TabsTrigger value="noportfolio">No Portfolio ({noPortfolio.length})</TabsTrigger>
           <TabsTrigger value="contact">Contact Info</TabsTrigger>
         </TabsList>
 
-        {/* ── EXISTING TAB — untouched ── */}
+        {/* ── Clients tab ── */}
         <TabsContent value="clients" className="space-y-4 mt-4">
-          {/* Search */}
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              type="search"
-              placeholder="Search clients…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-9 h-8 text-xs"
-            />
+          {/* Search + filtered KYC download */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                type="search"
+                placeholder="Search clients…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-9 h-8 text-xs"
+              />
+            </div>
+            <span className="text-xs text-muted-foreground">{filtered.length} clients</span>
+            {query && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 ml-auto"
+                onClick={() => downloadBulkKycPdf(filtered)}
+                title="Download KYC for current search results"
+              >
+                <FileDown className="h-4 w-4" />
+                KYC PDF ({filtered.length})
+              </Button>
+            )}
           </div>
 
           {/* Table */}
@@ -214,14 +235,25 @@ export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients:
                           )}
                         </td>
                         <td className="px-3 py-2 text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 text-[10px] h-7 px-2"
-                            onClick={() => router.push(`${basePath}/${u.id}`)}
-                          >
-                            <Eye className="h-3 w-3" /> View
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1 text-[10px] h-7 px-2 text-slate-500 hover:text-slate-800"
+                              onClick={() => downloadKycPdf(u)}
+                              title="Download KYC PDF"
+                            >
+                              <FileDown className="h-3 w-3" /> KYC
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 text-[10px] h-7 px-2"
+                              onClick={() => router.push(`${basePath}/${u.id}`)}
+                            >
+                              <Eye className="h-3 w-3" /> View
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -232,7 +264,100 @@ export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients:
           </div>
         </TabsContent>
 
-        {/* ── NEW TAB — Contact Info ── */}
+        {/* ── No Portfolio tab ── */}
+        <TabsContent value="noportfolio" className="space-y-4 mt-4">
+          <div className="rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead className="bg-slate-50 dark:bg-[#2B2F77]/10 text-xs text-slate-500 uppercase tracking-wide">
+                <tr>
+                  <th className="px-3 py-2 text-left">Client</th>
+                  <th className="px-3 py-2 text-left">Email</th>
+                  <th className="px-3 py-2 text-left">Phone</th>
+                  <th className="px-3 py-2 text-left">Status</th>
+                  <th className="px-3 py-2 text-left">Approved</th>
+                  <th className="px-3 py-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-[#2B2F77]/20">
+                {noPortfolio.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-slate-400 text-sm">
+                      All clients have portfolios.
+                    </td>
+                  </tr>
+                ) : (
+                  noPortfolio.map((u) => {
+                    const name = displayName(u);
+                    const initials = name.slice(0, 2).toUpperCase();
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-[#2B2F77]/10 transition-colors">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-7 w-7 rounded-lg shrink-0">
+                              <AvatarImage src={u.imageUrl || ""} alt={name} />
+                              <AvatarFallback className="rounded-lg bg-[#2B2F77] text-white text-[10px] font-bold">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-slate-800 dark:text-slate-100 text-xs">{name}</p>
+                              <p className="text-[9px] text-muted-foreground font-mono">{u.masterWallet?.accountNumber || "—"}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300 text-xs">{u.email}</td>
+                        <td className="px-3 py-2 text-slate-500 text-xs">{u.phone || "—"}</td>
+                        <td className="px-3 py-2">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${
+                              u.status === "ACTIVE"
+                                ? "border-green-300 text-green-700 dark:text-green-400"
+                                : u.status === "PENDING"
+                                ? "border-amber-300 text-amber-600"
+                                : "border-slate-300 text-slate-500"
+                            }`}
+                          >
+                            {u.status || "—"}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          {u.isApproved ? (
+                            <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1 text-[10px] h-7 px-2 text-slate-500 hover:text-slate-800"
+                              onClick={() => downloadKycPdf(u)}
+                              title="Download KYC PDF"
+                            >
+                              <FileDown className="h-3 w-3" /> KYC
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 text-[10px] h-7 px-2"
+                              onClick={() => router.push(`${basePath}/${u.id}`)}
+                            >
+                              <Eye className="h-3 w-3" /> View
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
         <TabsContent value="contact" className="space-y-4 mt-4">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">

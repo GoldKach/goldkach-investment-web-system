@@ -1,15 +1,16 @@
-import { getAllUsers } from "@/actions/auth";
-import { UsersTable } from "@/components/back/users-table";
-import { get } from "http";
+import { redirect } from "next/navigation";
+import { getSession } from "@/actions/auth";
+import { UsersTableShell } from "@/components/back/users-table-shell";
+
+export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
-  const r = await getAllUsers();
-  const users = r.data;
+  const session = await getSession();
+  if (!session?.user) redirect("/login");
 
-  console.log(users)
   return (
     <div className="container px-4 md:px-8 mx-auto py-8">
-      <UsersTable allUsers={users} />
+      <UsersTableShell />
     </div>
-  )
+  );
 }

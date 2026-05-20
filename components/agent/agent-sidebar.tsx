@@ -15,23 +15,26 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, LogOut, Settings } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Settings, FileText } from "lucide-react";
 import { logoutUser } from "@/actions/auth";
 import { AgentProfileCard } from "@/components/agent/agent-profile-card";
+import { AccountSwitcher, type SwitcherAccount } from "@/components/shared/account-switcher";
 import type { StaffMember } from "@/actions/staff";
 
 const navLinks = [
-  { title: "Overview", url: "/agent", icon: LayoutDashboard },
-  { title: "My Clients", url: "/agent", icon: Users },
-  { title: "Settings", url: "/agent/settings", icon: Settings },
+  { title: "Overview",   url: "/agent",            icon: LayoutDashboard },
+  { title: "My Clients", url: "/agent",            icon: Users },
+  { title: "Statements", url: "/agent/statements", icon: FileText },
+  { title: "Settings",   url: "/agent/settings",   icon: Settings },
 ];
 
 interface AgentSidebarProps {
   staff: StaffMember;
   activeClientCount: number;
+  hasPersonalPortfolio?: boolean;
 }
 
-export function AgentSidebar({ staff, activeClientCount }: AgentSidebarProps) {
+export function AgentSidebar({ staff, activeClientCount, hasPersonalPortfolio }: AgentSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggingOut, startTransition] = useTransition();
@@ -82,7 +85,10 @@ export function AgentSidebar({ staff, activeClientCount }: AgentSidebarProps) {
         <SidebarGroup>
           <SidebarMenu className="space-y-0.5">
             {navLinks.map((link) => {
-              const isActive = pathname === link.url || pathname.startsWith(link.url + "/");
+              const isActive =
+                link.url === "/agent"
+                  ? pathname === "/agent"
+                  : pathname === link.url || pathname.startsWith(link.url + "/");
               return (
                 <SidebarMenuItem key={link.title}>
                   <SidebarMenuButton
@@ -108,6 +114,33 @@ export function AgentSidebar({ staff, activeClientCount }: AgentSidebarProps) {
 
       {/* Footer */}
       <SidebarFooter className="border-t border-slate-100 dark:border-[#2B2F77]/20 px-3 py-3 space-y-2">
+        {hasPersonalPortfolio && (() => {
+          const fullName =
+            [staff.firstName, staff.lastName].filter(Boolean).join(" ") ||
+            staff.name ||
+            "Agent";
+          const accounts: SwitcherAccount[] = [
+            {
+              id: "agent",
+              name: fullName,
+              email: staff.email,
+              badge: "Agent Portal",
+              href: "/agent",
+              matchPrefix: "/agent",
+              imageUrl: staff.imageUrl,
+            },
+            {
+              id: "personal",
+              name: fullName,
+              email: staff.email,
+              badge: "Personal · Portfolio",
+              href: `/agent/clients/${staff.id}`,
+              matchPrefix: `/agent/clients/${staff.id}`,
+              imageUrl: staff.imageUrl,
+            },
+          ];
+          return <AccountSwitcher accounts={accounts} />;
+        })()}
         <AgentProfileCard staff={staff} activeClientCount={activeClientCount} />
         <SidebarMenu>
           <SidebarMenuItem>

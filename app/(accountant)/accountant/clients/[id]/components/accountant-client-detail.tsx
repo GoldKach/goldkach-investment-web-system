@@ -304,7 +304,7 @@ export function AccountantClientDetail({ client, portfolioSummary }: Props) {
                         Invested: <span className="font-semibold text-foreground">{fmt(p.totalInvested)}</span>
                       </span>
                       <span className="text-muted-foreground">
-                        NAV: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span>
+                        Investment Return: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span>
                       </span>
                       <Badge
                         variant="outline"
@@ -353,7 +353,7 @@ export function AccountantClientDetail({ client, portfolioSummary }: Props) {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-semibold">{fmtDate(r.reportDate)}</p>
                                   <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                                    <span>NAV: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
+                                    <span>Investment Return: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
                                     <span>Close: <span className="font-medium">{fmt(r.totalCloseValue)}</span></span>
                                     <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>
                                       {fmt(r.totalLossGain)}

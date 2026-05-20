@@ -39,11 +39,13 @@ import {
   Settings,
   TrendingDown,
   TrendingUp,
+  Users,
   Wallet,
 } from "lucide-react"
 import { logoutUser } from "@/actions/auth"
+import { AccountSwitcher, type SwitcherAccount } from "@/components/shared/account-switcher"
 
-export default function UserSidebar({ user }: { user: any }) {
+export default function UserSidebar({ user, isAlsoAgent }: { user: any; isAlsoAgent?: boolean }) {
   const router = useRouter()
   const [isLoggingOut, startTransition] = useTransition()
 
@@ -93,6 +95,12 @@ export default function UserSidebar({ user }: { user: any }) {
       url: "/user/settings",
       icon: Settings,
     },
+    ...(isAlsoAgent
+      ? [
+          { title: "My Clients",  url: "/user/my-clients",         icon: Users },
+          { title: "Statements",  url: "/user/my-clients/ledger",  icon: FileText },
+        ]
+      : []),
   ]
 
   return (
@@ -130,6 +138,37 @@ export default function UserSidebar({ user }: { user: any }) {
       </SidebarContent>
 
       <SidebarFooter>
+        {isAlsoAgent && (() => {
+          const fullName =
+            [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+            user?.name ||
+            "User";
+          const accounts: SwitcherAccount[] = [
+            {
+              id: "personal",
+              name: fullName,
+              email: user?.email || "",
+              badge: "Personal · Client",
+              href: "/user",
+              matchPrefix: "/user",
+              imageUrl: user?.imageUrl,
+            },
+            {
+              id: "agent",
+              name: fullName,
+              email: user?.email || "",
+              badge: "Agent · My Clients",
+              href: "/user/my-clients",
+              matchPrefix: "/user/my-clients",
+              imageUrl: user?.imageUrl,
+            },
+          ];
+          return (
+            <div className="px-1 pb-1">
+              <AccountSwitcher accounts={accounts} />
+            </div>
+          );
+        })()}
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>

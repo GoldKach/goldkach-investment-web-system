@@ -40,6 +40,7 @@ export interface ClientUser {
   imageUrl: string;
   status: string;
   isApproved: boolean;
+  createdAt?: string;
   individualOnboarding?: Record<string, any> | null;
   companyOnboarding?: Record<string, any> | null;
   masterWallet?: Record<string, any> | null;
@@ -422,6 +423,33 @@ export async function getStaffWithClientsAction(staffId: string): Promise<{
     getAgentClientsAction(staffId),
   ]);
   return { staff, clients };
+}
+
+// ─── GET PUBLIC AGENT INFO (no auth — used by referral link) ─────────────────
+
+export interface PublicAgentInfo {
+  id: string;
+  name: string;
+  firstName: string | null;
+  lastName: string | null;
+  imageUrl: string | null;
+  position: string | null;
+  department: string | null;
+}
+
+export async function getPublicAgentInfoAction(
+  staffProfileId: string
+): Promise<ActionResponse<PublicAgentInfo>> {
+  try {
+    const { data } = await api.get(`/staff/public/${staffProfileId}`);
+    return { success: true, data: data.data };
+  } catch (e: any) {
+    return {
+      success: false,
+      data: null,
+      error: msg(e, "Failed to fetch agent info."),
+    };
+  }
 }
 
 // ─── GET CLIENTS FOR ASSIGNMENT SELECT ───────────────────────────────────────

@@ -1,11 +1,11 @@
-import { getClientsForAssignmentAction } from "@/actions/staff";
-import { CRClientsTable } from "./components/cr-clients-table";
+import { redirect } from "next/navigation";
+import { getSession } from "@/actions/auth";
+import { CRClientsTableShell } from "@/components/back/cr-clients-table-shell";
 
 export const dynamic = "force-dynamic";
 
 export default async function CRClientsPage() {
-  const res = await getClientsForAssignmentAction();
-  // Ensure only USER role accounts are shown — filter out any staff that may slip through
-  const clients = (res.data ?? []).filter((u: any) => !u.role || u.role === "USER");
-  return <CRClientsTable clients={clients} />;
+  const session = await getSession();
+  if (!session?.user) redirect("/login");
+  return <CRClientsTableShell />;
 }

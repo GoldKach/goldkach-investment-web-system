@@ -10,13 +10,14 @@ import type { StaffMember } from "@/actions/staff";
 interface AgentShellProps {
   staff: StaffMember;
   activeClientCount: number;
+  hasPersonalPortfolio?: boolean;
   children: React.ReactNode;
 }
 
-export default function AgentShell({ staff, activeClientCount, children }: AgentShellProps) {
+export default function AgentShell({ staff, activeClientCount, hasPersonalPortfolio, children }: AgentShellProps) {
   return (
     <SidebarProvider>
-      <AgentSidebar staff={staff} activeClientCount={activeClientCount} />
+      <AgentSidebar staff={staff} activeClientCount={activeClientCount} hasPersonalPortfolio={hasPersonalPortfolio} />
       <SidebarInset>
         <div className="md:ml-[210px] lg:ml-[260px]">
           <header className="sticky top-0 z-10 flex h-14 items-center border-b border-slate-200 dark:border-[#2B2F77]/30 bg-white dark:bg-[#0a0d24] px-4 gap-3">

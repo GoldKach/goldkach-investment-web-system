@@ -96,8 +96,9 @@ const sidebarLinks = [
     title: "Wallet & Transactions",
     icon: Wallet,
     items: [
-      { title: "Deposits",    url: "/dashboard/deposits" },
-      { title: "Withdrawals", url: "/dashboard/withdrawals" },
+      { title: "Deposits",             url: "/dashboard/deposits" },
+      { title: "Withdrawals",          url: "/dashboard/withdrawals" },
+      { title: "Transaction Ledger",   url: "/dashboard/users/clients/ledger" },
     ],
   },
   {
@@ -132,6 +133,7 @@ const sidebarLinks = [
     items: [
       { title: "My Account",       url: "/dashboard/settings" },
       { title: "Data Migration",   url: "/dashboard/migrations" },
+      { title: "DB Backups",       url: "/dashboard/backups" },
     ],
   },
   {

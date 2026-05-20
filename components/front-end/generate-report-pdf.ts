@@ -217,16 +217,23 @@ export async function generatePerformanceReportPDF(
   currentY += 15;
 
   if (report.assetBreakdown && report.assetBreakdown.length > 0) {
-    const assetAllocationData = report.assetBreakdown.map((asset) => [
-      asset.assetClass,
-      asset.holdings.toString(),
-      fmt(asset.totalCashValue),
-      `${asset.percentage.toFixed(2)}%`,
-    ]);
-
-    const totalHoldings = report.assetBreakdown.reduce((sum, a) => sum + a.holdings, 0);
     const totalValue = report.assetBreakdown.reduce((sum, a) => sum + a.totalCashValue, 0);
     const totalWithCash = totalValue + cashAtBank;
+
+    const assetAllocationData = report.assetBreakdown.map((asset) => {
+      // Replace CASH row's totalCashValue with the actual cashAtBank value
+      const isCash = asset.assetClass === "CASH";
+      const cashValue = isCash ? cashAtBank : asset.totalCashValue;
+      const pct = totalWithCash > 0 ? (cashValue / totalWithCash) * 100 : asset.percentage;
+      return [
+        asset.assetClass,
+        isCash ? (cashAtBank > 0 ? "1" : "0") : asset.holdings.toString(),
+        fmt(cashValue),
+        `${pct.toFixed(2)}%`,
+      ];
+    });
+
+    const totalHoldings = report.assetBreakdown.reduce((sum, a) => sum + (a.assetClass === "CASH" ? (cashAtBank > 0 ? 1 : 0) : a.holdings), 0);
     assetAllocationData.push(["Total", totalHoldings.toString(), fmt(totalWithCash), "100.00%"]);
 
     autoTable(doc, {

@@ -1,8 +1,21 @@
 import { RegisterForm } from "@/components/front-end/forms/register-form";
 import HeroCarousel from "@/components/front-end/hero-couresel";
 import { ThemeToggle } from "@/components/front-end/theme-toggle";
+import { getPublicAgentInfoAction, type PublicAgentInfo } from "@/actions/staff";
 
-export default function RegisterPage() {
+interface Props {
+  searchParams: Promise<{ agent?: string }>;
+}
+
+export default async function RegisterPage({ searchParams }: Props) {
+  const { agent } = await searchParams;
+
+  let agentInfo: PublicAgentInfo | null = null;
+  if (agent) {
+    const res = await getPublicAgentInfoAction(agent);
+    if (res.success) agentInfo = res.data;
+  }
+
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
@@ -17,7 +30,7 @@ export default function RegisterPage() {
           <ThemeToggle />
         </div>
         <div className="w-full px-8">
-          <RegisterForm />
+          <RegisterForm agentRef={agent} agentInfo={agentInfo} />
         </div>
       </div>
     </div>

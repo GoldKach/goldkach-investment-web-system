@@ -1228,6 +1228,18 @@ export function UserDetailPreview({
     ? portfolioSummary.portfolios.reduce((s, p) => s + Number(p.wallet?.balance ?? 0), 0)
     : 0
 
+  // Total Investment Return = sum of portfolioValue (current market value) across all portfolios
+  const totalInvestmentReturn = portfolioSummary
+    ? portfolioSummary.aggregate?.totalValue ??
+      portfolioSummary.portfolios.reduce((s, p) => s + Number(p.portfolioValue ?? 0), 0)
+    : netAssetValue
+
+  // Return % — no rounding on the raw value, only on display
+  const adminTotalInvested = portfolioSummary?.aggregate?.totalInvested ?? 0
+  const adminReturnPct = adminTotalInvested > 0
+    ? ((totalInvestmentReturn - adminTotalInvested) / adminTotalInvested) * 100
+    : 0
+
   // ---------- PORTFOLIO PERFORMANCE SERIES (from topup history) ----------
   // Use portfolioSummary topup events as the NAV timeline if available
   const navPerfSeries: SeriesPoint[] = portfolioSummary
@@ -1404,8 +1416,8 @@ export function UserDetailPreview({
     "#06b6d4", "#f97316", "#84cc16", "#ec4899", "#14b8a6",
   ]
 
-  const fmtUGX = {
-    format: (v: number) => `$${Math.round(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  const fmtUSD = {
+    format: (v: number) => `$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
   }
   const fmtPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`
   const fmtDate = (d: string | null | undefined) =>
@@ -1438,30 +1450,30 @@ export function UserDetailPreview({
             {/* Available Balance — highlighted as actionable */}
             <Card className="border-emerald-500/20 bg-emerald-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">Funds Not Invested</CardTitle>
                 <div className="rounded-lg bg-emerald-500/10 p-1.5">
                   <WalletIcon className="h-4 w-4 text-emerald-400" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-emerald-400">
-                  {fmtUGX.format(availableBalance)}
+                  {fmtUSD.format(availableBalance)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Available for withdrawal or investment</p>
+                <p className="text-xs text-muted-foreground mt-1">Uninvested funds</p>
               </CardContent>
             </Card>
 
-            {/* Cash Balance - sum of all portfolio wallet balances */}
+            {/* Total Invested - sum of all portfolio wallet balances */}
             <Card className="border-amber-500/20 bg-amber-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cash Balance</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Invested</CardTitle>
                 <div className="rounded-lg bg-amber-500/10 p-1.5">
                   <DollarSign className="h-4 w-4 text-amber-400" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-amber-400">
-                  {fmtUGX.format(cashBalance)}
+                  {fmtUSD.format(cashBalance)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Total in portfolio wallets</p>
               </CardContent>
@@ -1469,18 +1481,16 @@ export function UserDetailPreview({
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Asset Value</CardTitle>
+                <CardTitle className="text-sm font-medium">Investment Return</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-400">
-                  {fmtUGX.format(netAssetValue)}
+                <div className="text-2xl font-bold">
+                  {fmtUSD.format(totalInvestmentReturn)}
                 </div>
-                <div className={`flex items-center text-xs mt-1 ${portfolioChange >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                  {portfolioChange >= 0
-                    ? <ArrowUpRight className="mr-1 h-3 w-3" />
-                    : <ArrowDownRight className="mr-1 h-3 w-3" />}
-                  {portfolioChange >= 0 ? "+" : ""}{portfolioChangePercent}% total return
+                <div className={`flex items-center text-xs mt-1 ${adminReturnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  {adminReturnPct >= 0 ? "+" : ""}{adminReturnPct.toFixed(2)}% return on invested capital
                 </div>
               </CardContent>
             </Card>
@@ -1492,7 +1502,7 @@ export function UserDetailPreview({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {fmtUGX.format(totalDeposits)}
+                  {fmtUSD.format(totalDeposits)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{deposits.length} deposit{deposits.length !== 1 ? "s" : ""} all time</p>
               </CardContent>
@@ -1505,7 +1515,7 @@ export function UserDetailPreview({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {fmtUGX.format(totalWithdrawals)}
+                  {fmtUSD.format(totalWithdrawals)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{withdrawals.length} withdrawal{withdrawals.length !== 1 ? "s" : ""} all time</p>
               </CardContent>
@@ -1518,7 +1528,7 @@ export function UserDetailPreview({
               <CardTitle>Portfolio Performance</CardTitle>
               <CardDescription>
                 {navPerfSeries.length >= 2
-                  ? "NAV over time — based on topup history"
+                  ? "Investment Return over time — based on topup history"
                   : "Portfolio value history"}
               </CardDescription>
             </CardHeader>
@@ -1545,10 +1555,10 @@ export function UserDetailPreview({
                         tickFormatter={(v) => (Math.abs(v)>=1e9?(Math.round(v/1e8)/10)+"B":Math.abs(v)>=1e6?(Math.round(v/1e5)/10)+"M":Math.abs(v)>=1e3?(Math.round(v/1e2)/10)+"K":String(Math.round(v)))} />
                       <Tooltip
                         contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                        formatter={(v: any) => [fmtUGX.format(v), "NAV"]}
+                        formatter={(v: any) => [fmtUSD.format(v), "Investment Return"]}
                       />
                       <Legend wrapperStyle={{ fontSize: "12px" }} />
-                      <Area type="monotone" dataKey="value" name="Portfolio NAV" stroke="#0089ff" strokeWidth={2} fill="url(#overviewNavGrad)" />
+                      <Area type="monotone" dataKey="value" name="Investment Return" stroke="#0089ff" strokeWidth={2} fill="url(#overviewNavGrad)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -1579,7 +1589,7 @@ export function UserDetailPreview({
                         tickFormatter={(v) => (Math.abs(v)>=1e9?(Math.round(v/1e8)/10)+"B":Math.abs(v)>=1e6?(Math.round(v/1e5)/10)+"M":Math.abs(v)>=1e3?(Math.round(v/1e2)/10)+"K":String(Math.round(v)))} />
                       <Tooltip
                         contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                        formatter={(v: any, name: any) => [fmtUGX.format(v), name]}
+                        formatter={(v: any, name: any) => [fmtUSD.format(v), name]}
                       />
                       <Legend wrapperStyle={{ fontSize: "12px" }} />
                       <Bar dataKey="deposits" name="Deposits" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -2066,41 +2076,24 @@ export function UserDetailPreview({
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Current Balance</p>
-                  <p className="text-2xl font-bold">{fmtUGX.format(wallet.balance ?? 0)}</p>
-                  <p className="text-xs text-muted-foreground">Available funds</p>
+                  <p className="text-sm text-muted-foreground">Funds Not Invested</p>
+                  <p className="text-2xl font-bold">{fmtUSD.format(wallet.balance ?? 0)}</p>
+                  <p className="text-xs text-muted-foreground">Uninvested funds</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Net Asset Value</p>
-                  <p className="text-2xl font-bold">{fmtUGX.format(wallet.netAssetValue ?? 0)}</p>
-                  <p className="text-xs text-muted-foreground">After fees</p>
+                  <p className="text-sm text-muted-foreground">Investment Return</p>
+                  <p className="text-2xl font-bold">{fmtUSD.format(totalInvestmentReturn)}</p>
+                  <p className="text-xs text-muted-foreground">Sum of all asset close values</p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Total Fees</p>
-                  <p className="text-2xl font-bold">{fmtUGX.format(wallet.totalFees ?? 0)}</p>
+                  <p className="text-2xl font-bold">{fmtUSD.format(wallet.totalFees ?? 0)}</p>
                   <p className="text-xs text-muted-foreground">All charges</p>
                 </div>
               </div>
-              <div className="mt-6 pt-6 border-t">
-                <p className="text-sm font-medium mb-4">Fee Breakdown</p>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Bank Fee</span>
-                    <span className="font-semibold">{fmtUGX.format(wallet.bankFee ?? 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Transaction Fee</span>
-                    <span className="font-semibold">{fmtUGX.format(wallet.transactionFee ?? 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Fee at Bank</span>
-                    <span className="font-semibold">{fmtUGX.format(wallet.feeAtBank ?? 0)}</span>
-                  </div>
-                </div>
-                <div className="mt-4 text-xs text-muted-foreground">
+              <div className="mt-4 text-xs text-muted-foreground">
                   Last updated: {new Date(wallet.updatedAt ?? new Date().toISOString()).toLocaleString()}
                 </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -2130,10 +2123,10 @@ export function UserDetailPreview({
                 {/* ── Aggregate KPI ── */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   {[
-                    { label: "Total Invested", value: fmtUGX.format(computedTotalInvested), sub: portfolioSummary.aggregate.portfolioCount + " portfolios", icon: DollarSign, cls: "text-blue-400", bg: "bg-blue-500/10" },
-                    { label: "Current Value", value: fmtUGX.format(computedTotalValue), sub: "Portfolio NAV", icon: WalletIcon, cls: "text-emerald-400", bg: "bg-emerald-500/10" },
-                    { label: "Total Gain / Loss", value: (aggPos ? "+" : "") + fmtUGX.format(computedTotalGainLoss), sub: fmtPct(computedReturnPct), icon: aggPos ? TrendingUp : TrendingDown, cls: aggPos ? "text-emerald-400" : "text-red-400", bg: aggPos ? "bg-emerald-500/10" : "bg-red-500/10" },
-                    { label: "Total Fees", value: fmtUGX.format(computedTotalFees), sub: "Sum of all portfolio fees", icon: Banknote, cls: "text-amber-400", bg: "bg-amber-500/10" },
+                    { label: "Total Invested", value: fmtUSD.format(computedTotalInvested), sub: portfolioSummary.aggregate.portfolioCount + " portfolios", icon: DollarSign, cls: "text-blue-400", bg: "bg-blue-500/10" },
+                    { label: "Investment Return", value: fmtUSD.format(computedTotalValue), sub: "Sum of asset close values", icon: WalletIcon, cls: "text-emerald-400", bg: "bg-emerald-500/10" },
+                    { label: "Total Gain / Loss", value: (aggPos ? "+" : "") + fmtUSD.format(computedTotalGainLoss), sub: fmtPct(computedReturnPct), icon: aggPos ? TrendingUp : TrendingDown, cls: aggPos ? "text-emerald-400" : "text-red-400", bg: aggPos ? "bg-emerald-500/10" : "bg-red-500/10" },
+                    { label: "Total Fees", value: fmtUSD.format(computedTotalFees), sub: "Sum of all portfolio fees", icon: Banknote, cls: "text-amber-400", bg: "bg-amber-500/10" },
                   ].map((item) => (
                     <Card key={item.label}>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -2174,12 +2167,12 @@ export function UserDetailPreview({
                     <CardContent className="pt-4">
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         {[
-                          { label: "Available Balance", value: fmtUGX.format(portfolioSummary.masterWallet.balance ?? 0), cls: "text-green-400" },
-                          { label: "Net Asset Value", value: fmtUGX.format(portfolioSummary.masterWallet.netAssetValue), cls: "text-blue-400" },
-                          { label: "Total Deposited", value: fmtUGX.format(portfolioSummary.masterWallet.totalDeposited), cls: "text-emerald-400" },
-                          { label: "Total Withdrawn", value: fmtUGX.format(portfolioSummary.masterWallet.totalWithdrawn), cls: "text-red-400" },
-                          { label: "Total Fees", value: fmtUGX.format(portfolioSummary.masterWallet.totalFees), cls: "text-amber-400" },
-                          { label: "Net Flow", value: fmtUGX.format(portfolioSummary.masterWallet.totalDeposited - portfolioSummary.masterWallet.totalWithdrawn), cls: (portfolioSummary.masterWallet.totalDeposited - portfolioSummary.masterWallet.totalWithdrawn) >= 0 ? "text-emerald-400" : "text-red-400" },
+                          { label: "Available Balance", value: fmtUSD.format(portfolioSummary.masterWallet.balance ?? 0), cls: "text-green-400" },
+                          { label: "Investment Return", value: fmtUSD.format(portfolioSummary.masterWallet.netAssetValue), cls: "text-blue-400" },
+                          { label: "Total Deposited", value: fmtUSD.format(portfolioSummary.masterWallet.totalDeposited), cls: "text-emerald-400" },
+                          { label: "Total Withdrawn", value: fmtUSD.format(portfolioSummary.masterWallet.totalWithdrawn), cls: "text-red-400" },
+                          { label: "Total Fees", value: fmtUSD.format(portfolioSummary.masterWallet.totalFees), cls: "text-amber-400" },
+                          { label: "Net Flow", value: fmtUSD.format(portfolioSummary.masterWallet.totalDeposited - portfolioSummary.masterWallet.totalWithdrawn), cls: (portfolioSummary.masterWallet.totalDeposited - portfolioSummary.masterWallet.totalWithdrawn) >= 0 ? "text-emerald-400" : "text-red-400" },
                         ].map((item) => (
                           <div key={item.label} className="rounded-lg border border-border bg-muted/40 p-3">
                             <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
@@ -2283,7 +2276,7 @@ export function UserDetailPreview({
                               </div>
                               <div className="flex items-start gap-3 shrink-0">
                                 <div className="text-right">
-                                  <p className="text-2xl font-bold">{fmtUGX.format(p.portfolioValue)}</p>
+                                  <p className="text-2xl font-bold">{fmtUSD.format(p.portfolioValue)}</p>
                                   <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold mt-1
                                     ${pos ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-red-500/20 bg-red-500/10 text-red-400"}`}>
                                     {pos ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -2333,10 +2326,10 @@ export function UserDetailPreview({
                             {/* Stats row */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                               {[
-                                { label: "Total Invested", value: fmtUGX.format(p.totalInvested), cls: "", border: "" },
-                                { label: "Current Value", value: fmtUGX.format(p.portfolioValue), cls: "", border: "" },
-                                { label: "Gain / Loss", value: (pos ? "+" : "") + fmtUGX.format(gainLossFromAssets), cls: pos ? "text-emerald-400" : "text-red-400", border: pos ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5" },
-                                { label: "NAV", value: fmtUGX.format(p.wallet?.netAssetValue ?? 0), cls: "text-blue-400", border: "" },
+                                { label: "Total Invested", value: fmtUSD.format(p.totalInvested), cls: "", border: "" },
+                                { label: "Investment Return", value: fmtUSD.format(p.portfolioValue), cls: "", border: "" },
+                                { label: "Gain / Loss", value: (pos ? "+" : "") + fmtUSD.format(gainLossFromAssets), cls: pos ? "text-emerald-400" : "text-red-400", border: pos ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5" },
+                                { label: "Investment Return", value: fmtUSD.format(p.wallet?.netAssetValue ?? 0), cls: "text-blue-400", border: "" },
                               ].map((item) => (
                                 <div key={item.label} className={`rounded-lg border p-3 ${item.border || "border-border bg-muted/40"}`}>
                                   <p className="text-xs text-muted-foreground mb-0.5">{item.label}</p>
@@ -2372,9 +2365,9 @@ export function UserDetailPreview({
                                           <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
                                           <Tooltip
                                             contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                                            formatter={(v: any) => [fmtUGX.format(v)]}
+                                            formatter={(v: any) => [fmtUSD.format(v)]}
                                           />
-                                          <Area type="monotone" dataKey="nav" name="NAV" stroke="#0089ff" strokeWidth={2} fill={`url(#navGrad${p.id})`} />
+                                          <Area type="monotone" dataKey="nav" name="Investment Return" stroke="#0089ff" strokeWidth={2} fill={`url(#navGrad${p.id})`} />
                                         </AreaChart>
                                       </ResponsiveContainer>
                                     </div>
@@ -2440,12 +2433,12 @@ export function UserDetailPreview({
                                               <td className="px-3 py-2.5 text-muted-foreground">{a.asset.assetClass || "—"}</td>
                                               <td className="px-3 py-2.5">{a.stock.toLocaleString()}</td>
                                               <td className="px-3 py-2.5">{a.allocationPercentage.toFixed(1)}%</td>
-                                              <td className="px-3 py-2.5">{fmtUGX.format(a.costPerShare)}</td>
-                                              <td className="px-3 py-2.5">{fmtUGX.format(a.costPrice)}</td>
-                                              <td className="px-3 py-2.5">{fmtUGX.format(a.asset.closePrice)}</td>
-                                              <td className="px-3 py-2.5 font-semibold">{fmtUGX.format(a.closeValue)}</td>
+                                              <td className="px-3 py-2.5">{fmtUSD.format(a.costPerShare)}</td>
+                                              <td className="px-3 py-2.5">{fmtUSD.format(a.costPrice)}</td>
+                                              <td className="px-3 py-2.5">{fmtUSD.format(a.asset.closePrice)}</td>
+                                              <td className="px-3 py-2.5 font-semibold">{fmtUSD.format(a.closeValue)}</td>
                                               <td className={`px-3 py-2.5 font-semibold ${aPos ? "text-emerald-400" : "text-red-400"}`}>
-                                                {aPos ? "+" : ""}{fmtUGX.format(a.lossGain)}
+                                                {aPos ? "+" : ""}{fmtUSD.format(a.lossGain)}
                                               </td>
                                             </tr>
                                           )
@@ -2496,7 +2489,7 @@ export function UserDetailPreview({
                                             {classPieData.map((_, i) => <Cell key={i} fill={ASSET_COLORS[(i + 3) % ASSET_COLORS.length]} />)}
                                           </Pie>
                                           <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                                            formatter={(v: any) => [fmtUGX.format(v)]} />
+                                            formatter={(v: any) => [fmtUSD.format(v)]} />
                                           <Legend wrapperStyle={{ fontSize: "11px" }} />
                                         </PieChart>
                                       </ResponsiveContainer>
@@ -2528,7 +2521,7 @@ export function UserDetailPreview({
                                             <span className="text-sm text-muted-foreground truncate">{a.asset.description}</span>
                                           </div>
                                           <div className="flex items-center gap-4 shrink-0">
-                                            <span className="text-sm font-semibold">{fmtUGX.format(a.closeValue)}</span>
+                                            <span className="text-sm font-semibold">{fmtUSD.format(a.closeValue)}</span>
                                             <span className="text-sm text-muted-foreground w-16 text-right">{pct.toFixed(2)}%</span>
                                           </div>
                                         </div>
@@ -2559,14 +2552,14 @@ export function UserDetailPreview({
                                       <tr key={cls} className="border-b border-border last:border-0 hover:bg-muted/20">
                                         <td className="px-4 py-2.5 font-medium">{cls}</td>
                                         <td className="px-4 py-2.5 text-right text-muted-foreground">{row.holdings}</td>
-                                        <td className="px-4 py-2.5 text-right">{fmtUGX.format(row.closeValue)}</td>
+                                        <td className="px-4 py-2.5 text-right">{fmtUSD.format(row.closeValue)}</td>
                                         <td className="px-4 py-2.5 text-right text-muted-foreground">{classTableTotal > 0 ? ((row.closeValue / classTableTotal) * 100).toFixed(2) : "0.00"}%</td>
                                       </tr>
                                     ))}
                                     <tr className="bg-muted/30">
                                       <td className="px-4 py-2.5 font-bold">Total</td>
                                       <td className="px-4 py-2.5 text-right font-bold">{p.assets.length}</td>
-                                      <td className="px-4 py-2.5 text-right font-bold">{fmtUGX.format(classTableTotal)}</td>
+                                      <td className="px-4 py-2.5 text-right font-bold">{fmtUSD.format(classTableTotal)}</td>
                                       <td className="px-4 py-2.5 text-right font-bold">100.00%</td>
                                     </tr>
                                   </tbody>
@@ -2588,9 +2581,9 @@ export function UserDetailPreview({
                                 </span>
                               </div>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                                <div><p className="text-muted-foreground mb-0.5">Balance</p><p className="font-semibold text-sm">{fmtUGX.format(p.wallet?.balance ?? 0)}</p></div>
-                                <div><p className="text-muted-foreground mb-0.5">NAV</p><p className="font-semibold text-sm text-blue-400">{fmtUGX.format(p.wallet?.netAssetValue ?? 0)}</p></div>
-                                <div><p className="text-muted-foreground mb-0.5">Total Fees</p><p className="font-semibold text-sm text-amber-400">{fmtUGX.format(p.wallet?.totalFees ?? 0)}</p></div>
+                                <div><p className="text-muted-foreground mb-0.5">Balance</p><p className="font-semibold text-sm">{fmtUSD.format(p.wallet?.balance ?? 0)}</p></div>
+                                <div><p className="text-muted-foreground mb-0.5">Investment Return</p><p className="font-semibold text-sm text-blue-400">{fmtUSD.format(p.wallet?.netAssetValue ?? 0)}</p></div>
+                                <div><p className="text-muted-foreground mb-0.5">Total Fees</p><p className="font-semibold text-sm text-amber-400">{fmtUSD.format(p.wallet?.totalFees ?? 0)}</p></div>
                                 <div><p className="text-muted-foreground mb-0.5">Topups</p><p className="font-semibold text-sm">{p.topupHistory.length}</p></div>
                               </div>
                             </div>
@@ -2612,12 +2605,12 @@ export function UserDetailPreview({
                                         <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
                                           <div className="flex items-center gap-2">
                                             <span className="font-mono text-muted-foreground">#{i + 1}</span>
-                                            <span className="font-semibold">{fmtUGX.format(t.topupAmount)}</span>
-                                            <span className="text-muted-foreground hidden sm:block">→ NAV {fmtUGX.format(t.newNAV)}</span>
+                                            <span className="font-semibold">{fmtUSD.format(t.topupAmount)}</span>
+                                            <span className="text-muted-foreground hidden sm:block">→ Investment Return {fmtUSD.format(t.newNAV)}</span>
                                           </div>
                                           <div className="flex items-center gap-2">
-                                            <span className={tPos ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>{tPos ? "+" : ""}{fmtUGX.format(t.gainLoss)}</span>
-                                            <span className="text-muted-foreground">Fees: {fmtUGX.format(t.totalFees)}</span>
+                                            <span className={tPos ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>{tPos ? "+" : ""}{fmtUSD.format(t.gainLoss)}</span>
+                                            <span className="text-muted-foreground">Fees: {fmtUSD.format(t.totalFees)}</span>
                                             <span className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${t.status === "MERGED" ? "border-emerald-500/20 text-emerald-400" : "border-amber-500/20 text-amber-400"}`}>{t.status}</span>
                                             <span className="text-muted-foreground">{fmtDate(t.createdAt)}</span>
                                           </div>
@@ -2650,10 +2643,10 @@ export function UserDetailPreview({
                                           <span className="text-xs text-muted-foreground">{fmtDate(s.snapshotDate)}</span>
                                         </div>
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                                          <div className="rounded bg-muted/40 p-2"><p className="text-muted-foreground mb-0.5">Invested</p><p className="font-semibold">{fmtUGX.format(s.amountInvested)}</p></div>
-                                          <div className="rounded bg-muted/40 p-2"><p className="text-muted-foreground mb-0.5">Close Value</p><p className="font-semibold">{fmtUGX.format(s.totalCloseValue)}</p></div>
-                                          <div className={`rounded p-2 ${sPos ? "bg-emerald-500/5" : "bg-red-500/5"}`}><p className="text-muted-foreground mb-0.5">Gain / Loss</p><p className={`font-semibold ${sPos ? "text-emerald-400" : "text-red-400"}`}>{sPos ? "+" : ""}{fmtUGX.format(s.totalLossGain)}</p></div>
-                                          <div className="rounded bg-muted/40 p-2"><p className="text-muted-foreground mb-0.5">Cash at Bank</p><p className="font-semibold">{fmtUGX.format(s.cashAtBank)}</p></div>
+                                          <div className="rounded bg-muted/40 p-2"><p className="text-muted-foreground mb-0.5">Invested</p><p className="font-semibold">{fmtUSD.format(s.amountInvested)}</p></div>
+                                          <div className="rounded bg-muted/40 p-2"><p className="text-muted-foreground mb-0.5">Close Value</p><p className="font-semibold">{fmtUSD.format(s.totalCloseValue)}</p></div>
+                                          <div className={`rounded p-2 ${sPos ? "bg-emerald-500/5" : "bg-red-500/5"}`}><p className="text-muted-foreground mb-0.5">Gain / Loss</p><p className={`font-semibold ${sPos ? "text-emerald-400" : "text-red-400"}`}>{sPos ? "+" : ""}{fmtUSD.format(s.totalLossGain)}</p></div>
+                                          <div className="rounded bg-muted/40 p-2"><p className="text-muted-foreground mb-0.5">Cash at Bank</p><p className="font-semibold">{fmtUSD.format(s.cashAtBank)}</p></div>
                                         </div>
                                       </div>
                                     )
@@ -2703,7 +2696,7 @@ export function UserDetailPreview({
                       </p>
                     </div>
                     <div className={`text-sm font-semibold ${t.type === "Deposit" ? "text-green-600" : "text-red-600"}`}>
-                      {t.type === "Deposit" ? "+" : "-"}{fmtUGX.format(t.amount)}
+                      {t.type === "Deposit" ? "+" : "-"}{fmtUSD.format(t.amount)}
                     </div>
                   </div>
                 ))}
@@ -2737,24 +2730,24 @@ export function UserDetailPreview({
             {portfolioAction?.type === "allocate" ? (
               <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3">
                 <p className="text-xs text-muted-foreground mb-0.5">Available Balance in Master Wallet</p>
-                <p className="font-bold text-lg text-blue-400">{fmtUGX.format(portfolioAction?.masterBalance ?? 0)}</p>
+                <p className="font-bold text-lg text-blue-400">{fmtUSD.format(portfolioAction?.masterBalance ?? 0)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">This is the amount available to top up into portfolios</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Master Wallet Balance</p>
-                  <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.masterBalance ?? 0)}</p>
+                  <p className="font-semibold text-sm">{fmtUSD.format(portfolioAction?.masterBalance ?? 0)}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">Current Value</p>
-                  <p className="font-semibold text-sm">{fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}</p>
+                  <p className="font-semibold text-sm">{fmtUSD.format(portfolioAction?.availableCloseValue ?? 0)}</p>
                 </div>
               </div>
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="action-amount">Amount (UGX)</Label>
+              <Label htmlFor="action-amount">Amount (USD)</Label>
               <Input
                 id="action-amount"
                 type="number"
@@ -2767,10 +2760,10 @@ export function UserDetailPreview({
                 disabled={isPending}
               />
               {portfolioAction?.type === "allocate" && Number(actionAmount) > (portfolioAction?.masterBalance ?? 0) && (
-                <p className="text-xs text-red-400">You cannot allocate more than the master wallet balance of {fmtUGX.format(portfolioAction?.masterBalance ?? 0)}.</p>
+                <p className="text-xs text-red-400">You cannot allocate more than the master wallet balance of {fmtUSD.format(portfolioAction?.masterBalance ?? 0)}.</p>
               )}
               {portfolioAction?.type === "withdraw" && Number(actionAmount) > (portfolioAction?.availableCloseValue ?? 0) && (
-                <p className="text-xs text-red-400">You cannot withdraw more than the portfolio current value of {fmtUGX.format(portfolioAction?.availableCloseValue ?? 0)}.</p>
+                <p className="text-xs text-red-400">You cannot withdraw more than the portfolio current value of {fmtUSD.format(portfolioAction?.availableCloseValue ?? 0)}.</p>
               )}
             </div>
 
@@ -2805,7 +2798,7 @@ export function UserDetailPreview({
                 
                 if (portfolioAction.type === "allocate") {
                   if (amount > (portfolioAction.masterBalance ?? 0)) {
-                    setActionError(`Amount exceeds master wallet balance of ${fmtUGX.format(portfolioAction.masterBalance ?? 0)}.`)
+                    setActionError(`Amount exceeds master wallet balance of ${fmtUSD.format(portfolioAction.masterBalance ?? 0)}.`)
                     return
                   }
                   startTransition(async () => {
@@ -2813,7 +2806,7 @@ export function UserDetailPreview({
                     setActionSuccess(null)
                     const result = await createAllocation({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
                     if (result.success) {
-                      setActionSuccess(`${fmtUGX.format(amount)} top up submitted successfully. Awaiting admin approval.`)
+                      setActionSuccess(`${fmtUSD.format(amount)} top up submitted successfully. Awaiting admin approval.`)
                       setActionAmount("")
                     } else {
                       setActionError(result.error ?? "Allocation failed.")
@@ -2821,7 +2814,7 @@ export function UserDetailPreview({
                   })
                 } else {
                   if (amount > (portfolioAction.availableCloseValue ?? 0)) {
-                    setActionError(`Amount exceeds current portfolio value of ${fmtUGX.format(portfolioAction.availableCloseValue ?? 0)}.`)
+                    setActionError(`Amount exceeds current portfolio value of ${fmtUSD.format(portfolioAction.availableCloseValue ?? 0)}.`)
                     return
                   }
                   startTransition(async () => {
@@ -2829,7 +2822,7 @@ export function UserDetailPreview({
                     setActionSuccess(null)
                     const result = await createRedemption({ userId: user.id, userPortfolioId: portfolioAction.portfolioId, amount })
                     if (result.success) {
-                      setActionSuccess(`${fmtUGX.format(amount)} redeemed successfully and added to your master wallet.`)
+                      setActionSuccess(`${fmtUSD.format(amount)} redeemed successfully and added to your master wallet.`)
                       setActionAmount("")
                     } else {
                       setActionError(result.error ?? "Request failed.")

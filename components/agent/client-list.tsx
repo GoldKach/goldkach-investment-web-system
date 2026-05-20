@@ -11,9 +11,10 @@ import type { AgentClientAssignment } from "@/actions/staff";
 
 interface ClientListProps {
   assignments: AgentClientAssignment[];
+  basePath?: string;
 }
 
-export function ClientList({ assignments }: ClientListProps) {
+export function ClientList({ assignments, basePath = "/agent/clients" }: ClientListProps) {
   const [query, setQuery] = useState("");
 
   const filtered = assignments.filter((a) => {
@@ -96,7 +97,7 @@ export function ClientList({ assignments }: ClientListProps) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link href={`/agent/clients/${a.client.id}`}>
+                      <Link href={`${basePath}/${a.client.id}`}>
                         <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                           <Eye className="h-3.5 w-3.5" />
                           View Details

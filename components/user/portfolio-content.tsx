@@ -20,10 +20,11 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
   const validPortfolios = userPortfolios.filter(up => up.portfolio)
 
   const portfolios = validPortfolios.map((up) => {
-    const totalCost = up.userAssets.reduce((sum: any, asset: any) => sum + asset.costPrice, 0)
-    const totalValue = up.userAssets.reduce((sum: any, asset: any) => sum + asset.closeValue, 0)
-    const totalLossGain = up.userAssets.reduce((sum: any, asset: any) => sum + asset.lossGain, 0)
-    const lossGainPercentage = totalCost > 0 ? (totalLossGain / totalCost) * 100 : 0
+    const totalValue    = up.userAssets.reduce((sum: any, asset: any) => sum + asset.closeValue, 0)
+    const initialInvestment = Number(up.totalInvested ?? 0)
+    // True gain/loss = current close value minus total amount ever invested
+    const totalLossGain = totalValue - initialInvestment
+    const lossGainPercentage = initialInvestment > 0 ? (totalLossGain / initialInvestment) * 100 : 0
 
     return {
       id: up.portfolio!.id,
@@ -32,7 +33,7 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
       userPortfolioId: up.id,
       description: up.portfolio!.description || "No description",
       totalValue,
-      totalCost,
+      initialInvestment,
       totalLossGain,
       lossGainPercentage,
       status: "ACTIVE",
@@ -44,8 +45,8 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
   })
 
   const totalPortfolioValue = portfolios.reduce((sum, p) => sum + p.totalValue, 0)
-  const totalPortfolioCost = portfolios.reduce((sum, p) => sum + p.totalCost, 0)
-  const totalPortfolioGain = portfolios.reduce((sum, p) => sum + p.totalLossGain, 0)
+  const totalPortfolioCost  = portfolios.reduce((sum, p) => sum + p.initialInvestment, 0)
+  const totalPortfolioGain  = portfolios.reduce((sum, p) => sum + p.totalLossGain, 0)
   const totalPortfolioGainPercentage = totalPortfolioCost > 0
     ? ((totalPortfolioGain / totalPortfolioCost) * 100).toFixed(2)
     : "0.00"
@@ -76,11 +77,11 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Portfolio Value</CardTitle>
+            <CardTitle className="text-sm font-medium">Investment Return</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalPortfolioValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${totalPortfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground">Across {portfolios.length} portfolios</p>
           </CardContent>
         </Card>
@@ -92,7 +93,7 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalPortfolioGain >= 0 ? "text-green-600" : "text-red-600"}`}>
-              ${Math.abs(totalPortfolioGain).toLocaleString()}
+              ${Math.abs(totalPortfolioGain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <p className={`text-xs flex items-center gap-1 ${totalPortfolioGain >= 0 ? "text-green-600" : "text-red-600"}`}>
               {totalPortfolioGain >= 0 ? <ArrowUpIcon className="h-3 w-3" /> : <ArrowDownIcon className="h-3 w-3" />}
@@ -103,12 +104,12 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Investment</CardTitle>
+            <CardTitle className="text-sm font-medium">Cash Not Invested</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(wallet?.netAssetValue || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Ready to invest</p>
+            <div className="text-2xl font-bold">${(wallet?.balance || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <p className="text-xs text-muted-foreground">Available for allocation</p>
           </CardContent>
         </Card>
 
@@ -154,12 +155,12 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Current Value</p>
-                      <p className="text-xl font-bold">${portfolio.totalValue.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground">Portfolio Investment Return</p>
+                      <p className="text-xl font-bold">${portfolio.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Cost Basis</p>
-                      <p className="text-xl font-bold">${portfolio.totalCost.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground">Initial Investment</p>
+                      <p className="text-xl font-bold">${portfolio.initialInvestment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                   </div>
 
@@ -168,7 +169,7 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
                       <span className="text-sm text-muted-foreground">Gain/Loss</span>
                       <span className={`text-sm font-semibold flex items-center gap-1 ${isPositive ? "text-green-600" : "text-red-600"}`}>
                         {isPositive ? <ArrowUpIcon className="h-3 w-3" /> : <ArrowDownIcon className="h-3 w-3" />}
-                        ${Math.abs(portfolio.totalLossGain).toLocaleString()} ({portfolio.lossGainPercentage.toFixed(2)}%)
+                        ${Math.abs(portfolio.totalLossGain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({portfolio.lossGainPercentage.toFixed(2)}%)
                       </span>
                     </div>
                     <div className="flex items-center justify-between">

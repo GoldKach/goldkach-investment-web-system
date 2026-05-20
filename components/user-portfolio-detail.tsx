@@ -1448,11 +1448,13 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
   const subPortfolios: any[] = userPortfolio.subPortfolios ?? []
 
   /* ---- Computed totals from assets ---- */
-  const totalCost      = rawAssets.reduce((s: number, a: any) => s + a.costPrice,  0)
   const totalCloseValue = rawAssets.reduce((s: number, a: any) => s + a.closeValue, 0)
-  const totalLossGain  = rawAssets.reduce((s: number, a: any) => s + a.lossGain,   0)
-  const returnPct      = totalCost > 0 ? (totalLossGain / totalCost) * 100 : 0
-  const isPositive     = totalLossGain >= 0
+  const walletNAV       = wallet?.netAssetValue ?? 0
+  const totalLossGain   = totalCloseValue - walletNAV
+  const returnPct       = walletNAV > 0 ? (totalLossGain / walletNAV) * 100 : 0
+  const isPositive      = totalLossGain >= 0
+  // keep totalCost for asset-level calculations (allocation %)
+  const totalCost       = rawAssets.reduce((s: number, a: any) => s + a.costPrice, 0)
 
   /* ---- Normalised asset rows ---- */
   const assets = rawAssets.map((a: any) => ({
@@ -1529,7 +1531,7 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            label: "Current Value",
+            label: "Investment Return",
             value: fmt.format(totalCloseValue),
             sub: "Sum of asset close values",
             icon: Wallet,
@@ -1537,8 +1539,8 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
           },
           {
             label: "Total Invested",
-            value: fmt.format(totalCost),
-            sub: "Sum of cost prices",
+            value: fmt.format(walletNAV),
+            sub: "Portfolio wallet NAV",
             icon: TrendingUp,
             cls: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-l-emerald-500",
           },
@@ -1552,7 +1554,7 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
             border: isPositive ? "border-l-emerald-500" : "border-l-red-500",
           },
           {
-            label: "NAV",
+            label: "Total Invested",
             value: fmt.format(wallet?.netAssetValue ?? 0),
             sub: "Portfolio wallet NAV",
             icon: CreditCard,
@@ -1646,7 +1648,7 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-xs">
               {[
-                { label: "NAV",          value: fmt.format(wallet.netAssetValue),   cls: "text-blue-400" },
+                { label: "Investment Return", value: fmt.format(totalCloseValue),   cls: "text-blue-400" },
                 { label: "Balance",      value: fmt.format(wallet.balance),          cls: "" },
                 { label: "Total Fees",   value: fmt.format(wallet.totalFees),        cls: "text-amber-400" },
                 { label: "Bank Fee",     value: `${wallet.bankFee}%`,               cls: "" },
@@ -1962,7 +1964,7 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
 /*  Redemption dialog                                                           */
 /* -------------------------------------------------------------------------- */
 
-const fmtUGX = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmtUSD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 function RedeemDialog({
   open, onOpenChange, totalCloseValue, amount, setAmount, isPending, onConfirm,
@@ -1996,13 +1998,13 @@ function RedeemDialog({
           {/* Current value callout */}
           <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-3">
             <p className="text-xs text-muted-foreground">Available to Redeem</p>
-            <p className="text-xl font-bold text-orange-400">{fmtUGX.format(totalCloseValue)}</p>
+            <p className="text-xl font-bold text-orange-400">{fmtUSD.format(totalCloseValue)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Current portfolio close value</p>
           </div>
 
           {/* Amount input */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Amount (UGX)</label>
+            <label className="text-sm font-medium">Amount (USD)</label>
             <Input
               type="number"
               min={1}
@@ -2015,12 +2017,12 @@ function RedeemDialog({
             />
             {overLimit && (
               <p className="text-xs text-red-400">
-                Cannot redeem more than the current value of {fmtUGX.format(totalCloseValue)}.
+                Cannot redeem more than the current value of {fmtUSD.format(totalCloseValue)}.
               </p>
             )}
             {amount && num > 0 && !overLimit && (
               <p className="text-xs text-muted-foreground">
-                Remaining value after redemption: {fmtUGX.format(totalCloseValue - num)}
+                Remaining value after redemption: {fmtUSD.format(totalCloseValue - num)}
               </p>
             )}
           </div>

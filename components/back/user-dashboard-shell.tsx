@@ -20,14 +20,16 @@ type User = {
 
 export default function UserDashboardShell({
   user,
+  isAlsoAgent,
   children,
 }: {
   user: User;
+  isAlsoAgent?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <SidebarProvider>
-      <UserSidebar user={user} />
+      <UserSidebar user={user} isAlsoAgent={isAlsoAgent} />
       <SidebarInset>
         <div className="md:ml-[220px] lg:ml-[225px]">
           <DashboardNav user={user} />

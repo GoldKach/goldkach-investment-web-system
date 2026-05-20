@@ -20,13 +20,39 @@ import { toast } from "sonner";
 import {
   Eye, EyeOff, FileText, CreditCard, UserCircle, Shield,
   FileCheck, X, Check, ChevronsUpDown, User, Building2,
-  ArrowLeft, ChevronRight, Briefcase, Users,
+  ArrowLeft, ChevronRight, Briefcase, Users, UserCheck,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // ─── Types ────────────────────────────────────────────────────────
 type EntityType = "individual" | "company" | null;
 type Step = "requirements" | "entity-select" | "register";
+
+interface AgentInfo {
+  id: string;
+  name: string;
+  position: string | null;
+  department: string | null;
+}
+
+interface AgentBannerProps {
+  agentInfo: AgentInfo;
+}
+
+function AgentBanner({ agentInfo }: AgentBannerProps) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm">
+      <UserCheck className="h-4 w-4 text-primary shrink-0" />
+      <span className="text-slate-700 dark:text-slate-300">
+        Registering under{" "}
+        <span className="font-semibold text-slate-900 dark:text-white">{agentInfo.name}</span>
+        {agentInfo.position && (
+          <span className="text-muted-foreground"> · {agentInfo.position}</span>
+        )}
+      </span>
+    </div>
+  );
+}
 
 // ─── Entity Type Card ─────────────────────────────────────────────
 function EntityCard({
@@ -253,9 +279,21 @@ function StepDots({ step }: { step: Step }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────
-export function RegisterForm() {
+interface RegisterFormProps {
+  agentRef?: string;
+  agentInfo?: AgentInfo | null;
+}
+
+export function RegisterForm({ agentRef, agentInfo }: RegisterFormProps = {}) {
   const router = useRouter();
   const recaptchaRef = React.useRef<ReCAPTCHA>(null);
+
+  // Persist agentRef to localStorage so onboarding forms can read it
+  React.useEffect(() => {
+    if (agentRef) {
+      localStorage.setItem("onboardingAgentRef", agentRef);
+    }
+  }, [agentRef]);
 
   // ── Step state ──
   const [step, setStep] = React.useState<Step>("requirements");
@@ -370,6 +408,11 @@ export function RegisterForm() {
               <X className="h-5 w-5" />
             </Button>
           </div>
+          {agentInfo && (
+            <div className="px-6 pt-4">
+              <AgentBanner agentInfo={agentInfo} />
+            </div>
+          )}
 
           <ScrollArea className="flex-1 overflow-auto">
             <div className="p-6 space-y-6">
@@ -489,6 +532,8 @@ export function RegisterForm() {
 
         <StepDots step="entity-select" />
 
+        {agentInfo && <AgentBanner agentInfo={agentInfo} />}
+
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-bold tracking-tight">Who are you registering as?</h1>
           <p className="text-muted-foreground text-sm">
@@ -573,6 +618,8 @@ export function RegisterForm() {
         />
 
         <StepDots step="register" />
+
+        {agentInfo && <AgentBanner agentInfo={agentInfo} />}
 
         {/* Header with entity badge */}
         <div className="space-y-2 text-center lg:text-left">
