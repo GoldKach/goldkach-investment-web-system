@@ -210,34 +210,36 @@ function DocumentUploadCard({
   endpoint: string
 }) {
   return (
-    <div className="border rounded-lg p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">
+    <div className="border-2 border-[#193388]/25 rounded-lg overflow-hidden">
+      <div className="bg-[#193388]/10 border-b border-[#193388]/20 px-4 py-2.5 flex items-center justify-between">
+        <Label className="text-sm font-semibold text-[#193388] dark:text-blue-300">
           {label} {required && <span className="text-red-500">*</span>}
         </Label>
-        {value && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+        {value && <CheckCircle2 className="h-5 w-5 text-[#193388]" />}
       </div>
-      {value ? (
-        <div className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200">
-          <FileText className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-green-700 flex-1">Document uploaded</span>
-          <Button type="button" variant="ghost" size="sm" onClick={onClear} className="h-6 w-6 p-0">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <div className="[&_.ut-button]:bg-primary [&_.ut-button]:text-primary-foreground [&_.ut-label]:text-sm">
-          <UploadDropzone
-            endpoint={endpoint as any}
-            onClientUploadComplete={(res) => {
-              const url = res?.[0]?.url
-              if (url) { onUpload(url); toast.success(`${label} uploaded!`) }
-            }}
-            onUploadError={(error) => { toast.error(`Upload failed: ${error.message}`) }}
-            className="border-dashed"
-          />
-        </div>
-      )}
+      <div className="p-4">
+        {value ? (
+          <div className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200">
+            <FileText className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-green-700 flex-1">Document uploaded</span>
+            <Button type="button" variant="ghost" size="sm" onClick={onClear} className="h-6 w-6 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="[&_.ut-button]:bg-[#193388] [&_.ut-button]:text-white [&_.ut-label]:text-sm">
+            <UploadDropzone
+              endpoint={endpoint as any}
+              onClientUploadComplete={(res) => {
+                const url = res?.[0]?.url
+                if (url) { onUpload(url); toast.success(`${label} uploaded!`) }
+              }}
+              onUploadError={(error) => { toast.error(`Upload failed: ${error.message}`) }}
+              className="border-dashed border-[#193388]/40"
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -261,15 +263,16 @@ function PersonCard({
 }) {
   const ubo = person as UBO
   return (
-    <div className="border rounded-lg p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium text-sm">{title} #{index + 1}</h4>
+    <div className="border-2 border-[#193388]/25 rounded-lg overflow-hidden">
+      <div className="bg-[#193388]/10 border-b border-[#193388]/20 px-4 py-2.5 flex items-center justify-between">
+        <h4 className="font-semibold text-sm text-[#193388] dark:text-blue-300">{title} #{index + 1}</h4>
         {canRemove && (
           <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(index)} className="h-8 w-8 p-0 text-red-500">
             <Trash2 className="h-4 w-4" />
           </Button>
         )}
       </div>
+      <div className="p-4 space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Full Name *</Label>
@@ -331,7 +334,7 @@ function PersonCard({
             </Button>
           </div>
         ) : (
-          <div className="[&_.ut-button]:bg-primary [&_.ut-button]:text-primary-foreground [&_.ut-label]:text-sm">
+          <div className="[&_.ut-button]:bg-[#193388] [&_.ut-button]:text-white [&_.ut-label]:text-sm">
             <UploadDropzone
               endpoint={"idUrl" as any}
               onClientUploadComplete={(res) => {
@@ -339,10 +342,11 @@ function PersonCard({
                 if (url) { onUpdate(index, "documentUrl", url); toast.success("Document uploaded!") }
               }}
               onUploadError={(error) => { toast.error(`Upload failed: ${error.message}`) }}
-              className="border-dashed"
+              className="border-dashed border-[#193388]/40"
             />
           </div>
         )}
+      </div>
       </div>
     </div>
   )
@@ -579,41 +583,49 @@ export default function CompanyOnboardingForm({ user }: Props) {
   const progress = ((completedSteps.length + 1) / steps.length) * 100
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {initDone && !userId && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Session not found. Please complete email verification first.
+    <div className="max-w-4xl mx-auto border-4 border-[#193388] rounded-xl shadow-xl overflow-hidden">
+      {/* Brand header banner */}
+      <div className="bg-[#193388] text-white px-6 py-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Company Account Onboarding</h1>
+          <p className="text-blue-200 text-sm mt-0.5">Complete all steps to open your company investment account</p>
         </div>
-      )}
-
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Company Account Onboarding</h1>
-        <p className="text-muted-foreground">Complete all steps to open your company investment account</p>
+        <div className="text-right text-xs text-blue-200 opacity-80 hidden sm:block">
+          <p className="font-semibold text-sm">GoldKach Investment</p>
+          <p>Unlocking Global Investments</p>
+        </div>
       </div>
 
-      <Progress value={progress} />
-
-      <div className="flex justify-center gap-2 overflow-x-auto pb-2">
-        {steps.map((step) => (
-          <div key={step.id} className="flex flex-col items-center min-w-fit">
-            {completedSteps.includes(step.id) ? (
-              <CheckCircle className="w-6 h-6 text-green-500" />
-            ) : (
-              <Circle className={`w-6 h-6 ${currentStep === step.id ? "text-blue-500" : "text-gray-300"}`} />
-            )}
-            <span className={`text-xs mt-1 text-center ${currentStep === step.id ? "font-semibold" : "text-muted-foreground"}`}>
-              {step.title}
-            </span>
+      <div className="p-6 space-y-6 bg-white dark:bg-[#0f1135]">
+        {initDone && !userId && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Session not found. Please complete email verification first.
           </div>
-        ))}
-      </div>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{steps[currentStep].title}</CardTitle>
-          <CardDescription>{steps[currentStep].description}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        <Progress value={progress} className="w-full [&>div]:bg-[#193388]" />
+
+        <div className="flex justify-center gap-2 overflow-x-auto pb-2">
+          {steps.map((step) => (
+            <div key={step.id} className="flex flex-col items-center min-w-fit">
+              {completedSteps.includes(step.id) ? (
+                <CheckCircle className="w-6 h-6 text-[#193388]" />
+              ) : (
+                <Circle className={`w-6 h-6 ${currentStep === step.id ? "text-[#193388]" : "text-gray-300"}`} />
+              )}
+              <span className={`text-xs mt-1 text-center ${currentStep === step.id ? "font-semibold text-[#193388]" : "text-muted-foreground"}`}>
+                {step.title}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <Card className="border-2 border-[#193388]/30 shadow-sm overflow-hidden">
+          <CardHeader className="bg-[#193388] text-white rounded-none py-3 px-5">
+            <CardTitle className="text-white text-lg">{steps[currentStep].title}</CardTitle>
+            <CardDescription className="text-blue-200">{steps[currentStep].description}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
 
           {/* ── STEP 0: Company Details ── */}
           {currentStep === 0 && (
@@ -701,12 +713,12 @@ export default function CompanyOnboardingForm({ user }: Props) {
           {/* ── STEP 1: Directors ── */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between bg-[#193388] text-white px-4 py-2.5 rounded-lg">
                 <div>
                   <h3 className="font-semibold">Company Directors *</h3>
-                  <p className="text-sm text-muted-foreground">At least one director is required.</p>
+                  <p className="text-sm text-blue-200">At least one director is required.</p>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={addDirector} className="gap-1">
+                <Button type="button" variant="outline" size="sm" onClick={addDirector} className="gap-1 bg-white/10 border-white/30 text-white hover:bg-white/20">
                   <Plus className="h-4 w-4" /> Add Director
                 </Button>
               </div>
@@ -727,14 +739,14 @@ export default function CompanyOnboardingForm({ user }: Props) {
           {/* ── STEP 2: Ultimate Beneficial Owners ── */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between bg-[#193388] text-white px-4 py-2.5 rounded-lg">
                 <div>
                   <h3 className="font-semibold">Ultimate Beneficial Owners</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-blue-200">
                     Add beneficial owners if they differ from the directors above. Optional.
                   </p>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={addUBO} className="gap-1">
+                <Button type="button" variant="outline" size="sm" onClick={addUBO} className="gap-1 bg-white/10 border-white/30 text-white hover:bg-white/20">
                   <Plus className="h-4 w-4" /> Add Beneficial Owner
                 </Button>
               </div>
@@ -881,9 +893,9 @@ export default function CompanyOnboardingForm({ user }: Props) {
           {/* ── STEP 5: Documents ── */}
           {currentStep === 5 && (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-1">Document Upload</h4>
-                <p className="text-sm text-blue-800">
+              <div className="bg-[#193388] text-white rounded-lg p-4">
+                <h4 className="font-semibold mb-1">Document Upload</h4>
+                <p className="text-sm text-blue-200">
                   Bank statement is required. Constitution is required for SACCOs/Microfinance.
                   All other documents are optional but recommended.
                 </p>
@@ -929,12 +941,12 @@ export default function CompanyOnboardingForm({ user }: Props) {
           {/* ── STEP 6: Review & Sign ── */}
           {currentStep === 6 && (
             <div className="space-y-6">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h4 className="font-semibold text-green-900">Almost Done!</h4>
-                <p className="text-sm text-green-800">Read the Investment Management Agreement and confirm your acceptance.</p>
+              <div className="bg-[#193388] text-white rounded-lg p-4">
+                <h4 className="font-semibold">Almost Done!</h4>
+                <p className="text-sm text-blue-200">Read the Investment Management Agreement and confirm your acceptance.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-2 border-[#193388]/30 rounded-lg bg-[#dce6f1]/20 dark:bg-[#193388]/5">
                 <ReviewField label="Company Name" value={formData.companyName} />
                 <ReviewField label="Email" value={formData.email} />
                 <ReviewField label="Company Type" value={formData.companyType} />
@@ -945,16 +957,16 @@ export default function CompanyOnboardingForm({ user }: Props) {
                 <ReviewField label="Sanctions/Legal" value={formData.sanctionsOrLegal} />
               </div>
 
-              <div className="p-3 border rounded-lg">
-                <p className="text-sm font-medium mb-1">Directors ({formData.directors.length})</p>
+              <div className="p-3 border-2 border-[#193388]/30 rounded-lg bg-[#dce6f1]/20 dark:bg-[#193388]/5">
+                <p className="text-sm font-semibold text-[#193388] dark:text-blue-300 mb-1">Directors ({formData.directors.length})</p>
                 {formData.directors.map((d, i) => (
                   <p key={i} className="text-sm text-muted-foreground">{i + 1}. {d.fullName}</p>
                 ))}
               </div>
 
               {formData.ubos.length > 0 && (
-                <div className="p-3 border rounded-lg">
-                  <p className="text-sm font-medium mb-1">Ultimate Beneficial Owners ({formData.ubos.length})</p>
+                <div className="p-3 border-2 border-[#193388]/30 rounded-lg bg-[#dce6f1]/20 dark:bg-[#193388]/5">
+                  <p className="text-sm font-semibold text-[#193388] dark:text-blue-300 mb-1">Ultimate Beneficial Owners ({formData.ubos.length})</p>
                   {formData.ubos.map((u, i) => (
                     <p key={i} className="text-sm text-muted-foreground">{i + 1}. {u.fullName}</p>
                   ))}
@@ -962,8 +974,8 @@ export default function CompanyOnboardingForm({ user }: Props) {
               )}
 
               {/* Agreement PDF */}
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-100 px-4 py-3 border-b flex items-center gap-2">
+              <div className="border-2 border-[#193388]/30 rounded-lg overflow-hidden">
+                <div className="bg-[#193388] px-4 py-3 border-b flex items-center gap-2 text-white">
                   <FileText className="h-5 w-5" />
                   <h3 className="font-semibold">Investment Management Agreement</h3>
                 </div>
@@ -974,7 +986,7 @@ export default function CompanyOnboardingForm({ user }: Props) {
                 />
               </div>
 
-              <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+              <div className="border-2 border-[#193388]/30 rounded-lg p-4 bg-[#dce6f1]/30 dark:bg-[#193388]/10">
                 <div className="flex items-start space-x-3 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                   <Checkbox
                     id="co-agreement-confirm"
@@ -1003,33 +1015,44 @@ export default function CompanyOnboardingForm({ user }: Props) {
             </div>
           )}
 
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={handlePrevious} disabled={currentStep === 0 || loading}>
-          Previous
-        </Button>
-        {currentStep < steps.length - 1 ? (
-          <Button onClick={handleNext} disabled={!isStepValid(currentStep)}>
-            Next
-          </Button>
-        ) : (
+        {/* Navigation */}
+        <div className="flex justify-between">
           <Button
-            onClick={handleSubmit}
-            disabled={loading || !isStepValid(6) || formData.sanctionsOrLegal === "yes" || !userId}
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep === 0 || loading}
+            className="border-[#193388] text-[#193388] hover:bg-[#193388]/10 dark:text-blue-300 dark:border-[#193388]/50"
           >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Submitting...
-              </span>
-            ) : (
-              "Submit Application"
-            )}
+            Previous
           </Button>
-        )}
+          {currentStep < steps.length - 1 ? (
+            <Button
+              onClick={handleNext}
+              disabled={!isStepValid(currentStep)}
+              className="bg-[#193388] hover:bg-[#142a80] text-white"
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || !isStepValid(6) || formData.sanctionsOrLegal === "yes" || !userId}
+              className="bg-[#193388] hover:bg-[#142a80] text-white"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Submitting...
+                </span>
+              ) : (
+                "Submit Application"
+              )}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

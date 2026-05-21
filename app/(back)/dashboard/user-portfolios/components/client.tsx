@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useTransition, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   createUserPortfolio,
@@ -71,6 +72,7 @@ import {
   Ban,
   ChevronLeft,
   ChevronRight,
+  UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getMasterWalletByUser, syncMasterWallet } from "@/actions/master-wallets";
@@ -739,6 +741,13 @@ function ViewDialog({
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
+            <Button asChild variant="outline"
+              className="flex-1 h-9 border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
+              <Link href={`/dashboard/users/clients/${up.userId}`}>
+                <UserRound className="w-3.5 h-3.5 mr-1.5" />
+                View Client
+              </Link>
+            </Button>
             <Button
               onClick={onDelete}
               variant="outline"
@@ -985,8 +994,14 @@ export default function UserPortfoliosClient({ initialUserPortfolios, allPortfol
                       </TableCell>
                       <TableCell className="py-4 pr-6">
                         <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" asChild
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10" title="View client profile">
+                            <Link href={`/dashboard/users/clients/${up.userId}`}>
+                              <UserRound className="w-3.5 h-3.5" />
+                            </Link>
+                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => openView(up)}
-                            className="h-8 w-8 p-0 text-slate-400 hover:text-[#3B82F6] hover:bg-[#3B82F6]/10" title="View">
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-[#3B82F6] hover:bg-[#3B82F6]/10" title="View portfolio">
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => openDelete(up)}

@@ -810,7 +810,7 @@ export function ClientDetail({
 
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border dark:bg-[#0f1135] dark:border-[#2B2F77]/50">
           <DialogHeader>
             <DialogTitle>Edit Client Information</DialogTitle>
             <DialogDescription>
@@ -827,7 +827,7 @@ export function ClientDetail({
                   placeholder="First name"
                   value={editForm.firstName}
                   onChange={(e) => handleEditChange("firstName", e.target.value)}
-                  className="bg-muted/50 border-border"
+                  className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
                 />
               </div>
               <div className="space-y-2">
@@ -837,7 +837,7 @@ export function ClientDetail({
                   placeholder="Last name"
                   value={editForm.lastName}
                   onChange={(e) => handleEditChange("lastName", e.target.value)}
-                  className="bg-muted/50 border-border"
+                  className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
                 />
               </div>
             </div>
@@ -849,7 +849,7 @@ export function ClientDetail({
                 placeholder="Email address"
                 value={editForm.email}
                 onChange={(e) => handleEditChange("email", e.target.value)}
-                className="bg-muted/50 border-border"
+                className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
             <div className="space-y-2">
@@ -859,7 +859,7 @@ export function ClientDetail({
                 placeholder="Phone number"
                 value={editForm.phone}
                 onChange={(e) => handleEditChange("phone", e.target.value)}
-                className="bg-muted/50 border-border"
+                className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
           </div>
@@ -886,7 +886,7 @@ export function ClientDetail({
 
       {/* Deposit Request Modal */}
       <Dialog open={depositModalOpen} onOpenChange={setDepositModalOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border dark:bg-[#0f1135] dark:border-[#2B2F77]/50">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-emerald-400" />
@@ -901,10 +901,10 @@ export function ClientDetail({
             <div className="space-y-2">
               <Label htmlFor="portfolio">Select Portfolio</Label>
               <Select value={depositForm.portfolioId} onValueChange={(value) => setDepositForm({ ...depositForm, portfolioId: value })}>
-                <SelectTrigger className="bg-muted/50 border-border">
+                <SelectTrigger className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500">
                   <SelectValue placeholder="Select a portfolio" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-border">
+                <SelectContent className="bg-card border-border dark:bg-[#0f1135] dark:border-[#2B2F77]/50">
                   {user.userPortfolios?.map((portfolio) => (
                     <SelectItem key={portfolio.id} value={portfolio.id}>
                       {portfolio.customName}
@@ -922,7 +922,7 @@ export function ClientDetail({
                 placeholder="0.00"
                 value={depositForm.amount}
                 onChange={(e) => setDepositForm({ ...depositForm, amount: e.target.value })}
-                className="bg-muted/50 border-border"
+                className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
                 min="0"
                 step="0.01"
               />
@@ -935,7 +935,7 @@ export function ClientDetail({
                 placeholder="Add notes about this deposit..."
                 value={depositForm.description}
                 onChange={(e) => setDepositForm({ ...depositForm, description: e.target.value })}
-                className="bg-muted/50 border-border"
+                className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
 
@@ -969,7 +969,7 @@ export function ClientDetail({
 
       {/* Onboarding Edit Modal */}
       <Dialog open={onboardingModalOpen} onOpenChange={setOnboardingModalOpen}>
-        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-[#0f1135] dark:border-[#2B2F77]/50">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardEdit className="h-5 w-5 text-primary" />
@@ -987,27 +987,27 @@ export function ClientDetail({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Full Name</Label>
-                  <Input value={onboardingForm.fullName ?? ""} onChange={(e) => handleOnboardingChange("fullName", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.fullName ?? ""} onChange={(e) => handleOnboardingChange("fullName", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Date of Birth</Label>
-                  <Input type="date" value={onboardingForm.dateOfBirth ?? ""} onChange={(e) => handleOnboardingChange("dateOfBirth", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input type="date" value={onboardingForm.dateOfBirth ?? ""} onChange={(e) => handleOnboardingChange("dateOfBirth", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>TIN</Label>
-                  <Input value={onboardingForm.tin ?? ""} onChange={(e) => handleOnboardingChange("tin", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.tin ?? ""} onChange={(e) => handleOnboardingChange("tin", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Nationality</Label>
-                  <Input value={onboardingForm.nationality ?? ""} onChange={(e) => handleOnboardingChange("nationality", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.nationality ?? ""} onChange={(e) => handleOnboardingChange("nationality", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Country of Residence</Label>
-                  <Input value={onboardingForm.countryOfResidence ?? ""} onChange={(e) => handleOnboardingChange("countryOfResidence", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.countryOfResidence ?? ""} onChange={(e) => handleOnboardingChange("countryOfResidence", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>Home Address</Label>
-                  <Input value={onboardingForm.homeAddress ?? ""} onChange={(e) => handleOnboardingChange("homeAddress", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.homeAddress ?? ""} onChange={(e) => handleOnboardingChange("homeAddress", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
               </div>
             </div>
@@ -1018,15 +1018,15 @@ export function ClientDetail({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Employment Status</Label>
-                  <Input value={onboardingForm.employmentStatus ?? ""} onChange={(e) => handleOnboardingChange("employmentStatus", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.employmentStatus ?? ""} onChange={(e) => handleOnboardingChange("employmentStatus", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Occupation</Label>
-                  <Input value={onboardingForm.occupation ?? ""} onChange={(e) => handleOnboardingChange("occupation", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.occupation ?? ""} onChange={(e) => handleOnboardingChange("occupation", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Company Name</Label>
-                  <Input value={onboardingForm.companyName ?? ""} onChange={(e) => handleOnboardingChange("companyName", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.companyName ?? ""} onChange={(e) => handleOnboardingChange("companyName", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
               </div>
             </div>
@@ -1037,32 +1037,32 @@ export function ClientDetail({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Primary Goal</Label>
-                  <Input value={onboardingForm.primaryGoal ?? ""} onChange={(e) => handleOnboardingChange("primaryGoal", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.primaryGoal ?? ""} onChange={(e) => handleOnboardingChange("primaryGoal", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Time Horizon</Label>
-                  <Input value={onboardingForm.timeHorizon ?? ""} onChange={(e) => handleOnboardingChange("timeHorizon", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.timeHorizon ?? ""} onChange={(e) => handleOnboardingChange("timeHorizon", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Risk Tolerance</Label>
                   <Select value={onboardingForm.riskTolerance ?? ""} onValueChange={(v) => handleOnboardingChange("riskTolerance", v)}>
-                    <SelectTrigger className="bg-muted/50 border-border"><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent className="bg-card border-border">
+                    <SelectTrigger className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent className="bg-card border-border dark:bg-[#0f1135] dark:border-[#2B2F77]/50">
                       {["Conservative", "Moderate", "Aggressive"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Investment Experience</Label>
-                  <Input value={onboardingForm.investmentExperience ?? ""} onChange={(e) => handleOnboardingChange("investmentExperience", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.investmentExperience ?? ""} onChange={(e) => handleOnboardingChange("investmentExperience", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Source of Income</Label>
-                  <Input value={onboardingForm.sourceOfIncome ?? ""} onChange={(e) => handleOnboardingChange("sourceOfIncome", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.sourceOfIncome ?? ""} onChange={(e) => handleOnboardingChange("sourceOfIncome", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Expected Investment</Label>
-                  <Input value={onboardingForm.expectedInvestment ?? ""} onChange={(e) => handleOnboardingChange("expectedInvestment", e.target.value)} className="bg-muted/50 border-border" />
+                  <Input value={onboardingForm.expectedInvestment ?? ""} onChange={(e) => handleOnboardingChange("expectedInvestment", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                 </div>
               </div>
             </div>
@@ -1074,19 +1074,19 @@ export function ClientDetail({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label>Registration Number</Label>
-                    <Input value={onboardingForm.registrationNumber ?? ""} onChange={(e) => handleOnboardingChange("registrationNumber", e.target.value)} className="bg-muted/50 border-border" />
+                    <Input value={onboardingForm.registrationNumber ?? ""} onChange={(e) => handleOnboardingChange("registrationNumber", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Business Type</Label>
-                    <Input value={onboardingForm.businessType ?? ""} onChange={(e) => handleOnboardingChange("businessType", e.target.value)} className="bg-muted/50 border-border" />
+                    <Input value={onboardingForm.businessType ?? ""} onChange={(e) => handleOnboardingChange("businessType", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Incorporation Date</Label>
-                    <Input type="date" value={onboardingForm.incorporationDate ?? ""} onChange={(e) => handleOnboardingChange("incorporationDate", e.target.value)} className="bg-muted/50 border-border" />
+                    <Input type="date" value={onboardingForm.incorporationDate ?? ""} onChange={(e) => handleOnboardingChange("incorporationDate", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                   </div>
                   <div className="col-span-2 space-y-1.5">
                     <Label>Company Address</Label>
-                    <Input value={onboardingForm.companyAddress ?? ""} onChange={(e) => handleOnboardingChange("companyAddress", e.target.value)} className="bg-muted/50 border-border" />
+                    <Input value={onboardingForm.companyAddress ?? ""} onChange={(e) => handleOnboardingChange("companyAddress", e.target.value)} className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500" />
                   </div>
                 </div>
               </div>
@@ -1152,7 +1152,7 @@ export function ClientDetail({
 
       {/* Status Change Modal */}
       <AlertDialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
-        <AlertDialogContent className="bg-card border-border">
+        <AlertDialogContent className="bg-card border-border dark:bg-[#0f1135] dark:border-[#2B2F77]/50">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -1169,10 +1169,10 @@ export function ClientDetail({
             <div className="space-y-2">
               <Label htmlFor="status">Account Status</Label>
               <Select value={newStatus} onValueChange={setNewStatus}>
-                <SelectTrigger className="bg-muted/50 border-border">
+                <SelectTrigger className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border-border">
+                <SelectContent className="bg-card border-border dark:bg-[#0f1135] dark:border-[#2B2F77]/50">
                   {STATUS_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}

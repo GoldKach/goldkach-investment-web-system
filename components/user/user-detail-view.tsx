@@ -2110,7 +2110,7 @@ export function UserDetailPreview({
               </CardContent>
             </Card>
           ) : (() => {
-            const computedTotalFees = portfolioSummary.portfolios.reduce((s, p) => s + (p.wallet?.totalFees ?? 0), 0)
+            const depositFees           = portfolioSummary.masterWallet?.totalFees ?? 0
             const computedTotalGainLoss = portfolioSummary.portfolios.reduce((s, p) => s + p.assets.reduce((as, a) => as + a.lossGain, 0), 0)
             const computedTotalInvested = portfolioSummary.aggregate.totalInvested
             const computedTotalValue = portfolioSummary.aggregate.totalValue
@@ -2126,7 +2126,7 @@ export function UserDetailPreview({
                     { label: "Total Invested", value: fmtUSD.format(computedTotalInvested), sub: portfolioSummary.aggregate.portfolioCount + " portfolios", icon: DollarSign, cls: "text-blue-400", bg: "bg-blue-500/10" },
                     { label: "Investment Return", value: fmtUSD.format(computedTotalValue), sub: "Sum of asset close values", icon: WalletIcon, cls: "text-emerald-400", bg: "bg-emerald-500/10" },
                     { label: "Total Gain / Loss", value: (aggPos ? "+" : "") + fmtUSD.format(computedTotalGainLoss), sub: fmtPct(computedReturnPct), icon: aggPos ? TrendingUp : TrendingDown, cls: aggPos ? "text-emerald-400" : "text-red-400", bg: aggPos ? "bg-emerald-500/10" : "bg-red-500/10" },
-                    { label: "Total Fees", value: fmtUSD.format(computedTotalFees), sub: "Sum of all portfolio fees", icon: Banknote, cls: "text-amber-400", bg: "bg-amber-500/10" },
+                    { label: "Total Fees", value: fmtUSD.format(depositFees), sub: "Fees on master deposits", icon: Banknote, cls: "text-amber-400", bg: "bg-amber-500/10" },
                   ].map((item) => (
                     <Card key={item.label}>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -2140,49 +2140,6 @@ export function UserDetailPreview({
                     </Card>
                   ))}
                 </div>
-
-                {/* ── Master Wallet ── */}
-                {portfolioSummary.masterWallet && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-lg bg-blue-500/10 p-2.5">
-                            <Building2 className="h-5 w-5 text-blue-400" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-base">Master Wallet</CardTitle>
-                            <CardDescription className="font-mono text-xs">{portfolioSummary.masterWallet.accountNumber}</CardDescription>
-                          </div>
-                        </div>
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold
-                          ${portfolioSummary.masterWallet.status === "ACTIVE"
-                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                            : "border-slate-500/20 bg-slate-500/10 text-slate-400"}`}>
-                          {portfolioSummary.masterWallet.status}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <Separator />
-                    <CardContent className="pt-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                        {[
-                          { label: "Available Balance", value: fmtUSD.format(portfolioSummary.masterWallet.balance ?? 0), cls: "text-green-400" },
-                          { label: "Investment Return", value: fmtUSD.format(portfolioSummary.masterWallet.netAssetValue), cls: "text-blue-400" },
-                          { label: "Total Deposited", value: fmtUSD.format(portfolioSummary.masterWallet.totalDeposited), cls: "text-emerald-400" },
-                          { label: "Total Withdrawn", value: fmtUSD.format(portfolioSummary.masterWallet.totalWithdrawn), cls: "text-red-400" },
-                          { label: "Total Fees", value: fmtUSD.format(portfolioSummary.masterWallet.totalFees), cls: "text-amber-400" },
-                          { label: "Net Flow", value: fmtUSD.format(portfolioSummary.masterWallet.totalDeposited - portfolioSummary.masterWallet.totalWithdrawn), cls: (portfolioSummary.masterWallet.totalDeposited - portfolioSummary.masterWallet.totalWithdrawn) >= 0 ? "text-emerald-400" : "text-red-400" },
-                        ].map((item) => (
-                          <div key={item.label} className="rounded-lg border border-border bg-muted/40 p-3">
-                            <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
-                            <p className={`text-sm font-bold ${item.cls}`}>{item.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
 
                 {/* ── Individual portfolio cards ── */}
                 {portfolioSummary.portfolios.length === 0 ? (
