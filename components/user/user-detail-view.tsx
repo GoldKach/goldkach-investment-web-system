@@ -1021,7 +1021,7 @@
 // components/user/dashboard-content.tsx
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -1037,7 +1037,9 @@ import {
   Shield, Target, Briefcase, CreditCard, FileText, Download, Eye,
   Image as ImageIcon, File, Building2, CheckCircle2, Clock, XCircle,
   Layers, BarChart2, PieChartIcon, Banknote, Calendar, Hash, ChevronDown, Loader2,
+  Wifi, MapPin, Monitor, Smartphone, Tablet, LogOut, RefreshCw, AlertTriangle,
 } from "lucide-react"
+import { listUserSessions, revokeSession, type Session as UserSession } from "@/actions/sessions"
 import type { PortfolioSummary } from "@/actions/portfolio-summary"
 import { createRedemption } from "@/actions/withdraws"
 import { createAllocation } from "@/actions/deposits"
@@ -1057,6 +1059,7 @@ type Deposit = {
   createdAt: string
   method?: string | null
   transactionStatus: TxStatus
+  depositTarget?: string | null   // "MASTER" | "ALLOCATION"
 }
 
 type Withdrawal = {
@@ -1065,6 +1068,7 @@ type Withdrawal = {
   createdAt: string
   method?: string | null
   transactionStatus: TxStatus
+  withdrawalType?: string | null  // "HARD_WITHDRAWAL" | "REDEMPTION"
 }
 
 type Wallet = {
@@ -1150,6 +1154,223 @@ type TxRow = {
 
 type SeriesPoint = { date: string; value: number; deposits?: number; withdrawals?: number }
 
+/* ── Sessions Tab ──────────────────────────────────────────────────────────── */
+
+function SessionsTab({ userId }: { userId: string }) {
+  const [sessions, setSessions] = useState<UserSession[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState<string | null>(null)
+  const [revoking, setRevoking] = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true); setError(null)
+    try {
+      const res = await listUserSessions(userId)
+      setSessions(res.data ?? [])
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load sessions")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [userId])
+
+  async function handleRevoke(sessionId: string) {
+    setRevoking(sessionId)
+    const res = await revokeSession(sessionId)
+    if (res.success) {
+      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, revoked: true, isActive: false } : s))
+    } else {
+      setError(res.error ?? "Failed to revoke session")
+    }
+    setRevoking(null)
+  }
+
+  function timeAgo(d: string) {
+    const diff = Date.now() - new Date(d).getTime()
+    const m = Math.floor(diff / 60_000)
+    if (m < 1) return "just now"
+    if (m < 60) return `${m}m ago`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h ago`
+    return `${Math.floor(h / 24)}d ago`
+  }
+
+  function fmtDateTime(d: string) {
+    return new Date(d).toLocaleString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    })
+  }
+
+  const activeCount = sessions.filter(s => s.isActive).length
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+      <Loader2 className="h-5 w-5 animate-spin" />
+      <span className="text-sm">Loading sessions…</span>
+    </div>
+  )
+
+  if (error) return (
+    <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 p-6 text-center space-y-3">
+      <p className="text-sm text-red-500">{error}</p>
+      <Button size="sm" variant="outline" onClick={load} className="gap-2">
+        <RefreshCw className="h-3.5 w-3.5" /> Retry
+      </Button>
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {/* Summary bar */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold">{sessions.length} session{sessions.length !== 1 ? "s" : ""} total</p>
+          <p className="text-xs text-muted-foreground">{activeCount} currently active</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={load} className="gap-2 h-8">
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </Button>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="border-l-4 border-l-emerald-500">
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Active</p>
+            <p className="text-xl font-bold text-emerald-500">{activeCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-red-400">
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Revoked</p>
+            <p className="text-xl font-bold text-red-400">{sessions.filter(s => s.revoked).length}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-amber-400">
+          <CardContent className="p-3">
+            <p className="text-xs text-muted-foreground">Expired</p>
+            <p className="text-xl font-bold text-amber-400">{sessions.filter(s => s.isExpired && !s.revoked).length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sessions table */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs min-w-[700px]">
+              <thead className="bg-muted/30 border-y border-border">
+                <tr>
+                  <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">IP Address</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Location</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Device / Browser</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Logged In</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Expires</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No sessions found.</td>
+                  </tr>
+                ) : sessions.map(s => (
+                  <tr key={s.id} className={`hover:bg-muted/20 transition-colors ${s.isActive ? "bg-emerald-500/3" : ""}`}>
+                    {/* IP */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <Wifi className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span className="font-mono">{s.ipAddress ?? "—"}</span>
+                      </div>
+                    </td>
+                    {/* Location */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                        <div>
+                          <p>{s.city && s.country ? `${s.city}, ${s.country}` : (s.location ?? "Unknown")}</p>
+                          {s.city && s.country && s.location && s.location !== `${s.city}, ${s.country}` && (
+                            <p className="text-[10px] text-muted-foreground">{s.location}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    {/* Device / Browser */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {s.deviceType === "Mobile" ? <Smartphone className="h-3.5 w-3.5 shrink-0" /> :
+                         s.deviceType === "Tablet"  ? <Tablet    className="h-3.5 w-3.5 shrink-0" /> :
+                         <Monitor className="h-3.5 w-3.5 shrink-0" />}
+                        <div>
+                          <p>{s.browser ?? "Unknown"}</p>
+                          <p className="text-[10px] text-muted-foreground">{s.os ?? ""}{s.deviceType ? ` · ${s.deviceType}` : ""}</p>
+                        </div>
+                      </div>
+                    </td>
+                    {/* Logged In */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <div>
+                          <p>{timeAgo(s.createdAt)}</p>
+                          <p className="text-[10px]">{fmtDateTime(s.createdAt)}</p>
+                        </div>
+                      </div>
+                    </td>
+                    {/* Expires */}
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {s.isExpired
+                        ? <span className="text-red-400">Expired</span>
+                        : <span>{timeAgo(s.expiresAt)} left</span>}
+                    </td>
+                    {/* Status */}
+                    <td className="px-4 py-3">
+                      {s.revoked ? (
+                        <Badge variant="outline" className="text-[10px] border-red-400/30 bg-red-400/10 text-red-400">
+                          <XCircle className="h-2.5 w-2.5 mr-1" /> Revoked
+                        </Badge>
+                      ) : s.isExpired ? (
+                        <Badge variant="outline" className="text-[10px] border-amber-400/30 bg-amber-400/10 text-amber-400">
+                          <AlertTriangle className="h-2.5 w-2.5 mr-1" /> Expired
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] border-emerald-400/30 bg-emerald-400/10 text-emerald-400">
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-1" /> Active
+                        </Badge>
+                      )}
+                    </td>
+                    {/* Action */}
+                    <td className="px-4 py-3">
+                      {s.isActive && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={revoking === s.id}
+                          onClick={() => handleRevoke(s.id)}
+                          className="h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-500/10 text-[10px] gap-1"
+                        >
+                          {revoking === s.id
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <LogOut className="h-3 w-3" />}
+                          Revoke
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 export function UserDetailPreview({
   user,
   portfolioSummary,
@@ -1199,22 +1420,30 @@ export function UserDetailPreview({
   }))
 
   const recentTx: TxRow[] = [
-    ...deposits.map(d => ({
-      id: d.id,
-      type: "Deposit" as const,
-      amount: d.amount,
-      status: d.transactionStatus,
-      date: d.createdAt,
-      method: d.method ?? null,
-    })),
-    ...withdrawals.map(w => ({
-      id: w.id,
-      type: "Withdrawal" as const,
-      amount: w.amount,
-      status: w.transactionStatus,
-      date: w.createdAt,
-      method: w.method ?? null,
-    })),
+    // Only external cash-in events (MASTER deposits). ALLOCATION entries are
+    // internal portfolio movements already shown in the Portfolios tab.
+    ...deposits
+      .filter(d => d.depositTarget === "MASTER" || !d.depositTarget)
+      .map(d => ({
+        id:     d.id,
+        type:   "Deposit" as const,
+        amount: d.amount,
+        status: d.transactionStatus,
+        date:   d.createdAt,
+        method: d.method ?? null,
+      })),
+    // Only external cash-out events (HARD_WITHDRAWAL). REDEMPTION entries are
+    // internal portfolio movements already shown in the Portfolios tab.
+    ...withdrawals
+      .filter(w => w.withdrawalType === "HARD_WITHDRAWAL" || !w.withdrawalType)
+      .map(w => ({
+        id:     w.id,
+        type:   "Withdrawal" as const,
+        amount: w.amount,
+        status: w.transactionStatus,
+        date:   w.createdAt,
+        method: w.method ?? null,
+      })),
   ]
     .sort((a, b) => +new Date(b.date) - +new Date(a.date))
     .slice(0, 12)
@@ -1426,7 +1655,7 @@ export function UserDetailPreview({
   return (
     <div className="flex-1 space-y-6 p-6">
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
@@ -1441,6 +1670,7 @@ export function UserDetailPreview({
             )}
           </TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="sessions">Sessions</TabsTrigger>
         </TabsList>
 
         {/* ===== Overview ===== */}
@@ -2663,6 +2893,11 @@ export function UserDetailPreview({
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ===== Sessions ===== */}
+        <TabsContent value="sessions" className="space-y-4">
+          <SessionsTab userId={user.id} />
         </TabsContent>
 
       </Tabs>

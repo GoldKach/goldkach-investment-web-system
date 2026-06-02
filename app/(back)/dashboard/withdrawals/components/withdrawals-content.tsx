@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { approveWithdrawal, rejectWithdrawal, updateWithdrawal, createWithdrawal, type Withdrawal } from "@/actions/withdraws";
+import { EditDateInline } from "@/components/shared/edit-date-inline";
 import { getUserPortfolioById } from "@/actions/user-portfolios";
 import { getMasterWalletByUser } from "@/actions/master-wallets";
 import { getClientsForAssignmentAction, type ClientUser } from "@/actions/staff";
@@ -65,8 +66,8 @@ function statusBadge(status: string) {
 
 function typeBadge(type: string) {
   return type === "HARD_WITHDRAWAL"
-    ? "border-orange-500/30 bg-orange-500/10 text-orange-400"
-    : "border-cyan-500/30 bg-cyan-500/10 text-cyan-400";
+    ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+    : "border-blue-400/30 bg-blue-400/10 text-blue-300";
 }
 
 function typeLabel(type: string) {
@@ -313,7 +314,7 @@ function ApproveDialog({
       <DialogContent className="max-w-md border-border bg-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className={`h-5 w-5 ${isRedemption ? "text-cyan-400" : "text-emerald-400"}`} />
+            <CheckCircle className={`h-5 w-5 ${isRedemption ? "text-blue-400" : "text-emerald-400"}`} />
             {isRedemption ? "Approve Redemption" : "Approve Cash Withdrawal"}
           </DialogTitle>
           <DialogDescription>
@@ -539,7 +540,7 @@ function ApproveDialog({
               (isRedemption && uniqueAssets.length > 0 && !allPricesFilled) ||
               loadingAssets
             }
-            className={`${isRedemption ? "bg-cyan-600 hover:bg-cyan-700" : "bg-emerald-600 hover:bg-emerald-700"} text-white gap-2`}
+            className={`${isRedemption ? "bg-blue-600 hover:bg-blue-700" : "bg-emerald-600 hover:bg-emerald-700"} text-white gap-2`}
           >
             {isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
             Confirm Approval
@@ -771,7 +772,7 @@ function RedemptionApproveDialog({
       <DialogContent className="max-w-lg border-border bg-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-cyan-400" />
+            <Layers className="h-5 w-5 text-blue-400" />
             Approve All Pending Redemptions
           </DialogTitle>
           <DialogDescription>
@@ -793,7 +794,7 @@ function RedemptionApproveDialog({
                     {(w.userPortfolio as any)?.customName ?? "Portfolio"} · {w.referenceNo ?? w.id.slice(-8)}
                   </p>
                 </div>
-                <span className="text-sm font-bold text-cyan-400 shrink-0">{fmt.format(w.amount)}</span>
+                <span className="text-sm font-bold text-blue-400 shrink-0">{fmt.format(w.amount)}</span>
               </div>
             ))}
           </div>
@@ -842,8 +843,8 @@ function RedemptionApproveDialog({
 
           {/* Progress */}
           {progress && (
-            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3">
-              <p className="text-sm text-cyan-400 flex items-center gap-2">
+            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+              <p className="text-sm text-blue-400 flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 animate-spin" />
                 Approving {progress.done} of {progress.total}...
               </p>
@@ -861,7 +862,7 @@ function RedemptionApproveDialog({
                 onClick={() => setDateMode("now")}
                 className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
                   dateMode === "now"
-                    ? "border-cyan-500 bg-cyan-500/10 text-cyan-400"
+                    ? "border-blue-500 bg-blue-500/10 text-blue-400"
                     : "border-border text-muted-foreground hover:bg-muted/40"
                 }`}
               >
@@ -898,7 +899,7 @@ function RedemptionApproveDialog({
           <Button
             onClick={handleApproveAll}
             disabled={isPending || pendingRedemptions.length === 0 || loadingAssets || (uniqueAssets.length > 0 && !allPricesFilled)}
-            className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
           >
             {isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
             Approve All ({pendingRedemptions.length})
@@ -948,9 +949,9 @@ function DetailsModal({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {isHard ? (
-                <Banknote className="h-5 w-5 text-orange-400" />
+                <Banknote className="h-5 w-5 text-blue-400" />
               ) : (
-                <ArrowDownToLine className="h-5 w-5 text-cyan-400" />
+                <ArrowDownToLine className="h-5 w-5 text-blue-400" />
               )}
               {isHard ? "Cash Withdrawal" : "Portfolio Redemption"}
             </DialogTitle>
@@ -1046,9 +1047,15 @@ function DetailsModal({
               <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5" /> Timeline
               </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <span className="text-muted-foreground">Created</span>
-                <span>{fmtDate(withdrawal.createdAt)}</span>
+              <div className="space-y-2 text-xs">
+                <EditDateInline
+                  label="Created"
+                  value={withdrawal.createdAt}
+                  onSave={(iso) => updateWithdrawal(withdrawal.id, { createdAt: iso }).then(r => {
+                    if (r.success) onSuccess();
+                    return r;
+                  })}
+                />
                 {withdrawal.approvedAt && (
                   <>
                     <span className="text-muted-foreground">Approved</span>
@@ -1113,7 +1120,7 @@ function DetailsModal({
                 Reject
               </Button>
               <Button
-                className="bg-cyan-600 hover:bg-cyan-700 text-white gap-1.5"
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
                 onClick={() => setApproveOpen(true)}
               >
                 <CheckCircle className="h-4 w-4" />
@@ -1271,7 +1278,7 @@ function AdminWithdrawDialog({
       <DialogContent className="max-w-lg border-border bg-card max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowDownToLine className="h-5 w-5 text-orange-400" />
+            <ArrowDownToLine className="h-5 w-5 text-blue-400" />
             Withdraw for Client
           </DialogTitle>
           <DialogDescription>
@@ -1287,7 +1294,7 @@ function AdminWithdrawDialog({
             </Label>
 
             {selectedClient ? (
-              <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-3 flex items-center justify-between gap-3">
+              <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate">
                     {selectedClient.firstName} {selectedClient.lastName ?? ""}
@@ -1446,7 +1453,7 @@ function AdminWithdrawDialog({
 
           {/* ── Summary box ─────────────────────────────────── */}
           {selectedClient && amountOk && (
-            <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 space-y-1 text-sm">
+            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-1 text-sm">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Summary</p>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Client</span>
@@ -1454,7 +1461,7 @@ function AdminWithdrawDialog({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount</span>
-                <span className="font-bold text-orange-400">{fmt.format(amountNum)}</span>
+                <span className="font-bold text-blue-400">{fmt.format(amountNum)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Bank</span>
@@ -1477,7 +1484,7 @@ function AdminWithdrawDialog({
           <Button
             onClick={handleSubmit}
             disabled={isPending || !formOk}
-            className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
           >
             {isPending ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -1578,7 +1585,7 @@ export function WithdrawalsContent({
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           <Button
             size="sm"
-            className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
             onClick={() => setAdminWithdrawOpen(true)}
           >
             <ArrowDownToLine className="h-3.5 w-3.5" />
@@ -1587,7 +1594,7 @@ export function WithdrawalsContent({
           {stats.pendingRedemptions.length > 0 && (
             <Button
               size="sm"
-              className="bg-cyan-600 hover:bg-cyan-700 text-white gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
               onClick={() => setRedemptionApproveOpen(true)}
             >
               <Layers className="h-3.5 w-3.5" />
@@ -1645,7 +1652,7 @@ export function WithdrawalsContent({
                 placeholder="Search by name, email, reference, bank..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-muted/50 border-border"
+                className="pl-9 bg-card dark:bg-muted/30 border-border text-foreground"
               />
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>

@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "../front-end/theme-toggle";
 import { logoutUser } from "@/actions/auth";
-// ⬇️ server action
+import { InstallNavButton } from "@/components/pwa/install-nav-button";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 const DashboardNav = ({ user }: { user: any }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,7 +52,9 @@ const DashboardNav = ({ user }: { user: any }) => {
           className="max-w-sm"
         />
       </div>
+      <InstallNavButton />
       <ThemeToggle />
+      <InstallPrompt />
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>

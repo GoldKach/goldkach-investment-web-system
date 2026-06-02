@@ -163,6 +163,21 @@ export async function getUserTopupEvents(
   return listTopupEvents({ userId, status });
 }
 
+/** PATCH /topup-events/:id/date — update createdAt / mergedAt */
+export async function updateTopupEventDate(
+  id: string,
+  input: { createdAt?: string; mergedAt?: string }
+) {
+  if (!id) return { success: false, error: "Missing id." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.patch(`/topup-events/${id}/date`, input, { headers });
+    return { success: true, data: res.data?.data as TopupEvent };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to update topup event date") };
+  }
+}
+
 /**
  * Get NAV growth history from the timeline.
  * Returns an array of { date, nav, invested, gainLoss } — ready for charts.

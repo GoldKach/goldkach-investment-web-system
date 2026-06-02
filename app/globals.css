@@ -206,3 +206,8 @@ html {
 body {
   overflow-x: hidden;
 }
+
+/* Safe area padding for mobile bottom nav (iPhone home indicator) */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

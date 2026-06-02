@@ -1,55 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getAllUsers } from "@/actions/auth";
-import { getAllStaffAction } from "@/actions/staff";
+import { listSessions, getSessionStats, revokeSession, type Session, type SessionStats } from "@/actions/sessions";
 import { ActiveSessionsView } from "./active-sessions-view";
+import { toast } from "sonner";
 
 export function ActiveSessionsShell({ currentUserId }: { currentUserId: string }) {
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [sessions,  setSessions]  = useState<Session[]>([]);
+  const [stats,     setStats]     = useState<SessionStats | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const [usersRes, staffRes] = await Promise.allSettled([
-        getAllUsers(),
-        getAllStaffAction(),
+      const [sessRes, statsRes] = await Promise.all([
+        listSessions({ pageSize: 200, active: false }),
+        getSessionStats(),
       ]);
-
-      const allUsers = usersRes.status === "fulfilled" ? (usersRes.value?.data ?? []) : [];
-      const allStaff = staffRes.status === "fulfilled" ? (staffRes.value?.data ?? []) : [];
-
-      const everyone = [
-        ...allUsers.map((u: any) => ({ ...u, _source: "user" })),
-        ...allStaff.map((s: any) => ({ ...s, _source: "staff" })),
-      ];
-
-      const activeSessions = everyone
-        .filter((u: any) => u.status === "ACTIVE")
-        .map((u: any) => ({
-          id: u.id,
-          name: [u.firstName, u.lastName].filter(Boolean).join(" ") || u.name || u.email,
-          email: u.email,
-          role: u.role,
-          imageUrl: u.imageUrl || "",
-          status: u.status,
-          lastSeen: u.updatedAt || u.createdAt,
-          createdAt: u.createdAt,
-          isCurrentUser: u.id === currentUserId,
-        }))
-        .sort((a: any, b: any) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
-
-      setSessions(activeSessions);
+      setSessions(sessRes.data  ?? []);
+      setStats(statsRes.data   ?? null);
     } catch (err: any) {
-      setError(err?.message ?? "Unexpected error loading sessions.");
+      setError(err?.message ?? "Failed to load sessions.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleRevoke(sessionId: string) {
+    startTransition(async () => {
+      const res = await revokeSession(sessionId);
+      if (res.success) {
+        toast.success("Session revoked");
+        setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, revoked: true, isActive: false } : s));
+      } else {
+        toast.error(res.error ?? "Failed to revoke session");
+      }
+    });
   }
 
   useEffect(() => { load(); }, []);
@@ -58,7 +49,7 @@ export function ActiveSessionsShell({ currentUserId }: { currentUserId: string }
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
         <Loader2 className="h-7 w-7 animate-spin opacity-40" />
-        <p className="text-sm">Loading active sessions…</p>
+        <p className="text-sm">Loading sessions…</p>
       </div>
     );
   }
@@ -78,5 +69,14 @@ export function ActiveSessionsShell({ currentUserId }: { currentUserId: string }
     );
   }
 
-  return <ActiveSessionsView sessions={sessions} currentUserId={currentUserId} />;
+  return (
+    <ActiveSessionsView
+      sessions={sessions}
+      stats={stats}
+      currentUserId={currentUserId}
+      onRevoke={handleRevoke}
+      onRefresh={load}
+      isRevoking={isPending}
+    />
+  );
 }

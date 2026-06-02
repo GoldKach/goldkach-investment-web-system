@@ -482,6 +482,7 @@ export interface WithdrawalUpdateInput {
   bankName?:       string | null;
   bankAccountName?: string | null;
   bankBranch?:     string | null;
+  createdAt?:      string | null;
   description?:    string | null;
 }
 
@@ -613,6 +614,7 @@ export async function updateWithdrawal(
       ...(input.bankAccountName !== undefined ? { bankAccountName: input.bankAccountName } : {}),
       ...(input.bankBranch      !== undefined ? { bankBranch:      input.bankBranch      } : {}),
       ...(input.description     !== undefined ? { description:     input.description     } : {}),
+      ...(input.createdAt       !== undefined ? { createdAt:       input.createdAt       } : {}),
     };
 
     const include = toIncludeParam(opts?.include);

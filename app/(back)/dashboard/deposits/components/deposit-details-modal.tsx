@@ -13,7 +13,8 @@ import {
   FileText, AlertCircle, Image as ImageIcon, ExternalLink,
   Download, Printer, Mail, Loader2, UserCheck, PieChart, CalendarDays,
 } from "lucide-react"
-import { type Deposit, approveDeposit, rejectDeposit } from "@/actions/deposits"
+import { type Deposit, approveDeposit, rejectDeposit, updateDeposit } from "@/actions/deposits"
+import { EditDateInline } from "@/components/shared/edit-date-inline"
 import { getUserPortfolioById, type UserPortfolioAssetDTO } from "@/actions/user-portfolios"
 import { downloadReceiptPdf } from "@/lib/download-receipt"
 import { toast } from "sonner"
@@ -440,7 +441,14 @@ export function DepositDetailsModal({
           <div>
             <h3 className={hd}><FileText className="h-4 w-4" /> Audit Trail</h3>
             <div className={card}>
-              <div className="flex justify-between"><span className={lbl}>Created At</span><span className={val}>{new Date(deposit.createdAt).toLocaleString()}</span></div>
+              <EditDateInline
+                label="Created At"
+                value={deposit.createdAt}
+                onSave={(iso) => updateDeposit(deposit.id, { createdAt: iso }).then(r => {
+                  if (r.success) onSuccess();
+                  return r;
+                })}
+              />
               <div className="flex justify-between"><span className={lbl}>Updated At</span><span className={val}>{new Date(deposit.updatedAt).toLocaleString()}</span></div>
               {deposit.approvedByName && <div className="flex justify-between"><span className={lbl}>Approved By</span><span className={val}>{deposit.approvedByName}</span></div>}
               {deposit.approvedAt    && <div className="flex justify-between"><span className={lbl}>Approved At</span><span className={val}>{new Date(deposit.approvedAt).toLocaleString()}</span></div>}

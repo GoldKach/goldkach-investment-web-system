@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Eye, Search, X, TrendingUp, TrendingDown, Zap, Filter } from "lucide-react";
+import { updateTopupEventDate } from "@/actions/topup-events";
+import { EditDateInline } from "@/components/shared/edit-date-inline";
 
 const fmt$ = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
 const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -25,7 +27,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ViewDialog({ event, open, onClose }: { event: TopupEvent | null; open: boolean; onClose: () => void }) {
+function ViewDialog({ event, open, onClose, onRefresh }: { event: TopupEvent | null; open: boolean; onClose: () => void; onRefresh?: () => void }) {
   if (!event) return null;
   const gainLoss = event.newTotalLossGain;
   const isPos    = gainLoss >= 0;
@@ -81,6 +83,28 @@ function ViewDialog({ event, open, onClose }: { event: TopupEvent | null; open: 
               ))}
             </div>
           )}
+          {/* Editable dates */}
+          <div className="rounded-xl bg-slate-50 dark:bg-[#161b4a]/60 border border-slate-100 dark:border-[#2B2F77]/30 p-3 space-y-2">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Transaction Dates</p>
+            <EditDateInline
+              label="Created At"
+              value={event.createdAt}
+              onSave={(iso) => updateTopupEventDate(event.id, { createdAt: iso }).then(r => {
+                if (r.success) onRefresh?.();
+                return r;
+              })}
+            />
+            {event.mergedAt && (
+              <EditDateInline
+                label="Merged At"
+                value={event.mergedAt}
+                onSave={(iso) => updateTopupEventDate(event.id, { mergedAt: iso }).then(r => {
+                  if (r.success) onRefresh?.();
+                  return r;
+                })}
+              />
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -208,7 +232,7 @@ export default function TopupEventsClient({ initialEvents, initialMeta }: Props)
           </p>
         )}
       </div>
-      <ViewDialog event={selected} open={viewOpen} onClose={() => setViewOpen(false)} />
+      <ViewDialog event={selected} open={viewOpen} onClose={() => setViewOpen(false)} onRefresh={() => {}} />
     </div>
   );
 }

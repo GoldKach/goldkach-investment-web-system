@@ -6,6 +6,7 @@ import { AgentSidebar } from "@/components/agent/agent-sidebar";
 import { ThemeToggle } from "@/components/front-end/theme-toggle";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { StaffMember } from "@/actions/staff";
+import { MobileBottomNav, agentBottomNavItems } from "@/components/shared/mobile-bottom-nav";
 
 interface AgentShellProps {
   staff: StaffMember;
@@ -27,9 +28,10 @@ export default function AgentShell({ staff, activeClientCount, hasPersonalPortfo
             </span>
             <ThemeToggle />
           </header>
-          <div className="p-6">{children}</div>
+          <div className="p-6 pb-20 md:pb-6">{children}</div>
         </div>
       </SidebarInset>
+      <MobileBottomNav items={agentBottomNavItems} />
     </SidebarProvider>
   );
 }

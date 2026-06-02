@@ -345,6 +345,7 @@ export interface DepositUpdateInput {
   accountNo?:     string | null;
   method?:        string | null;
   description?:   string | null;
+  createdAt?:     string | null;
   // NOTE: transactionStatus is NOT settable here — use approve/reverse
 }
 
@@ -551,6 +552,7 @@ export async function updateDeposit(
       ...(input.accountNo     !== undefined ? { accountNo:     input.accountNo }     : {}),
       ...(input.method        !== undefined ? { method:        input.method }        : {}),
       ...(input.description   !== undefined ? { description:   input.description }   : {}),
+      ...(input.createdAt     !== undefined ? { createdAt:     input.createdAt }     : {}),
     };
     const res = await api.patch(`/deposits/${id}`, payload, {
       headers,

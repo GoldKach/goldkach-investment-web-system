@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import DashboardNav from "@/components/back/dashboard-nav";
 import Image from "next/image";
 import UserSidebar from "../user/user-sidebar";
+import { MobileBottomNav, userBottomNavItems } from "@/components/shared/mobile-bottom-nav";
 
 type User = {
   id: string;
@@ -33,9 +34,10 @@ export default function UserDashboardShell({
       <SidebarInset>
         <div className="md:ml-[220px] lg:ml-[225px]">
           <DashboardNav user={user} />
-          <div>{children}</div>
+          <div className="pb-16 md:pb-0">{children}</div>
         </div>
       </SidebarInset>
+      <MobileBottomNav items={userBottomNavItems} />
     </SidebarProvider>
   );
 }

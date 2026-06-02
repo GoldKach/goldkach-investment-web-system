@@ -6,6 +6,19 @@ const fmt = (n: number) =>
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
+/** Historical per-asset snapshot stored at report generation time */
+interface AssetSnapshot {
+  assetId:     string;
+  symbol:      string;
+  description: string;
+  stock:       number;
+  costPerShare: number;
+  costPrice:   number;
+  closePrice:  number;  // price at the time the report was generated
+  closeValue:  number;
+  lossGain:    number;
+}
+
 interface ReportData {
   id: string;
   userPortfolioId: string;
@@ -19,6 +32,8 @@ interface ReportData {
   bankCost: number;
   transactionCost: number;
   cashAtBank: number;
+  /** Historical per-asset prices captured when this report was generated. Always use these over live userAssets prices. */
+  assetSnapshots?: AssetSnapshot[];
   assetBreakdown?: Array<{
     assetClass: string;
     holdings: number;
@@ -32,6 +47,7 @@ interface ReportData {
     customName?: string;
     portfolio?: { name: string };
     userAssets?: Array<{
+      assetId?: string;
       stock: number;
       allocationPercentage: number;
       costPerShare: number;
@@ -285,23 +301,60 @@ export async function generatePerformanceReportPDF(
 
   currentY += 15;
 
-  const userAssets = report.userPortfolio?.userAssets ?? [];
-  if (userAssets.length > 0) {
-    const positionsData = userAssets.map((userAsset) => [
-      userAsset.asset?.symbol || "N/A",
-      userAsset.asset?.description || "N/A",
-      userAsset.stock.toFixed(2),
-      `${userAsset.allocationPercentage.toFixed(0)}%`,
-      fmt(userAsset.costPerShare),
-      fmt(userAsset.costPrice),
-      fmt(userAsset.asset?.closePrice || 0),
-      fmt(userAsset.closeValue),
-      fmt(userAsset.lossGain),
+  // Prefer historical snapshots (stored at report generation time).
+  // Fall back to live userAssets only if no snapshots exist (legacy reports).
+  const snapshots = report.assetSnapshots ?? [];
+  const liveUserAssets = report.userPortfolio?.userAssets ?? [];
+
+  // Build allocationPercentage lookup from live assets (config value, doesn't change with price)
+  const allocPctMap = new Map(
+    liveUserAssets.map((ua) => [ua.assetId ?? ua.asset?.symbol ?? "", ua.allocationPercentage])
+  );
+
+  const sourceAssets: Array<{
+    symbol: string; description: string; stock: number;
+    allocationPct: number; costPerShare: number; costPrice: number;
+    closePrice: number; closeValue: number; lossGain: number;
+  }> = snapshots.length > 0
+    ? snapshots.map((s) => ({
+        symbol:       s.symbol      || "N/A",
+        description:  s.description || "N/A",
+        stock:        s.stock,
+        allocationPct: allocPctMap.get(s.assetId) ?? 0,
+        costPerShare: s.costPerShare,
+        costPrice:    s.costPrice,
+        closePrice:   s.closePrice,   // historical price at report date
+        closeValue:   s.closeValue,   // historical value at report date
+        lossGain:     s.lossGain,     // historical gain/loss at report date
+      }))
+    : liveUserAssets.map((ua) => ({
+        symbol:       ua.asset?.symbol      || "N/A",
+        description:  ua.asset?.description || "N/A",
+        stock:        ua.stock,
+        allocationPct: ua.allocationPercentage,
+        costPerShare: ua.costPerShare,
+        costPrice:    ua.costPrice,
+        closePrice:   ua.asset?.closePrice ?? 0,   // live fallback
+        closeValue:   ua.closeValue,
+        lossGain:     ua.lossGain,
+      }));
+
+  if (sourceAssets.length > 0) {
+    const positionsData = sourceAssets.map((a) => [
+      a.symbol,
+      a.description,
+      a.stock.toFixed(2),
+      `${a.allocationPct.toFixed(0)}%`,
+      fmt(a.costPerShare),
+      fmt(a.costPrice),
+      fmt(a.closePrice),
+      fmt(a.closeValue),
+      fmt(a.lossGain),
     ]);
 
-    const subTotalCostPrice = userAssets.reduce((sum, a) => sum + a.costPrice, 0);
-    const subTotalCloseValue = userAssets.reduce((sum, a) => sum + a.closeValue, 0);
-    const subTotalGainLoss = userAssets.reduce((sum, a) => sum + a.lossGain, 0);
+    const subTotalCostPrice  = sourceAssets.reduce((sum, a) => sum + a.costPrice,  0);
+    const subTotalCloseValue = sourceAssets.reduce((sum, a) => sum + a.closeValue, 0);
+    const subTotalGainLoss   = sourceAssets.reduce((sum, a) => sum + a.lossGain,   0);
 
     positionsData.push(["Sub Total", "", "", "", "", fmt(subTotalCostPrice), "", fmt(subTotalCloseValue), fmt(subTotalGainLoss)]);
 

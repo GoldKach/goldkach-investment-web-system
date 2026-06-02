@@ -536,7 +536,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
     !!formData.expectedInvestment &&
     !!formData.sanctionsOrLegal
 
-  const validateStep5 = () => !!formData.nationalIdUrl
+  const validateStep5 = () => !!formData.nationalIdUrl && !!formData.bankStatementUrl
 
   const validateStep6 = () =>
     validateStep0() &&
@@ -959,7 +959,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
               <div className="bg-[#193388] text-white rounded-lg p-4">
                 <h4 className="font-semibold mb-1">Document Upload</h4>
                 <p className="text-sm text-blue-200">
-                  National ID or Passport is required. Bank statement, passport photo, and TIN certificate are optional.
+                  National ID or Passport and Bank Statement are required. Passport photo and TIN certificate are optional.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-4">
@@ -973,6 +973,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
                 />
                 <DocumentUploadCard
                   label="Bank Statement (last 6 months)"
+                  required
                   value={formData.bankStatementUrl}
                   onUpload={(url) => update("bankStatementUrl", url)}
                   onClear={() => update("bankStatementUrl", "")}

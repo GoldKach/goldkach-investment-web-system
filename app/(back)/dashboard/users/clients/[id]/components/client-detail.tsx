@@ -46,6 +46,39 @@ import type { PortfolioSummary } from "@/actions/portfolio-summary";
 import { generatePerformanceReportPDF } from "@/components/front-end/generate-report-pdf";
 import { TransactionLedger } from "./transaction-ledger";
 import { downloadKycPdf } from "@/lib/generate-kyc-pdf";
+import { UserLoginHistory } from "./user-login-history";
+
+// ─── Activity Log PDF download button ────────────────────────────────────────
+
+function ActivityLogDownloadButton({ userId, displayName }: { userId: string; displayName: string }) {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/users/${userId}/activity-logs/pdf`);
+      if (!res.ok) { toast.error("Failed to generate activity log PDF"); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `activity-log-${displayName.replace(/\s+/g, "-")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Failed to download activity log PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Button variant="outline" className="gap-2" onClick={handleDownload} disabled={downloading}>
+      {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+      {downloading ? "Generating…" : "Activity Log PDF"}
+    </Button>
+  );
+}
 
 const fmt = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -614,6 +647,9 @@ export function ClientDetail({
                 <FileDown className="h-4 w-4" />
                 Download KYC
               </Button>
+
+              {/* Download Activity Log PDF */}
+              <ActivityLogDownloadButton userId={user.id} displayName={[user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "User"} />
             </div>
           </div>
         </CardHeader>
@@ -807,6 +843,9 @@ export function ClientDetail({
         userId={user.id}
         clientName={displayName}
       />
+
+      {/* Login History */}
+      <UserLoginHistory userId={user.id} />
 
       {/* Edit Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>

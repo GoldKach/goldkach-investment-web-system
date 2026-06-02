@@ -1,56 +1,19 @@
-// // import type { NextConfig } from "next";
-
-// // const nextConfig: NextConfig = {
-// //   /* config options here */
-// // };
-
-// // export default nextConfig;
-
-
-
-// // import type { NextConfig } from "next";
-
-// // const nextConfig: NextConfig = {
-// //   /* config options here */
-// // };
-
-// // export default nextConfig;
-
-
-
-
-
-// import type { NextConfig } from "next";
-
-// const nextConfig: NextConfig = {
-//    eslint: {
-//     ignoreDuringBuilds: true,
-//   },
-//   // Suppress Node.js deprecation warnings from third-party packages (e.g. url.parse in axios)
-//   serverExternalPackages: [],
-//   images: {
-//     remotePatterns: [
-//       {
-//         protocol: "https",
-//         hostname: "**",
-//       },
-//       { protocol: "https", hostname: "utfs.io", pathname: "/f/**" },
-//       {
-//         protocol: "https",
-//         hostname: "ylhpxhcgr4.ufs.sh",
-//         pathname: "/f/**",
-//       },
-//     ],
-//   },
-// };
-
-// export default nextConfig;
-
-
-
-
-
 import type { NextConfig } from "next";
+import withPWAInit from "@ducanh2912/next-pwa";
+
+const withPWA = withPWAInit({
+  dest: "public",
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  disable: process.env.NODE_ENV === "development",
+  fallbacks: {
+    document: "/offline",
+  },
+  workboxOptions: {
+    disableDevLogs: true,
+  },
+});
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -68,18 +31,11 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [],
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
+      { protocol: "https", hostname: "**" },
       { protocol: "https", hostname: "utfs.io", pathname: "/f/**" },
-      {
-        protocol: "https",
-        hostname: "ylhpxhcgr4.ufs.sh",
-        pathname: "/f/**",
-      },
+      { protocol: "https", hostname: "ylhpxhcgr4.ufs.sh", pathname: "/f/**" },
     ],
   },
 };
 
-export default nextConfig;
+export default withPWA(nextConfig);

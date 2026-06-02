@@ -1151,26 +1151,52 @@ export default function ReportsClient({
     
     currentY += 15
     
-    if (report.userPortfolio?.userAssets && report.userPortfolio.userAssets.length > 0) {
-      const positionsData = report.userPortfolio.userAssets.map((userAsset) => {
-        const asset = userAsset.asset
-        
-        return [
-          asset?.symbol || 'N/A',
-          asset?.description || 'N/A',
-          userAsset.stock.toFixed(2),
-          `${userAsset.allocationPercentage.toFixed(0)}%`,
-          formatCurrency(userAsset.costPerShare),
-          formatCurrency(userAsset.costPrice),
-          formatCurrency(asset?.closePrice || 0),
-          formatCurrency(userAsset.closeValue),
-          formatCurrency(userAsset.lossGain)
-        ]
-      })
-      
-      const subTotalCostPrice = report.userPortfolio.userAssets.reduce((sum, a) => sum + a.costPrice, 0)
-      const subTotalCloseValue = report.userPortfolio.userAssets.reduce((sum, a) => sum + a.closeValue, 0)
-      const subTotalGainLoss = report.userPortfolio.userAssets.reduce((sum, a) => sum + a.lossGain, 0)
+    // Use historical assetSnapshots (captured at report time) when available.
+    // Fall back to live userAssets only for legacy reports that predate snapshot storage.
+    const snapshots: Array<any> = (report as any).assetSnapshots ?? []
+    const liveAssets = report.userPortfolio?.userAssets ?? []
+    const allocMap = new Map(liveAssets.map((ua: any) => [ua.assetId ?? ua.asset?.symbol ?? '', ua.allocationPercentage]))
+
+    const sourceRows: Array<any> = snapshots.length > 0
+      ? snapshots.map((s: any) => ({
+          symbol:       s.symbol || 'N/A',
+          description:  s.description || 'N/A',
+          stock:        s.stock,
+          allocationPct: allocMap.get(s.assetId) ?? 0,
+          costPerShare: s.costPerShare,
+          costPrice:    s.costPrice,
+          closePrice:   s.closePrice,   // historical price at report date
+          closeValue:   s.closeValue,
+          lossGain:     s.lossGain,
+        }))
+      : liveAssets.map((ua: any) => ({
+          symbol:       ua.asset?.symbol || 'N/A',
+          description:  ua.asset?.description || 'N/A',
+          stock:        ua.stock,
+          allocationPct: ua.allocationPercentage,
+          costPerShare: ua.costPerShare,
+          costPrice:    ua.costPrice,
+          closePrice:   ua.asset?.closePrice ?? 0,
+          closeValue:   ua.closeValue,
+          lossGain:     ua.lossGain,
+        }))
+
+    if (sourceRows.length > 0) {
+      const positionsData = sourceRows.map((row: any) => [
+        row.symbol,
+        row.description,
+        row.stock.toFixed(2),
+        `${row.allocationPct.toFixed(0)}%`,
+        formatCurrency(row.costPerShare),
+        formatCurrency(row.costPrice),
+        formatCurrency(row.closePrice),
+        formatCurrency(row.closeValue),
+        formatCurrency(row.lossGain),
+      ])
+
+      const subTotalCostPrice  = sourceRows.reduce((sum: number, a: any) => sum + a.costPrice,  0)
+      const subTotalCloseValue = sourceRows.reduce((sum: number, a: any) => sum + a.closeValue, 0)
+      const subTotalGainLoss   = sourceRows.reduce((sum: number, a: any) => sum + a.lossGain,   0)
       
       positionsData.push([
         'Sub Total',
