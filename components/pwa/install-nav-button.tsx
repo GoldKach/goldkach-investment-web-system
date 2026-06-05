@@ -5,25 +5,29 @@ import Image from "next/image";
 import { Download, X, Share, Plus, CheckCircle } from "lucide-react";
 import { usePWAInstall } from "./pwa-install-context";
 
-export function InstallNavButton() {
+export function InstallNavButton({ alwaysShow = false }: { alwaysShow?: boolean }) {
   const { canInstall, isIOS, isInstalled, install } = usePWAInstall();
   const [showPanel, setShowPanel] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // hide after install
-  useEffect(() => {
-    if (isInstalled) setInstalled(true);
-  }, [isInstalled]);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { if (isInstalled) setInstalled(true); }, [isInstalled]);
 
   if (installed) return null;
+  // Auth pages: always show. Dashboard: only show when browser confirms installable.
+  if (alwaysShow) {
+    // skip mounted guard — button content is same on server & client, no hydration mismatch
+  } else {
+    if (!mounted || !canInstall) return null;
+  }
 
   async function handleClick() {
     if (canInstall && !isIOS) {
       const ok = await install();
-      if (ok) setInstalled(true);
-      return;
+      if (ok) { setInstalled(true); return; }
     }
-    // iOS or not-yet-ready: show panel
+    // Show panel: iOS instructions or browser hint
     setShowPanel((v) => !v);
   }
 

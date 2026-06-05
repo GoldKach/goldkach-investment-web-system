@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Search, Shield, Clock, Monitor, Smartphone, Tablet,
   Globe, MapPin, Wifi, LogOut, RefreshCw, Activity,
@@ -261,7 +261,7 @@ export function ActiveSessionsView({ sessions, stats, currentUserId, onRevoke, o
                   const expanded = expandedId === s.id;
 
                   return (
-                    <>
+                    <React.Fragment key={s.id}>
                       <tr
                         key={s.id}
                         className={`hover:bg-muted/20 transition-colors cursor-pointer ${isMe ? "bg-blue-500/5" : ""}`}
@@ -403,7 +403,7 @@ export function ActiveSessionsView({ sessions, stats, currentUserId, onRevoke, o
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

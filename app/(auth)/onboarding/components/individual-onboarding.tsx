@@ -316,7 +316,15 @@ function PersonCard({
                     toast.success("Document uploaded!")
                   }
                 }}
-                onUploadError={(error) => { toast.error(`Upload failed: ${error.message}`) }}
+                onUploadError={(error) => {
+                  // In dev mode, UploadThing's callback stream may fail even though the file IS uploaded.
+                  // Run `pnpm build && pnpm start` locally to avoid this. Production is unaffected.
+                  if (error.message?.includes("callback failed")) {
+                    toast.warning("File uploaded but server confirmation failed (dev mode only). Try again or use production build.");
+                  } else {
+                    toast.error(`Upload failed: ${error.message}`);
+                  }
+                }}
                 className="border-dashed border-[#193388]/40"
               />
             </div>
@@ -376,7 +384,13 @@ function DocumentUploadCard({
                   toast.success(`${label} uploaded!`)
                 }
               }}
-              onUploadError={(error) => { toast.error(`Upload failed: ${error.message}`) }}
+              onUploadError={(error) => {
+                if (error.message?.includes("callback failed")) {
+                  toast.warning("File uploaded but confirmation failed (dev mode only). Try again or use `pnpm start`.");
+                } else {
+                  toast.error(`Upload failed: ${error.message}`);
+                }
+              }}
               className="border-dashed border-[#193388]/40"
             />
           </div>

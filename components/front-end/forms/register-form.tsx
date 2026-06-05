@@ -313,9 +313,11 @@ export function RegisterForm({ agentRef, agentInfo }: RegisterFormProps = {}) {
   const [countryCode, setCountryCode] = React.useState("+256");
   const [countrySearchTerm, setCountrySearchTerm] = React.useState("");
   const [openCountrySelect, setOpenCountrySelect] = React.useState(false);
-  const [recaptchaToken, setRecaptchaToken] = React.useState<string | null>(null);
+  const isDev = process.env.NODE_ENV === "development";
+  const [recaptchaToken, setRecaptchaToken] = React.useState<string | null>(isDev ? "dev-bypass" : null);
 
   const [error, setError] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<{ email?: string; phone?: string }>({});
   const [loading, setLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
@@ -355,22 +357,33 @@ export function RegisterForm({ agentRef, agentInfo }: RegisterFormProps = {}) {
 
     try {
       setLoading(true);
-      await createUserAction({
+      setError(null);
+      setFieldErrors({});
+
+      const result = await createUserAction({
         firstName: form.firstName.trim(),
-        lastName: entityType === "company" ? "" : form.lastName.trim(), // ← blank for company
+        lastName: entityType === "company" ? "" : form.lastName.trim(),
         email: form.email.trim().toLowerCase(),
         phone: `${countryCode}${form.phone.trim()}`,
         password: form.password,
-        entityType, // ← passed to backend so it knows individual vs company
+        entityType,
         recaptchaToken,
         website: form.website,
       });
+
+      if (!result.success) {
+        // Show field-level errors inline (email/phone already taken)
+        if (result.errors) setFieldErrors(result.errors);
+        setError(result.error || "Failed to create account. Please try again.");
+        if (!isDev) { recaptchaRef.current?.reset(); setRecaptchaToken(null); }
+        return;
+      }
+
       toast.success("Account created! Check your email for the 6-digit verification code.");
       router.replace(`/verify-email?email=${encodeURIComponent(form.email.trim().toLowerCase())}&entityType=${entityType}`);
     } catch (err: any) {
-      setError(err?.message || "Failed to create account. Please try again.");
-      recaptchaRef.current?.reset();
-      setRecaptchaToken(null);
+      setError("Failed to create account. Please try again.");
+      if (!isDev) { recaptchaRef.current?.reset(); setRecaptchaToken(null); }
     } finally {
       setLoading(false);
     }
@@ -696,7 +709,17 @@ export function RegisterForm({ agentRef, agentInfo }: RegisterFormProps = {}) {
            <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
-              <Input id="email" name="email" type="email" placeholder="you@example.com" value={form.email} onChange={onChange} required />
+              <Input
+                id="email" name="email" type="email" placeholder="you@example.com"
+                value={form.email} onChange={(e) => { onChange(e); setFieldErrors((p) => ({ ...p, email: undefined })); }}
+                required
+                className={fieldErrors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
+              />
+              {fieldErrors.email && (
+                <p className="text-sm text-red-500 flex items-center gap-1">
+                  <span>⚠</span> {fieldErrors.email}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone number</Label>
@@ -733,8 +756,17 @@ export function RegisterForm({ agentRef, agentInfo }: RegisterFormProps = {}) {
                     </Command>
                   </PopoverContent>
                 </Popover>
-                <Input id="phone" name="phone" type="tel" placeholder="712345678" value={form.phone} onChange={onChange} required className="flex-1" />
+                <Input
+                  id="phone" name="phone" type="tel" placeholder="712345678"
+                  value={form.phone} onChange={(e) => { onChange(e); setFieldErrors((p) => ({ ...p, phone: undefined })); }}
+                  required className={`flex-1 ${fieldErrors.phone ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                />
               </div>
+              {fieldErrors.phone && (
+                <p className="text-sm text-red-500 flex items-center gap-1">
+                  <span>⚠</span> {fieldErrors.phone}
+                </p>
+              )}
             </div>
           </div>
 
@@ -775,16 +807,18 @@ export function RegisterForm({ agentRef, agentInfo }: RegisterFormProps = {}) {
 
 
          </div>
-          {/* reCAPTCHA */}
-          <div className="flex justify-center py-2">
-            <ReCAPTCHA
-              ref={recaptchaRef}
-              sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-              onChange={(token) => setRecaptchaToken(token)}
-              onExpired={() => setRecaptchaToken(null)}
-              onErrored={() => setRecaptchaToken(null)}
-            />
-          </div>
+          {/* reCAPTCHA — hidden in development (bypassed automatically) */}
+          {!isDev && (
+            <div className="flex justify-center py-2">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+                onChange={(token) => setRecaptchaToken(token)}
+                onExpired={() => setRecaptchaToken(null)}
+                onErrored={() => setRecaptchaToken(null)}
+              />
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

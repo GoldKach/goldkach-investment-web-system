@@ -252,7 +252,7 @@ export async function refreshAccessToken() {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 8, // 8 hours — matches JWT expiry
     });
 
     return { success: true, accessToken: newAccessToken };
@@ -328,45 +328,43 @@ export async function createUser(data: {
   firstName: string;
   lastName?: string;
   email: string;
-  entityType?: "individual" | "company" | null; // ← ADD THIS
+  entityType?: "individual" | "company" | null;
   phone: string;
   password: string;
-  recaptchaToken?: string; // ✅ NEW
-  website?: string; // ✅ NEW: Honeypot
-}) {
+  recaptchaToken?: string;
+  website?: string;
+}): Promise<{ success: boolean; error?: string; errors?: { email?: string; phone?: string } }> {
   try {
-    const res = await api.post("/register", {
+    await api.post("/register", {
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
       phone: data.phone,
       password: data.password,
-      recaptchaToken: data.recaptchaToken, // ✅ NEW: Send to backend
-      website: data.website, // ✅ NEW: Send honeypot to backend
+      recaptchaToken: data.recaptchaToken,
+      website: data.website,
     });
-
     revalidatePath("/dashboard/users");
-    return res.data;
+    return { success: true };
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
       const response = error.response;
-      
-      // ✅ NEW: Rate limiting error
+      const body = response?.data ?? {};
+
+      // Rate limiting
       if (response?.status === 429) {
-        const message = response.data?.message || "Too many registration attempts. Please try again later.";
-        throw new Error(message);
+        return { success: false, error: body.message || "Too many registration attempts. Please try again later." };
       }
-      
-      // ✅ NEW: reCAPTCHA verification error
-      if (response?.status === 400 && response.data?.errors?.recaptcha) {
-        throw new Error(response.data.errors.recaptcha);
+
+      // Field-level errors (duplicate email / phone, recaptcha, etc.)
+      if (body.errors && typeof body.errors === "object") {
+        return { success: false, error: body.message || "Registration failed.", errors: body.errors };
       }
-      
-      // General error with message from backend
-      const message = response?.data?.message || "Failed to create user";
-      throw new Error(message);
+
+      // General backend message
+      return { success: false, error: body.message || body.error || "Failed to create account. Please try again." };
     }
-    throw error;
+    return { success: false, error: "An unexpected error occurred. Please try again." };
   }
 }
 

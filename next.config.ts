@@ -6,7 +6,7 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
+  disable: false,
   fallbacks: {
     document: "/offline",
   },
@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: [
         "localhost:3000",
+        "localhost:3001",
+        "localhost:3002",
         "44fdr4q6-3000.euw.devtunnels.ms",
         "44fdr4q6-8000.euw.devtunnels.ms",
       ],

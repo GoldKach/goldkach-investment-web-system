@@ -1,6 +1,7 @@
 import { LoginForm } from "@/components/front-end/forms/login-form";
 import HeroCarousel from "@/components/front-end/hero-couresel";
 import { ThemeToggle } from "@/components/front-end/theme-toggle";
+import { InstallNavButton } from "@/components/pwa/install-nav-button";
 import { Suspense } from "react";
 
 function LoginSuccessMessage() {
@@ -12,7 +13,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* Left side - Form */}
       <div className="flex-1 flex items-center justify-center p-8 relative">
-        <div className="absolute top-8 right-8">
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+          <InstallNavButton alwaysShow />
           <ThemeToggle />
         </div>
         <div className="w-full max-w-md">

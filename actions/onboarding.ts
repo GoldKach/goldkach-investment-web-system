@@ -36,8 +36,14 @@ async function withAuthRetry<T>(fn: (headers: Record<string, string>) => Promise
   } catch (e: any) {
     if (e?.digest?.startsWith("NEXT_REDIRECT")) throw e;
     if (axios.isAxiosError(e) && (e.response?.status === 401 || e.response?.status === 403)) {
-      await refreshAccessToken(); // may redirect to /login — that's intentional
-      headers = await authHeaderFromCookies();
+      // Use the returned token directly — don't re-read cookies (may not update in same request)
+      const refreshResult = await refreshAccessToken();
+      if (refreshResult.success && refreshResult.accessToken) {
+        headers = { Authorization: `Bearer ${refreshResult.accessToken}` };
+      } else {
+        // Refresh failed — try cookie as last resort
+        headers = await authHeaderFromCookies();
+      }
       return await fn(headers);
     }
     throw e;
