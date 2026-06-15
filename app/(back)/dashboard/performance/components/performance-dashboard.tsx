@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import {
@@ -166,7 +166,7 @@ export function PerformanceDashboard({ assets, portfolioSummaries }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: "Total NAV",       value: fmtShort(totals.totalNAV),      color: "text-blue-500" },
-          { label: "Total Invested",  value: fmtShort(totals.totalInvested), color: "text-slate-600 dark:text-slate-300" },
+          { label: "Initial Investment",  value: fmtShort(totals.totalInvested), color: "text-slate-600 dark:text-slate-300" },
           { label: "Total Gain/Loss", value: fmtShort(totals.totalGainLoss), color: totals.totalGainLoss >= 0 ? "text-green-600" : "text-red-500" },
           { label: "Total Fees",      value: fmtShort(totals.totalFees),     color: "text-amber-500" },
           { label: "Portfolios",      value: totals.portfolioCount.toString(), color: "text-violet-500" },

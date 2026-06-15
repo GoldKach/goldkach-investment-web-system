@@ -1,4 +1,4 @@
-// components/back/sub-portfolios-client.tsx
+﻿// components/back/sub-portfolios-client.tsx
 "use client";
 
 import React, { useState, useTransition } from "react";
@@ -160,7 +160,7 @@ export default function SubPortfoliosClient() {
             <div className="grid grid-cols-3 gap-4">
               {[
                 { label: "Total Slices",    value: items.length,                                                   color: "text-[#3B82F6]" },
-                { label: "Total Invested",  value: fmt$(items.reduce((s, i) => s + i.amountInvested, 0)),          color: "text-[#2B2F77] dark:text-[#3B82F6]" },
+                { label: "Initial Investment",  value: fmt$(items.reduce((s, i) => s + i.amountInvested, 0)),          color: "text-[#2B2F77] dark:text-[#3B82F6]" },
                 { label: "Total Gain/Loss", value: fmt$(items.reduce((s, i) => s + i.totalLossGain, 0)),           color: items.reduce((s, i) => s + i.totalLossGain, 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500" },
               ].map(({ label, value, color }) => (
                 <div key={label} className="bg-white dark:bg-[#0f1135] border border-slate-200 dark:border-[#2B2F77]/30 rounded-2xl px-4 py-3 flex items-center justify-between">

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useCallback } from "react";
 import {
@@ -180,7 +180,7 @@ export function AccountantClientDetail({ client, portfolioSummary }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
-            label: "Total Invested", value: fmt(aggregate.totalInvested),
+            label: "Initial Investment", value: fmt(aggregate.totalInvested),
             icon: Wallet, cls: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20",
           },
           {
@@ -304,7 +304,7 @@ export function AccountantClientDetail({ client, portfolioSummary }: Props) {
                         Invested: <span className="font-semibold text-foreground">{fmt(p.totalInvested)}</span>
                       </span>
                       <span className="text-muted-foreground">
-                        Investment Return: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span>
+                        Total Portfolio Value: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span>
                       </span>
                       <Badge
                         variant="outline"
@@ -353,7 +353,7 @@ export function AccountantClientDetail({ client, portfolioSummary }: Props) {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-semibold">{fmtDate(r.reportDate)}</p>
                                   <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                                    <span>Investment Return: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
+                                    <span>Total Portfolio Value: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
                                     <span>Close: <span className="font-medium">{fmt(r.totalCloseValue)}</span></span>
                                     <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>
                                       {fmt(r.totalLossGain)}

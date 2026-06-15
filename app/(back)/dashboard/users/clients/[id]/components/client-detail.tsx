@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition, useCallback } from "react";
 import { toast } from "sonner";
@@ -777,7 +777,7 @@ export function ClientDetail({
                     <div className="hidden md:flex items-center gap-4 text-xs">
                       {latestReport && (
                         <>
-                          <span className="text-muted-foreground">Investment Return: <span className="font-semibold text-blue-500">{fmt(latestReport.netAssetValue)}</span></span>
+                          <span className="text-muted-foreground">Total Portfolio Value: <span className="font-semibold text-blue-500">{fmt(latestReport.netAssetValue)}</span></span>
                           <span className={latestReport.totalLossGain >= 0 ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
                             {latestReport.totalLossGain >= 0 ? "+" : ""}{latestReport.totalLossGain.toFixed(2)}
                           </span>
@@ -806,7 +806,7 @@ export function ClientDetail({
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-semibold">{fmtDate(report.reportDate)}</p>
                                   <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                                    <span>Investment Return: <span className="text-blue-500 font-medium">{fmt(report.netAssetValue)}</span></span>
+                                    <span>Total Portfolio Value: <span className="text-blue-500 font-medium">{fmt(report.netAssetValue)}</span></span>
                                     <span>Close: <span className="font-medium">{fmt(report.totalCloseValue)}</span></span>
                                     <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>{fmt(report.totalLossGain)}</span>
                                     <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -639,7 +639,7 @@ export function WithdrawalsPageContent({
                   <span className="font-semibold text-violet-400">{fmt.format(selectedPortfolio.portfolioValue)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Total Invested</span>
+                  <span>Initial Investment</span>
                   <span className="font-mono">{fmt.format(selectedPortfolio.totalInvested)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground pt-1">

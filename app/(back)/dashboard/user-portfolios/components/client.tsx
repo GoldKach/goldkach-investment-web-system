@@ -1,4 +1,4 @@
-// components/back/user-portfolios-client.tsx
+﻿// components/back/user-portfolios-client.tsx
 "use client";
 
 import React, { useState, useTransition, useEffect } from "react";
@@ -645,7 +645,7 @@ function ViewDialog({
           <div className="grid grid-cols-4 gap-3">
             {[
               { label: "Portfolio Value",  value: fmt$(up.portfolioValue ?? 0), icon: DollarSign },
-              { label: "Total Invested",   value: fmt$(up.totalInvested  ?? 0), icon: Wallet     },
+              { label: "Initial Investment",   value: fmt$(up.totalInvested  ?? 0), icon: Wallet     },
               { label: "Total Gain/Loss",  value: `${isPos ? "+" : ""}${fmt$(totalGain)}`, icon: isPos ? TrendingUp : TrendingDown, color: isPos ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400" },
               { label: "Assets",           value: `${assets.length}`,           icon: Briefcase  },
             ].map(({ label, value, icon: Icon, color }) => (

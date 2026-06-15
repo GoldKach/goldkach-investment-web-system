@@ -1,4 +1,4 @@
-
+﻿
 
 // // components/user/dashboard-content.tsx
 // "use client"
@@ -892,7 +892,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
   // Portfolio breakdown from userPortfolios
   const portfolios = (user.userPortfolios ?? []).filter(Boolean)
 
-  // Investment return — sum of portfolioValue (current market value) across all portfolios
+  // Total Portfolio Value — sum of portfolioValue (current market value) across all portfolios
   const totalLossGain    = portfolios.reduce((s, p) => s + Number(p.totalLossGain ?? 0), 0)
   const totalInvested    = portfolios.reduce((s, p) => s + Number(p.totalInvested  ?? 0), 0)
   const investmentReturn = portfolios.reduce((s, p) => s + Number(p.portfolioValue ?? 0), 0)
@@ -1060,7 +1060,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Investment Return</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Portfolio Value</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -1687,7 +1687,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                   <p className="text-xs text-muted-foreground">Available for withdrawal / allocation</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Investment Return</p>
+                  <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
                   <p className="text-2xl font-bold">${investmentReturn.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <p className="text-xs text-muted-foreground">Sum of all portfolio values</p>
                 </div>
@@ -1747,7 +1747,7 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                           <div>
-                            <p className="text-muted-foreground">Investment Return</p>
+                            <p className="text-muted-foreground">Total Portfolio Value</p>
                             <p className="font-semibold">${pNav.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           </div>
                           <div>

@@ -1,4 +1,4 @@
-// components/back/topup-events-client.tsx
+﻿// components/back/topup-events-client.tsx
 "use client";
 
 import React, { useState, useTransition } from "react";
@@ -51,7 +51,7 @@ function ViewDialog({ event, open, onClose, onRefresh }: { event: TopupEvent | n
             {[
               { label: "Top-up Amount",     value: fmt$(event.topupAmount)       },
               { label: "Previous Total",    value: fmt$(event.previousTotal)     },
-              { label: "New Total Invested", value: fmt$(event.newTotalInvested) },
+              { label: "New Initial Investment", value: fmt$(event.newTotalInvested) },
               { label: "New Close Value",   value: fmt$(event.newTotalCloseValue)},
               { label: "New Fees",          value: fmt$(event.newTotalFees)      },
               { label: "New NAV",           value: fmt$(event.newNetAssetValue)  },

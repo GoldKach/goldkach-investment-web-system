@@ -1,4 +1,4 @@
-
+﻿
 
 
 
@@ -1457,7 +1457,7 @@ export function UserDetailPreview({
     ? portfolioSummary.portfolios.reduce((s, p) => s + Number(p.wallet?.balance ?? 0), 0)
     : 0
 
-  // Total Investment Return = sum of portfolioValue (current market value) across all portfolios
+  // Total Total Portfolio Value = sum of portfolioValue (current market value) across all portfolios
   const totalInvestmentReturn = portfolioSummary
     ? portfolioSummary.aggregate?.totalValue ??
       portfolioSummary.portfolios.reduce((s, p) => s + Number(p.portfolioValue ?? 0), 0)
@@ -1693,10 +1693,10 @@ export function UserDetailPreview({
               </CardContent>
             </Card>
 
-            {/* Total Invested - sum of all portfolio wallet balances */}
+            {/* Initial Investment - sum of all portfolio wallet balances */}
             <Card className="border-amber-500/20 bg-amber-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Invested</CardTitle>
+                <CardTitle className="text-sm font-medium">Initial Investment</CardTitle>
                 <div className="rounded-lg bg-amber-500/10 p-1.5">
                   <DollarSign className="h-4 w-4 text-amber-400" />
                 </div>
@@ -1711,7 +1711,7 @@ export function UserDetailPreview({
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Investment Return</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Portfolio Value</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -1758,7 +1758,7 @@ export function UserDetailPreview({
               <CardTitle>Portfolio Performance</CardTitle>
               <CardDescription>
                 {navPerfSeries.length >= 2
-                  ? "Investment Return over time — based on topup history"
+                  ? "Total Portfolio Value over time — based on topup history"
                   : "Portfolio value history"}
               </CardDescription>
             </CardHeader>
@@ -1785,10 +1785,10 @@ export function UserDetailPreview({
                         tickFormatter={(v) => (Math.abs(v)>=1e9?(Math.round(v/1e8)/10)+"B":Math.abs(v)>=1e6?(Math.round(v/1e5)/10)+"M":Math.abs(v)>=1e3?(Math.round(v/1e2)/10)+"K":String(Math.round(v)))} />
                       <Tooltip
                         contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                        formatter={(v: any) => [fmtUSD.format(v), "Investment Return"]}
+                        formatter={(v: any) => [fmtUSD.format(v), "Total Portfolio Value"]}
                       />
                       <Legend wrapperStyle={{ fontSize: "12px" }} />
-                      <Area type="monotone" dataKey="value" name="Investment Return" stroke="#0089ff" strokeWidth={2} fill="url(#overviewNavGrad)" />
+                      <Area type="monotone" dataKey="value" name="Total Portfolio Value" stroke="#0089ff" strokeWidth={2} fill="url(#overviewNavGrad)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -2311,7 +2311,7 @@ export function UserDetailPreview({
                   <p className="text-xs text-muted-foreground">Uninvested funds</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Investment Return</p>
+                  <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
                   <p className="text-2xl font-bold">{fmtUSD.format(totalInvestmentReturn)}</p>
                   <p className="text-xs text-muted-foreground">Sum of all asset close values</p>
                 </div>
@@ -2353,8 +2353,8 @@ export function UserDetailPreview({
                 {/* ── Aggregate KPI ── */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   {[
-                    { label: "Total Invested", value: fmtUSD.format(computedTotalInvested), sub: portfolioSummary.aggregate.portfolioCount + " portfolios", icon: DollarSign, cls: "text-blue-400", bg: "bg-blue-500/10" },
-                    { label: "Investment Return", value: fmtUSD.format(computedTotalValue), sub: "Sum of asset close values", icon: WalletIcon, cls: "text-emerald-400", bg: "bg-emerald-500/10" },
+                    { label: "Initial Investment", value: fmtUSD.format(computedTotalInvested), sub: portfolioSummary.aggregate.portfolioCount + " portfolios", icon: DollarSign, cls: "text-blue-400", bg: "bg-blue-500/10" },
+                    { label: "Total Portfolio Value", value: fmtUSD.format(computedTotalValue), sub: "Sum of asset close values", icon: WalletIcon, cls: "text-emerald-400", bg: "bg-emerald-500/10" },
                     { label: "Total Gain / Loss", value: (aggPos ? "+" : "") + fmtUSD.format(computedTotalGainLoss), sub: fmtPct(computedReturnPct), icon: aggPos ? TrendingUp : TrendingDown, cls: aggPos ? "text-emerald-400" : "text-red-400", bg: aggPos ? "bg-emerald-500/10" : "bg-red-500/10" },
                     { label: "Total Fees", value: fmtUSD.format(depositFees), sub: "Fees on master deposits", icon: Banknote, cls: "text-amber-400", bg: "bg-amber-500/10" },
                   ].map((item) => (
@@ -2513,10 +2513,10 @@ export function UserDetailPreview({
                             {/* Stats row */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                               {[
-                                { label: "Total Invested", value: fmtUSD.format(p.totalInvested), cls: "", border: "" },
-                                { label: "Investment Return", value: fmtUSD.format(p.portfolioValue), cls: "", border: "" },
+                                { label: "Initial Investment", value: fmtUSD.format(p.totalInvested), cls: "", border: "" },
+                                { label: "Total Portfolio Value", value: fmtUSD.format(p.portfolioValue), cls: "", border: "" },
                                 { label: "Gain / Loss", value: (pos ? "+" : "") + fmtUSD.format(gainLossFromAssets), cls: pos ? "text-emerald-400" : "text-red-400", border: pos ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5" },
-                                { label: "Investment Return", value: fmtUSD.format(p.wallet?.netAssetValue ?? 0), cls: "text-blue-400", border: "" },
+                                { label: "Total Portfolio Value", value: fmtUSD.format(p.wallet?.netAssetValue ?? 0), cls: "text-blue-400", border: "" },
                               ].map((item) => (
                                 <div key={item.label} className={`rounded-lg border p-3 ${item.border || "border-border bg-muted/40"}`}>
                                   <p className="text-xs text-muted-foreground mb-0.5">{item.label}</p>
@@ -2554,7 +2554,7 @@ export function UserDetailPreview({
                                             contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
                                             formatter={(v: any) => [fmtUSD.format(v)]}
                                           />
-                                          <Area type="monotone" dataKey="nav" name="Investment Return" stroke="#0089ff" strokeWidth={2} fill={`url(#navGrad${p.id})`} />
+                                          <Area type="monotone" dataKey="nav" name="Total Portfolio Value" stroke="#0089ff" strokeWidth={2} fill={`url(#navGrad${p.id})`} />
                                         </AreaChart>
                                       </ResponsiveContainer>
                                     </div>
@@ -2769,7 +2769,7 @@ export function UserDetailPreview({
                               </div>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                                 <div><p className="text-muted-foreground mb-0.5">Balance</p><p className="font-semibold text-sm">{fmtUSD.format(p.wallet?.balance ?? 0)}</p></div>
-                                <div><p className="text-muted-foreground mb-0.5">Investment Return</p><p className="font-semibold text-sm text-blue-400">{fmtUSD.format(p.wallet?.netAssetValue ?? 0)}</p></div>
+                                <div><p className="text-muted-foreground mb-0.5">Total Portfolio Value</p><p className="font-semibold text-sm text-blue-400">{fmtUSD.format(p.wallet?.netAssetValue ?? 0)}</p></div>
                                 <div><p className="text-muted-foreground mb-0.5">Total Fees</p><p className="font-semibold text-sm text-amber-400">{fmtUSD.format(p.wallet?.totalFees ?? 0)}</p></div>
                                 <div><p className="text-muted-foreground mb-0.5">Topups</p><p className="font-semibold text-sm">{p.topupHistory.length}</p></div>
                               </div>
@@ -2793,7 +2793,7 @@ export function UserDetailPreview({
                                           <div className="flex items-center gap-2">
                                             <span className="font-mono text-muted-foreground">#{i + 1}</span>
                                             <span className="font-semibold">{fmtUSD.format(t.topupAmount)}</span>
-                                            <span className="text-muted-foreground hidden sm:block">→ Investment Return {fmtUSD.format(t.newNAV)}</span>
+                                            <span className="text-muted-foreground hidden sm:block">→ Total Portfolio Value {fmtUSD.format(t.newNAV)}</span>
                                           </div>
                                           <div className="flex items-center gap-2">
                                             <span className={tPos ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>{tPos ? "+" : ""}{fmtUSD.format(t.gainLoss)}</span>

@@ -1,4 +1,4 @@
-
+﻿
 
 
 
@@ -77,7 +77,7 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Investment Return</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Portfolio Value</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -155,7 +155,7 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Portfolio Investment Return</p>
+                      <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
                       <p className="text-xl font-bold">${portfolio.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                     <div>

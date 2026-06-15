@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useCallback, useMemo } from "react";
 import { Download, Eye, FileText, ChevronDown, ChevronUp, Loader2, RefreshCw, Calendar, X, Search, TableIcon, Sheet, Wallet } from "lucide-react";
@@ -697,7 +697,7 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
                         <p className="text-[10px] text-muted-foreground">{p.portfolio?.name}</p>
                       </div>
                       <div className="hidden md:flex items-center gap-4 text-xs">
-                        <span className="text-muted-foreground">Investment Return: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span></span>
+                        <span className="text-muted-foreground">Total Portfolio Value: <span className="font-semibold text-blue-500">{fmt(p.wallet?.netAssetValue ?? 0)}</span></span>
                         <span className={`font-semibold ${isPos ? "text-green-600" : "text-red-500"}`}>
                           {(p.returnPct ?? 0) >= 0 ? "+" : ""}{(p.returnPct ?? 0).toFixed(2)}%
                         </span>
@@ -736,7 +736,7 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold">{fmtDate(r.reportDate)}</p>
                                     <div className="flex gap-3 mt-0.5 text-[10px] text-muted-foreground flex-wrap">
-                                      <span>Investment Return: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
+                                      <span>Total Portfolio Value: <span className="text-blue-500 font-medium">{fmt(r.netAssetValue)}</span></span>
                                       <span>Close: <span className="font-medium">{fmt(r.totalCloseValue)}</span></span>
                                       <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>{fmt(r.totalLossGain)}</span>
                                       <span className={`font-medium ${pos ? "text-green-600" : "text-red-500"}`}>

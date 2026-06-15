@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -665,7 +665,7 @@ function PortfolioCard({ p }: { p: PortfolioSummaryItem }) {
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[
-            { label: "Total Invested", value: fmt.format(p.totalInvested), cls: "" },
+            { label: "Initial Investment", value: fmt.format(p.totalInvested), cls: "" },
             { label: "Current Value", value: fmt.format(p.portfolioValue), cls: "" },
             {
               label: "Gain / Loss",
@@ -675,7 +675,7 @@ function PortfolioCard({ p }: { p: PortfolioSummaryItem }) {
                 ? "border-emerald-500/20 bg-emerald-500/5"
                 : "border-red-500/20 bg-red-500/5",
             },
-            { label: "Investment Return", value: fmt.format(p.wallet.netAssetValue), cls: "text-blue-400" },
+            { label: "Total Portfolio Value", value: fmt.format(p.wallet.netAssetValue), cls: "text-blue-400" },
           ].map((item) => (
             <div
               key={item.label}
@@ -842,7 +842,7 @@ export function ClientPortfolioSummary({
       {/* Aggregate KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KpiCard
-          title="Total Invested"
+          title="Initial Investment"
           value={fmt.format(aggregate.totalInvested)}
           sub={`Across ${aggregate.portfolioCount} portfolios`}
           icon={DollarSign}

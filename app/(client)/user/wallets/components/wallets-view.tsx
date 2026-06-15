@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useTransition } from "react";
@@ -38,7 +38,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
   const portfolioWallets = walletDetail?.portfolioWallets ?? [];
   const portfolios = portfolioSummary?.portfolios ?? [];
 
-  // Investment Return = sum of all portfolio portfolioValues (market value, updated by cascade)
+  // Total Portfolio Value = sum of all portfolio portfolioValues (market value, updated by cascade)
   // Computed from portfolioWallets directly so it doesn't depend on masterWallet.netAssetValue being synced
   const investmentReturn = portfolioWallets.reduce(
     (s, pw) => s + Number(pw.userPortfolio?.portfolioValue ?? 0), 0
@@ -106,14 +106,14 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
     if (!amt || amt <= 0) { toast.error("Enter a valid amount."); return; }
     if (!selectedPortfolioId) { toast.error("Select a portfolio."); return; }
 
-    // Calculate portfolio investment return (sum of close values)
+    // Calculate Total Portfolio Value (sum of close values)
     const pw = portfolioWallets.find((pw) => pw.userPortfolio?.id === selectedPortfolioId);
     const p = portfolios.find((p) => p.wallet?.id === pw?.id);
     const rawMax = p?.assets?.reduce((s: number, a: any) => s + (a.closeValue ?? 0), 0) ?? p?.portfolioValue ?? pw?.netAssetValue ?? 0;
     const maxRedeemable = Math.floor(rawMax * 100) / 100;
 
     if (amt > maxRedeemable + 0.001) {
-      toast.error(`Cannot redeem more than the portfolio investment return of ${fmt(maxRedeemable)}.`);
+      toast.error(`Cannot redeem more than the Total Portfolio Value of ${fmt(maxRedeemable)}.`);
       return;
     }
     startTransition(async () => {
@@ -170,7 +170,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: "Available Balance", value: fmt(master?.balance ?? 0), color: "text-green-500" },
-              { label: "Investment Return",  value: fmt(investmentReturn), color: "text-blue-500" },
+              { label: "Total Portfolio Value",  value: fmt(investmentReturn), color: "text-blue-500" },
               { label: "Total Deposited",   value: fmt(master?.totalDeposited ?? 0), color: "text-foreground" },
               { label: "Total Fees",        value: fmt(master?.totalFees ?? 0), color: "text-amber-500" },
             ].map((m) => (
@@ -276,11 +276,11 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
                 <CardContent className="pt-0 space-y-3">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-xs text-muted-foreground">Total Invested</p>
+                      <p className="text-xs text-muted-foreground">Initial Investment</p>
                       <p className="text-base font-bold text-blue-500">{fmt(up?.totalInvested ?? 0)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/30 p-3">
-                      <p className="text-xs text-muted-foreground">Portfolio Investment Return</p>
+                      <p className="text-xs text-muted-foreground">Total Portfolio Value</p>
                       <p className="text-base font-bold">
                         {fmt(up?.portfolioValue ?? 0)}
                       </p>
@@ -389,7 +389,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
               return (
                 <>
                   <div className="rounded-lg bg-muted/30 p-3 text-sm flex items-center justify-between">
-                    <span>Portfolio Investment Return:</span>
+                    <span>Total Portfolio Value:</span>
                     <span className="font-bold text-blue-500">{fmt(maxRedeemable)}</span>
                   </div>
                   <div className="space-y-1.5">
@@ -414,7 +414,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
                     />
                     {overLimit && (
                       <p className="text-xs text-red-500">
-                        Cannot exceed portfolio investment return of {fmt(maxRedeemable)}.
+                        Cannot exceed Total Portfolio Value of {fmt(maxRedeemable)}.
                       </p>
                     )}
                   </div>

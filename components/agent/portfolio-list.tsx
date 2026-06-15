@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -77,9 +77,9 @@ export function PortfolioList({ portfolios, clientId, basePath = "/agent/clients
               {/* Financials */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div><p className="text-slate-400 mb-0.5">Invested</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.totalInvested)}</p></div>
-                <div><p className="text-slate-400 mb-0.5">Investment Return</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.portfolioValue)}</p></div>
+                <div><p className="text-slate-400 mb-0.5">Total Portfolio Value</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.portfolioValue)}</p></div>
                 <div><p className="text-slate-400 mb-0.5">Gain / Loss</p><p className={`font-semibold ${isPositive ? "text-green-600" : "text-red-500"}`}>{fmt(p.totalLossGain)}</p></div>
-                <div><p className="text-slate-400 mb-0.5">Total Invested</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.wallet?.netAssetValue ?? 0)}</p></div>
+                <div><p className="text-slate-400 mb-0.5">Initial Investment</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.wallet?.netAssetValue ?? 0)}</p></div>
               </div>
 
               {/* Latest report badge */}

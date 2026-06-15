@@ -1,4 +1,4 @@
-
+﻿
 
 
 // // "use client"
@@ -1531,14 +1531,14 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            label: "Investment Return",
+            label: "Total Portfolio Value",
             value: fmt.format(totalCloseValue),
             sub: "Sum of asset close values",
             icon: Wallet,
             cls: "text-blue-400", bg: "bg-blue-500/10", border: "border-l-blue-500",
           },
           {
-            label: "Total Invested",
+            label: "Initial Investment",
             value: fmt.format(walletNAV),
             sub: "Portfolio wallet NAV",
             icon: TrendingUp,
@@ -1554,7 +1554,7 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
             border: isPositive ? "border-l-emerald-500" : "border-l-red-500",
           },
           {
-            label: "Total Invested",
+            label: "Initial Investment",
             value: fmt.format(wallet?.netAssetValue ?? 0),
             sub: "Portfolio wallet NAV",
             icon: CreditCard,
@@ -1648,7 +1648,7 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-xs">
               {[
-                { label: "Investment Return", value: fmt.format(totalCloseValue),   cls: "text-blue-400" },
+                { label: "Total Portfolio Value", value: fmt.format(totalCloseValue),   cls: "text-blue-400" },
                 { label: "Balance",      value: fmt.format(wallet.balance),          cls: "" },
                 { label: "Total Fees",   value: fmt.format(wallet.totalFees),        cls: "text-amber-400" },
                 { label: "Bank Fee",     value: `${wallet.bankFee}%`,               cls: "" },
