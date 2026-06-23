@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
+import { listPerformanceReports, generateAllReportsForDate } from "@/actions/portfolioPerformanceReports";
 import { generatePerformanceReportPDF } from "@/components/front-end/generate-report-pdf";
 
 const fmt = (n: number) =>
@@ -101,11 +101,14 @@ function buildCombinedRows(
         : null;
 
       // When a report exists and has per-asset snapshots, use those for historical accuracy.
-      // Otherwise fall back to current portfolio assets.
+      // When a specific date is selected, ONLY use snapshot data — never fall back to live
+      // asset prices, which would show today's (or stale) prices instead of that day's prices.
       const snapshotAssets: any[] | null =
         report?.assetSnapshots?.length ? report.assetSnapshots : null;
 
-      const assets: any[] = snapshotAssets ?? p.assets ?? p.userAssets ?? [];
+      const assets: any[] = date
+        ? (snapshotAssets ?? [])                           // date selected: snapshot only
+        : (snapshotAssets ?? p.assets ?? p.userAssets ?? []); // no date: allow live fallback
       if (assets.length === 0) continue;
 
       assets.forEach((a, idx) => {
@@ -251,7 +254,8 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
   const [combinedRows, setCombinedRows] = useState<CombinedRow[]>([]);
   const [combinedFetched, setCombinedFetched] = useState(false);
 
-  // Build combined AUM rows — fetch reports for the selected date if provided
+  // Build combined AUM rows — when a date is selected, regenerate reports for that
+  // date (capturing current close prices) then fetch the fresh snapshots.
   const generateCombinedReport = useCallback(async () => {
     setCombinedLoading(true);
     setCombinedFetched(false);
@@ -259,11 +263,15 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
       let reportsByPortfolio: Record<string, any[]> = {};
 
       if (combinedDate) {
-        // Fetch performance reports for the selected date across all portfolios
+        // Regenerate all portfolio reports for the selected date so the snapshots
+        // contain the close prices that are currently in the asset table.
+        await generateAllReportsForDate(new Date(combinedDate + "T00:00:00.000Z").toISOString());
+
+        // Fetch the freshly generated snapshots
         const allPortfolios = clientPortfolios.flatMap((cp) => cp.portfolios);
         const dateParams = {
           startDate: new Date(combinedDate + "T00:00:00.000Z").toISOString(),
-          endDate: new Date(combinedDate + "T23:59:59.999Z").toISOString(),
+          endDate:   new Date(combinedDate + "T23:59:59.999Z").toISOString(),
         };
         const results = await Promise.allSettled(
           allPortfolios.map((p) =>

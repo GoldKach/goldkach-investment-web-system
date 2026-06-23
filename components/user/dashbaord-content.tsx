@@ -886,8 +886,8 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
   const netAssetValue = Number(wallet.netAssetValue  ?? 0)
   const totalDeposited  = Number(wallet.totalDeposited ?? 0)
   const totalWithdrawn  = Number(wallet.totalWithdrawn ?? 0)
-  const totalDeposits   = deposits.reduce((s, d) => s + d.amount, 0)
-  const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0)
+  const totalDeposits   = deposits.filter((d: any) => d.depositTarget === "MASTER" || !d.depositTarget).reduce((s: number, d: any) => s + d.amount, 0)
+  const totalWithdrawals = withdrawals.filter((w: any) => w.withdrawalType === "HARD_WITHDRAWAL" || !w.withdrawalType).reduce((s: number, w: any) => s + w.amount, 0)
 
   // Portfolio breakdown from userPortfolios
   const portfolios = (user.userPortfolios ?? []).filter(Boolean)

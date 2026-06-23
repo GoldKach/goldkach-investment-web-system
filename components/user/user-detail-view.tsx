@@ -1451,8 +1451,12 @@ export function UserDetailPreview({
   // ---------- KPIs ----------
   const availableBalance = Number(wallet.balance ?? 0)
   const netAssetValue = Number(wallet.netAssetValue ?? 0)
-  const totalDeposits = deposits.reduce((s, d) => s + d.amount, 0)
-  const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0)
+  // Only external MASTER deposits — authoritative value from master wallet field
+  const totalDeposits = Number(wallet.totalDeposited ?? 0)
+  const masterDeposits = deposits.filter(d => d.depositTarget === "MASTER" || !d.depositTarget)
+  // Only hard withdrawals (cash leaving the platform) — authoritative value from master wallet field
+  const totalWithdrawals = Number(wallet.totalWithdrawn ?? 0)
+  const hardWithdrawals = withdrawals.filter((w: any) => w.withdrawalType === "HARD_WITHDRAWAL" || !w.withdrawalType)
   const cashBalance = portfolioSummary
     ? portfolioSummary.portfolios.reduce((s, p) => s + Number(p.wallet?.balance ?? 0), 0)
     : 0
@@ -1734,7 +1738,7 @@ export function UserDetailPreview({
                 <div className="text-2xl font-bold">
                   {fmtUSD.format(totalDeposits)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{deposits.length} deposit{deposits.length !== 1 ? "s" : ""} all time</p>
+                <p className="text-xs text-muted-foreground mt-1">{masterDeposits.length} deposit{masterDeposits.length !== 1 ? "s" : ""} all time</p>
               </CardContent>
             </Card>
 
@@ -1747,7 +1751,7 @@ export function UserDetailPreview({
                 <div className="text-2xl font-bold">
                   {fmtUSD.format(totalWithdrawals)}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{withdrawals.length} withdrawal{withdrawals.length !== 1 ? "s" : ""} all time</p>
+                <p className="text-xs text-muted-foreground mt-1">{hardWithdrawals.length} withdrawal{hardWithdrawals.length !== 1 ? "s" : ""} all time</p>
               </CardContent>
             </Card>
           </div>

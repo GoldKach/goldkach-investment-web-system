@@ -76,25 +76,33 @@ export function AccountantDashboard({ clientSummaries, wallets, deposits, withdr
     () => deposits.filter((d) => d.transactionStatus === "APPROVED" && new Date(d.createdAt) >= periodStart),
     [deposits, periodStart]
   );
+  const approvedMasterDeposits = useMemo(
+    () => approvedDeposits.filter((d) => (d as any).depositTarget === "MASTER" || !(d as any).depositTarget),
+    [approvedDeposits]
+  );
   const approvedWithdrawals = useMemo(
     () => withdrawals.filter((w) => w.transactionStatus === "APPROVED" && new Date(w.createdAt) >= periodStart),
     [withdrawals, periodStart]
   );
+  const approvedHardWithdrawals = useMemo(
+    () => approvedWithdrawals.filter((w) => (w as any).withdrawalType === "HARD_WITHDRAWAL" || !(w as any).withdrawalType),
+    [approvedWithdrawals]
+  );
 
-  const totalDeposited  = approvedDeposits.reduce((s, d) => s + d.amount, 0);
-  const totalWithdrawn  = approvedWithdrawals.reduce((s, w) => s + w.amount, 0);
+  const totalDeposited  = approvedMasterDeposits.reduce((s, d) => s + d.amount, 0);
+  const totalWithdrawn  = approvedHardWithdrawals.reduce((s, w) => s + w.amount, 0);
   const netFlow         = totalDeposited - totalWithdrawn;
 
   const chartData = useMemo(() => {
-    const depMap = groupByLabel(approvedDeposits, period);
-    const wdMap  = groupByLabel(approvedWithdrawals, period);
+    const depMap = groupByLabel(approvedMasterDeposits, period);
+    const wdMap  = groupByLabel(approvedHardWithdrawals, period);
     const keys   = Array.from(new Set([...Object.keys(depMap), ...Object.keys(wdMap)])).sort();
     return keys.map((k) => ({
       label:       k,
       deposits:    depMap[k] ?? 0,
       withdrawals: wdMap[k]  ?? 0,
     }));
-  }, [approvedDeposits, approvedWithdrawals, period]);
+  }, [approvedMasterDeposits, approvedHardWithdrawals, period]);
 
   const totalAUM  = wallets.reduce((s, w) => s + (w.netAssetValue ?? 0), 0);
   const totalCash = wallets.reduce((s, w) => s + (w.balance ?? 0), 0);

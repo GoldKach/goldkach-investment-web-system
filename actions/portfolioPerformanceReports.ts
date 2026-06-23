@@ -699,6 +699,27 @@ export async function generateUserPerformanceReports(
   }
 }
 
+/**
+ * POST /portfolio-performance-reports/generate-all-for-date
+ * Regenerates reports for ALL active portfolios for a specific date,
+ * deleting any existing report for that date first so close prices
+ * are captured fresh from the current asset table.
+ */
+export async function generateAllReportsForDate(reportDate: string) {
+  if (!reportDate) return { success: false, error: "reportDate is required." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post(
+      "/portfolio-performance-reports/generate-all-for-date",
+      { reportDate },
+      { headers, timeout: 120_000 }
+    );
+    return { success: true, data: res.data?.data as GenerateAllReportsResult };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to generate reports for date") };
+  }
+}
+
 /** POST /portfolio-performance-reports/generate-all — system-wide (cron equivalent) */
 export async function generateAllPerformanceReports() {
   try {
