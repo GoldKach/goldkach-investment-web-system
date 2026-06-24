@@ -3,6 +3,7 @@
 // app/portfolio/[id]/page.tsx
 import { getSession } from "@/actions/auth";
 import { getUserPortfolioById } from "@/actions/user-portfolios";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
@@ -26,13 +27,20 @@ export default async function PortfolioDetail({ params }: PortfolioDetailPagePar
 
   const userId = session.user.id;
 
-  // Fetch specific portfolio
-  const result = await getUserPortfolioById(id, {
-    portfolio: true,
-    userAssets: true,
-    wallet: true,
-    subPortfolios: true,
-  });
+  // Fetch specific portfolio and master wallet in parallel
+  const [result, masterWalletRes] = await Promise.all([
+    getUserPortfolioById(id, {
+      portfolio: true,
+      userAssets: true,
+      wallet: true,
+      subPortfolios: true,
+    }),
+    getMasterWalletByUser(userId),
+  ]);
+
+  const masterWallet = masterWalletRes?.success && masterWalletRes?.data
+    ? ((masterWalletRes.data as any)?.masterWallet ?? masterWalletRes.data ?? null)
+    : null;
 
   // Handle errors
   if (result.error || !result.data) {
@@ -82,5 +90,5 @@ export default async function PortfolioDetail({ params }: PortfolioDetailPagePar
     );
   }
 
-  return <UserPortfolioDetail userPortfolio={result.data} />;
+  return <UserPortfolioDetail userPortfolio={result.data} masterWallet={masterWallet} />;
 }

@@ -115,6 +115,8 @@ export default async function PortfolioPerformancePage({ params }: Props) {
         userPortfolio={userPortfolio}
         initialReports={initialReports}
         initialPeriod="monthly"
+        masterWalletTotalFees={portfolioSummary?.masterWallet?.totalFees ?? 0}
+        masterWalletTotalDeposited={portfolioSummary?.masterWallet?.totalDeposited ?? 0}
       />
     </div>
   );

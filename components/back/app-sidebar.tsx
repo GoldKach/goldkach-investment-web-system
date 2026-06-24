@@ -82,6 +82,7 @@ const sidebarLinks = [
     items: [
       { title: "Assets",           url: "/dashboard/assets" },
       { title: "Asset Allocation", url: "/dashboard/asset-allocation" },
+      { title: "Price History",    url: "/dashboard/assets/price-history" },
     ],
   },
   {

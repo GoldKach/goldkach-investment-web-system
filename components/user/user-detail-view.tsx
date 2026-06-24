@@ -1454,9 +1454,11 @@ export function UserDetailPreview({
   // Only external MASTER deposits — authoritative value from master wallet field
   const totalDeposits = Number(wallet.totalDeposited ?? 0)
   const masterDeposits = deposits.filter(d => d.depositTarget === "MASTER" || !d.depositTarget)
-  // Only hard withdrawals (cash leaving the platform) — authoritative value from master wallet field
-  const totalWithdrawals = Number(wallet.totalWithdrawn ?? 0)
-  const hardWithdrawals = withdrawals.filter((w: any) => w.withdrawalType === "HARD_WITHDRAWAL" || !w.withdrawalType)
+  // Only approved hard withdrawals (cash leaving the platform to client bank)
+  const hardWithdrawals = withdrawals.filter((w: any) =>
+    w.withdrawalType === "HARD_WITHDRAWAL" && w.transactionStatus === "APPROVED"
+  )
+  const totalWithdrawals = hardWithdrawals.reduce((s: number, w: any) => s + Number(w.amount ?? 0), 0)
   const cashBalance = portfolioSummary
     ? portfolioSummary.portfolios.reduce((s, p) => s + Number(p.wallet?.balance ?? 0), 0)
     : 0
@@ -1697,7 +1699,7 @@ export function UserDetailPreview({
               </CardContent>
             </Card>
 
-            {/* Initial Investment - sum of all portfolio wallet balances */}
+            {/* Initial Investment - total deposited minus deposit fees (never reduces on redemption) */}
             <Card className="border-amber-500/20 bg-amber-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Initial Investment</CardTitle>
@@ -1707,9 +1709,9 @@ export function UserDetailPreview({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-amber-400">
-                  {fmtUSD.format(cashBalance)}
+                  {fmtUSD.format(Number(wallet.totalDeposited ?? 0) - Number(wallet.totalFees ?? 0))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Total in portfolio wallets</p>
+                <p className="text-xs text-muted-foreground mt-1">Total deposited minus fees</p>
               </CardContent>
             </Card>
 
@@ -2346,7 +2348,7 @@ export function UserDetailPreview({
           ) : (() => {
             const depositFees           = portfolioSummary.masterWallet?.totalFees ?? 0
             const computedTotalGainLoss = portfolioSummary.portfolios.reduce((s, p) => s + p.assets.reduce((as, a) => as + a.lossGain, 0), 0)
-            const computedTotalInvested = portfolioSummary.aggregate.totalInvested
+            const computedTotalInvested = (portfolioSummary.masterWallet?.totalDeposited ?? 0) - (portfolioSummary.masterWallet?.totalFees ?? 0)
             const computedTotalValue = portfolioSummary.aggregate.totalValue
             const computedReturnPct = computedTotalInvested > 0
               ? ((computedTotalValue - computedTotalInvested) / computedTotalInvested) * 100
@@ -2419,18 +2421,24 @@ export function UserDetailPreview({
                       const classPieData = Object.entries(classMap).map(([name, value]) => ({ name, value }))
                       const classTotal = classPieData.reduce((s, x) => s + x.value, 0)
 
-                      // Asset class table rows
-                      const ALL_CLASSES = ["REITS", "Equities", "ETFs", "Cash", "Bonds", "Others"]
+                      // Asset class table rows — keys match Prisma enum values exactly
+                      const ENUM_CLASSES = ["REITS", "EQUITIES", "ETFS", "BONDS", "CASH", "OTHERS"] as const
+                      const CLASS_LABELS: Record<string, string> = {
+                        REITS: "REITs", EQUITIES: "Equities", ETFS: "ETFs",
+                        BONDS: "Bonds", CASH: "Cash at Bank", OTHERS: "Others",
+                      }
                       const classRows: Record<string, { holdings: number; closeValue: number }> = {}
-                      ALL_CLASSES.forEach((c) => { classRows[c] = { holdings: 0, closeValue: 0 } })
+                      ENUM_CLASSES.forEach((c) => { classRows[c] = { holdings: 0, closeValue: 0 } })
                       p.assets.forEach((a) => {
-                        const key = a.asset.assetClass || "Others"
+                        const key = (a.asset.assetClass as string) || "OTHERS"
                         if (!classRows[key]) classRows[key] = { holdings: 0, closeValue: 0 }
                         classRows[key].holdings += 1
                         classRows[key].closeValue += a.closeValue
                       })
-                      if ((p.wallet?.balance ?? 0) > 0) {
-                        classRows["Cash"] = { holdings: classRows["Cash"]?.holdings ?? 0, closeValue: (classRows["Cash"]?.closeValue ?? 0) + (p.wallet?.balance ?? 0) }
+                      // Cash at Bank = sum of cashAtBank across all sub-portfolio slices
+                      const totalCashAtBank = p.subPortfolios.reduce((s: number, sub: any) => s + (sub.cashAtBank ?? 0), 0)
+                      if (totalCashAtBank > 0) {
+                        classRows["CASH"] = { holdings: classRows["CASH"]?.holdings ?? 0, closeValue: (classRows["CASH"]?.closeValue ?? 0) + totalCashAtBank }
                       }
                       const classTableTotal = Object.values(classRows).reduce((s, r) => s + r.closeValue, 0)
 
@@ -2517,7 +2525,7 @@ export function UserDetailPreview({
                             {/* Stats row */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                               {[
-                                { label: "Initial Investment", value: fmtUSD.format(p.totalInvested), cls: "", border: "" },
+                                { label: "Initial Investment", value: fmtUSD.format((portfolioSummary.masterWallet?.totalDeposited ?? 0) - (portfolioSummary.masterWallet?.totalFees ?? 0)), cls: "", border: "" },
                                 { label: "Total Portfolio Value", value: fmtUSD.format(p.portfolioValue), cls: "", border: "" },
                                 { label: "Gain / Loss", value: (pos ? "+" : "") + fmtUSD.format(gainLossFromAssets), cls: pos ? "text-emerald-400" : "text-red-400", border: pos ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5" },
                                 { label: "Total Portfolio Value", value: fmtUSD.format(p.wallet?.netAssetValue ?? 0), cls: "text-blue-400", border: "" },
@@ -2739,10 +2747,12 @@ export function UserDetailPreview({
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {Object.entries(classRows).map(([cls, row]) => (
+                                    {Object.entries(classRows)
+                                      .filter(([, row]) => row.holdings > 0 || row.closeValue > 0)
+                                      .map(([cls, row]) => (
                                       <tr key={cls} className="border-b border-border last:border-0 hover:bg-muted/20">
-                                        <td className="px-4 py-2.5 font-medium">{cls}</td>
-                                        <td className="px-4 py-2.5 text-right text-muted-foreground">{row.holdings}</td>
+                                        <td className="px-4 py-2.5 font-medium">{CLASS_LABELS[cls] ?? cls}</td>
+                                        <td className="px-4 py-2.5 text-right text-muted-foreground">{row.holdings > 0 ? row.holdings : "—"}</td>
                                         <td className="px-4 py-2.5 text-right">{fmtUSD.format(row.closeValue)}</td>
                                         <td className="px-4 py-2.5 text-right text-muted-foreground">{classTableTotal > 0 ? ((row.closeValue / classTableTotal) * 100).toFixed(2) : "0.00"}%</td>
                                       </tr>

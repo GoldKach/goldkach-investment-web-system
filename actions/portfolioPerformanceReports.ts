@@ -658,6 +658,30 @@ export async function getPerformanceStatistics(
   }
 }
 
+/**
+ * POST /portfolio-performance-reports/regenerate
+ * Deletes the existing report for the given portfolio + date and creates a fresh one
+ * using the historical close prices stored in AssetPriceHistory for that date.
+ * Use this to fix past reports that captured wrong close prices.
+ */
+export async function regeneratePerformanceReport(input: GeneratePerformanceReportInput) {
+  if (!input.userPortfolioId) return { success: false, error: "userPortfolioId is required." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post(
+      "/portfolio-performance-reports/regenerate",
+      {
+        userPortfolioId: input.userPortfolioId,
+        ...(input.reportDate ? { reportDate: input.reportDate } : {}),
+      },
+      { headers }
+    );
+    return { success: true, data: res.data?.data as PortfolioPerformanceReport, message: res.data?.message as string | undefined };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to regenerate performance report") };
+  }
+}
+
 /** POST /portfolio-performance-reports/generate — single portfolio */
 export async function generatePerformanceReport(input: GeneratePerformanceReportInput) {
   if (!input.userPortfolioId) return { success: false, error: "userPortfolioId is required." };

@@ -137,6 +137,55 @@ export async function deleteAsset(id: string) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Asset Price History                                                        */
+/* -------------------------------------------------------------------------- */
+
+export interface AssetPriceHistoryEntry {
+  id:              string;
+  symbol:          string;
+  description:     string;
+  sector:          string;
+  assetClass:      string | null;
+  liveClosePrice:  number;   // current live price on Asset
+  historicalPrice: number;   // stored price for the queried date (or live if no history)
+  priceDate:       string | null;  // ISO — the date the stored price was recorded
+  hasHistory:      boolean;  // false = no AssetPriceHistory row found, fell back to live price
+}
+
+/**
+ * GET /assets/price-history?date=YYYY-MM-DD
+ * Returns all assets with their stored close price for the given date.
+ * Falls back to the live Asset.closePrice if no history row exists.
+ */
+export async function getAssetPriceHistoryForDate(date: string) {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get("/assets/price-history", { headers, params: { date } });
+    return { success: true, data: (res.data?.data ?? []) as AssetPriceHistoryEntry[], queryDate: res.data?.queryDate };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to fetch asset price history") };
+  }
+}
+
+/**
+ * POST /assets/price-history/batch
+ * Upserts one AssetPriceHistory row per asset for the given date.
+ * Body: { date: "YYYY-MM-DD", prices: [{ assetId, closePrice }] }
+ */
+export async function batchUpsertAssetPriceHistory(
+  date: string,
+  prices: Array<{ assetId: string; closePrice: number }>
+) {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/assets/price-history/batch", { date, prices }, { headers });
+    return { success: true, data: res.data?.data, message: res.data?.message as string | undefined };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to save asset price history") };
+  }
+}
+
 /**
  * ✅ NEW: Batch update asset prices
  * POST /assets/batch-update-prices

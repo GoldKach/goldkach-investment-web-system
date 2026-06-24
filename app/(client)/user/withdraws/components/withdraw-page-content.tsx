@@ -640,7 +640,7 @@ export function WithdrawalsPageContent({
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Initial Investment</span>
-                  <span className="font-mono">{fmt.format(selectedPortfolio.totalInvested)}</span>
+                  <span className="font-mono">{fmt.format(selectedPortfolio.totalInvested ?? 0)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground pt-1">
                   Max redeemable: <span className="font-semibold text-violet-400">{fmt.format(selectedPortfolio.portfolioValue)}</span>

@@ -618,6 +618,18 @@ function ViewDialog({
   onClose:     () => void;
   onDelete:    () => void;
 }) {
+  const [initialInvestment, setInitialInvestment] = useState<number>(0);
+
+  useEffect(() => {
+    if (!open || !up?.user?.id) return;
+    getMasterWalletByUser(up.user.id).then((res) => {
+      if (res.success && res.data) {
+        const mw = (res.data as any)?.masterWallet ?? res.data;
+        setInitialInvestment((mw?.totalDeposited ?? 0) - (mw?.totalFees ?? 0));
+      }
+    });
+  }, [open, up?.user?.id]);
+
   if (!up) return null;
   const assets     = up.userAssets ?? [];
   const totalGain  = assets.reduce((s, a) => s + (a.lossGain ?? 0), 0);
@@ -645,7 +657,7 @@ function ViewDialog({
           <div className="grid grid-cols-4 gap-3">
             {[
               { label: "Portfolio Value",  value: fmt$(up.portfolioValue ?? 0), icon: DollarSign },
-              { label: "Initial Investment",   value: fmt$(up.totalInvested  ?? 0), icon: Wallet     },
+              { label: "Initial Investment",   value: fmt$(initialInvestment), icon: Wallet     },
               { label: "Total Gain/Loss",  value: `${isPos ? "+" : ""}${fmt$(totalGain)}`, icon: isPos ? TrendingUp : TrendingDown, color: isPos ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400" },
               { label: "Assets",           value: `${assets.length}`,           icon: Briefcase  },
             ].map(({ label, value, icon: Icon, color }) => (

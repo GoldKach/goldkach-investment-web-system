@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   BarChart2, Play, Zap, CheckCircle, XCircle, Loader2,
-  Calendar, TrendingUp, TrendingDown, ChevronDown, ChevronUp,
+  Calendar, TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import {
   generatePerformanceReport,
   generateAllPerformanceReports,
   generateUserPerformanceReports,
+  generateAllReportsForDate,
+  regeneratePerformanceReport,
 } from "@/actions/portfolioPerformanceReports";
 
 const fmt = (n: number) =>
@@ -55,6 +57,8 @@ export function PerformanceReportsManager({ clientPortfolios, adminId, adminName
   const [expandedPortfolios, setExpandedPortfolios] = useState<Set<string>>(new Set());
   const [isBulkGenerating, startBulkTransition] = useTransition();
   const [bulkResult, setBulkResult] = useState<{ success: number; failed: number; total: number } | null>(null);
+  const [regenStates, setRegenStates] = useState<Record<string, ReportStatus>>({});
+  const [isRegeneratingAll, startRegenAllTransition] = useTransition();
 
   const toggleExpand = (id: string) => {
     setExpandedPortfolios((prev) => {
@@ -94,6 +98,31 @@ export function PerformanceReportsManager({ clientPortfolios, adminId, adminName
     }
   };
 
+  const handleRegenerateSingle = async (portfolioId: string, reportDate: string, portfolioName: string) => {
+    const key = `${portfolioId}:${reportDate}`;
+    setRegenStates((prev) => ({ ...prev, [key]: "generating" }));
+    const res = await regeneratePerformanceReport({ userPortfolioId: portfolioId, reportDate });
+    if (res.success) {
+      setRegenStates((prev) => ({ ...prev, [key]: "success" }));
+      toast.success(`Report regenerated for ${portfolioName} — ${fmtDate(reportDate)}`);
+    } else {
+      setRegenStates((prev) => ({ ...prev, [key]: "error" }));
+      toast.error(`Regenerate failed: ${res.error}`);
+    }
+  };
+
+  const handleRegenerateAll = () => {
+    if (!reportDate) { toast.error("Select a date to regenerate reports for."); return; }
+    startRegenAllTransition(async () => {
+      const res = await generateAllReportsForDate(reportDate);
+      if (res.success && res.data) {
+        toast.success(`Regenerated ${res.data.success}/${res.data.total} reports for ${fmtDate(reportDate)}`);
+      } else {
+        toast.error(res.error || "Bulk regeneration failed.");
+      }
+    });
+  };
+
   const handleBulkGenerate = () => {
     setBulkResult(null);
     startBulkTransition(async () => {
@@ -129,10 +158,15 @@ export function PerformanceReportsManager({ clientPortfolios, adminId, adminName
               </Label>
               <Input id="reportDate" type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} className="w-48" />
             </div>
-            <Button onClick={handleBulkGenerate} disabled={isBulkGenerating} className="gap-2">
+            <Button onClick={handleBulkGenerate} disabled={isBulkGenerating || isRegeneratingAll} className="gap-2">
               {isBulkGenerating
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating All…</>
                 : <><Zap className="h-4 w-4" /> Generate All Reports</>}
+            </Button>
+            <Button onClick={handleRegenerateAll} disabled={isBulkGenerating || isRegeneratingAll} variant="outline" className="gap-2">
+              {isRegeneratingAll
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Regenerating…</>
+                : <><RefreshCw className="h-4 w-4" /> Regenerate All for Date</>}
             </Button>
           </div>
           {bulkResult && (
@@ -247,11 +281,14 @@ export function PerformanceReportsManager({ clientPortfolios, adminId, adminName
                                     <th className="px-4 py-2 text-right">Gain/Loss</th>
                                     <th className="px-4 py-2 text-right">Return %</th>
                                     <th className="px-4 py-2 text-right">Fees</th>
+                                    <th className="px-4 py-2 text-right"></th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/40">
                                   {p.reports.map((r: any) => {
                                     const pos = r.totalLossGain >= 0;
+                                    const regenKey = `${p.id}:${r.reportDate}`;
+                                    const regenStatus = regenStates[regenKey] ?? "idle";
                                     return (
                                       <tr key={r.id} className="hover:bg-muted/10">
                                         <td className="px-4 py-2 font-medium">{fmtDate(r.reportDate)}</td>
@@ -263,6 +300,24 @@ export function PerformanceReportsManager({ clientPortfolios, adminId, adminName
                                           {r.totalPercentage >= 0 ? "+" : ""}{r.totalPercentage.toFixed(2)}%
                                         </td>
                                         <td className="px-4 py-2 text-right text-muted-foreground">{fmt(r.totalFees)}</td>
+                                        <td className="px-4 py-2 text-right">
+                                          <Button
+                                            size="sm" variant="ghost"
+                                            onClick={() => handleRegenerateSingle(p.id, r.reportDate, p.customName)}
+                                            disabled={regenStatus === "generating"}
+                                            className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                                            title="Regenerate with historical prices"
+                                          >
+                                            {regenStatus === "generating"
+                                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                                              : regenStatus === "success"
+                                              ? <CheckCircle className="h-3 w-3 text-green-500" />
+                                              : regenStatus === "error"
+                                              ? <XCircle className="h-3 w-3 text-red-500" />
+                                              : <RefreshCw className="h-3 w-3" />}
+                                            Regen
+                                          </Button>
+                                        </td>
                                       </tr>
                                     );
                                   })}

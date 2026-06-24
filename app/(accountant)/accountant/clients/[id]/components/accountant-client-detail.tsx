@@ -180,7 +180,7 @@ export function AccountantClientDetail({ client, portfolioSummary }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
-            label: "Initial Investment", value: fmt(aggregate.totalInvested),
+            label: "Initial Investment", value: fmt((masterWallet?.totalDeposited ?? 0) - (masterWallet?.totalFees ?? 0)),
             icon: Wallet, cls: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20",
           },
           {

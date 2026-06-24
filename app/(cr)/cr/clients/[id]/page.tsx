@@ -177,7 +177,7 @@ export default async function CRClientDetailPage({ params }: { params: Promise<{
       {portfolioSummary && portfolioSummary.portfolios.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Portfolio Reports</h2>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             {portfolioSummary.portfolios.map((p) => {
               const isPositive = p.totalLossGain >= 0;
               return (
@@ -222,8 +222,8 @@ export default async function CRClientDetailPage({ params }: { params: Promise<{
                         <p className="font-semibold">{fmt(p.portfolioValue)}</p>
                       </div>
                       <div>
-                        <p className="text-slate-400">NAV</p>
-                        <p className="font-semibold">{fmt(p.wallet?.netAssetValue ?? 0)}</p>
+                        <p className="text-slate-400">Initial Investment</p>
+                        <p className="font-semibold">{fmt((portfolioSummary?.masterWallet?.totalDeposited ?? 0) - (portfolioSummary?.masterWallet?.totalFees ?? 0))}</p>
                       </div>
                       <div>
                         <p className="text-slate-400">Gain/Loss</p>

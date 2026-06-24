@@ -54,6 +54,7 @@
 // app/(back)/dashboard/portfolios/page.tsx
 import { getSession } from "@/actions/auth";
 import { listUserPortfolios } from "@/actions/user-portfolios";
+import { getMasterWalletByUser } from "@/actions/master-wallets";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PortfolioList } from "@/components/user/portfolio-content";
 import { redirect } from "next/navigation";
@@ -69,7 +70,11 @@ export default async function PortfolioPage() {
 
   const userId = session.user.id;
 
-  const portfolios = await listUserPortfolios();
+  const [portfolios, masterWalletRes] = await Promise.all([
+    listUserPortfolios(),
+    getMasterWalletByUser(userId),
+  ]);
+  const masterWallet = masterWalletRes.success ? (masterWalletRes.data as any)?.masterWallet ?? null : null;
 
   if (portfolios.error || !portfolios.data) {
     return (
@@ -93,7 +98,7 @@ export default async function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PortfolioList userPortfolios={userPortfolios} />
+      <PortfolioList userPortfolios={userPortfolios} masterWallet={masterWallet} />
     </div>
   );
 }

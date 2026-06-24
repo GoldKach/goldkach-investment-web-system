@@ -6,12 +6,13 @@ import { TrendingUp, TrendingDown, Wallet, FileText, BarChart2, ChevronDown, Che
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/agent/empty-state";
-import type { PortfolioSummaryItem } from "@/actions/portfolio-summary";
+import type { PortfolioSummaryItem, PortfolioSummary } from "@/actions/portfolio-summary";
 
 interface PortfolioListProps {
   portfolios: PortfolioSummaryItem[];
   clientId: string;
   basePath?: string;
+  masterWallet?: PortfolioSummary["masterWallet"];
 }
 
 function fmt(n: number) {
@@ -26,7 +27,8 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function PortfolioList({ portfolios, clientId, basePath = "/agent/clients" }: PortfolioListProps) {
+export function PortfolioList({ portfolios, clientId, basePath = "/agent/clients", masterWallet }: PortfolioListProps) {
+  const initialInvestment = (masterWallet?.totalDeposited ?? 0) - (masterWallet?.totalFees ?? 0);
   const [expandedSnapshots, setExpandedSnapshots] = useState<Set<string>>(new Set());
 
   const toggleSnapshots = (id: string) => {
@@ -42,7 +44,7 @@ export function PortfolioList({ portfolios, clientId, basePath = "/agent/clients
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2">
       {portfolios.map((p) => {
         const isPositive = p.totalLossGain >= 0;
         const showSnapshots = expandedSnapshots.has(p.id);
@@ -76,10 +78,9 @@ export function PortfolioList({ portfolios, clientId, basePath = "/agent/clients
 
               {/* Financials */}
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div><p className="text-slate-400 mb-0.5">Invested</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.totalInvested)}</p></div>
+                <div><p className="text-slate-400 mb-0.5">Initial Investment</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(initialInvestment)}</p></div>
                 <div><p className="text-slate-400 mb-0.5">Total Portfolio Value</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.portfolioValue)}</p></div>
                 <div><p className="text-slate-400 mb-0.5">Gain / Loss</p><p className={`font-semibold ${isPositive ? "text-green-600" : "text-red-500"}`}>{fmt(p.totalLossGain)}</p></div>
-                <div><p className="text-slate-400 mb-0.5">Initial Investment</p><p className="font-semibold text-slate-700 dark:text-slate-200">{fmt(p.wallet?.netAssetValue ?? 0)}</p></div>
               </div>
 
               {/* Latest report badge */}

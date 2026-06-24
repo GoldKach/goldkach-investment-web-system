@@ -91,6 +91,7 @@ export default async function MyClientProfilePage({ params }: Props) {
             portfolios={portfolioSummary?.portfolios ?? []}
             clientId={clientId}
             basePath="/user/my-clients"
+            masterWallet={portfolioSummary?.masterWallet ?? undefined}
           />
         )}
       </div>

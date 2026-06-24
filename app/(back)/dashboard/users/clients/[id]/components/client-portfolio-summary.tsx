@@ -843,7 +843,7 @@ export function ClientPortfolioSummary({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KpiCard
           title="Initial Investment"
-          value={fmt.format(aggregate.totalInvested)}
+          value={fmt.format((masterWallet?.totalDeposited ?? 0) - (masterWallet?.totalFees ?? 0))}
           sub={`Across ${aggregate.portfolioCount} portfolios`}
           icon={DollarSign}
           accent="bg-blue-500/10 text-blue-400"

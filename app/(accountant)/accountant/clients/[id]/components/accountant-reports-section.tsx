@@ -1,11 +1,11 @@
 ﻿"use client";
 
 import { useState, useCallback } from "react";
-import { FileText, ChevronDown, ChevronUp, Loader2, Eye, Download, Calendar, X } from "lucide-react";
+import { FileText, ChevronDown, ChevronUp, Loader2, Eye, Download, Calendar, X, RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listPerformanceReports } from "@/actions/portfolioPerformanceReports";
+import { listPerformanceReports, regeneratePerformanceReport } from "@/actions/portfolioPerformanceReports";
 import { generatePerformanceReportPDF } from "@/components/front-end/generate-report-pdf";
 
 const fmt = (n: number) =>
@@ -26,6 +26,8 @@ export function AccountantReportsSection({ portfolios, reports: initialReports, 
   const [loading, setLoading] = useState<Set<string>>(new Set());
   const [selectedDate, setSelectedDate] = useState("");
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  // regenStatus keyed by `${portfolioId}:${reportDate}` → "idle"|"generating"|"success"|"error"
+  const [regenStatus, setRegenStatus] = useState<Record<string, "idle" | "generating" | "success" | "error">>({});
 
   const fetchReports = useCallback(async (portfolioId: string, date: string) => {
     setLoading((prev) => new Set(prev).add(portfolioId));
@@ -67,6 +69,19 @@ export function AccountantReportsSection({ portfolios, reports: initialReports, 
     setReports({});
     expanded.forEach((id) => fetchReports(id, date));
   };
+
+  const handleRegenerate = useCallback(async (portfolioId: string, reportDate: string) => {
+    const key = `${portfolioId}:${reportDate}`;
+    setRegenStatus((prev) => ({ ...prev, [key]: "generating" }));
+    const res = await regeneratePerformanceReport({ userPortfolioId: portfolioId, reportDate });
+    if (res.success) {
+      setRegenStatus((prev) => ({ ...prev, [key]: "success" }));
+      // Refresh the report list for this portfolio so the new data shows immediately
+      await fetchReports(portfolioId, selectedDate);
+    } else {
+      setRegenStatus((prev) => ({ ...prev, [key]: "error" }));
+    }
+  }, [selectedDate, fetchReports]);
 
   const generatePDF = async (report: any, portfolio: any) => {
     setGeneratingPdf(report.id);
@@ -219,6 +234,25 @@ export function AccountantReportsSection({ portfolios, reports: initialReports, 
                               </div>
                             </div>
                             <div className="flex gap-2 shrink-0">
+                              {(() => {
+                                const rKey = `${p.id}:${r.reportDate}`;
+                                const rStatus = regenStatus[rKey] ?? "idle";
+                                return (
+                                  <Button
+                                    size="sm" variant="ghost"
+                                    onClick={() => handleRegenerate(p.id, r.reportDate)}
+                                    disabled={rStatus === "generating" || isGen}
+                                    title="Regenerate with correct historical prices"
+                                    className="gap-1.5 text-xs h-7 text-muted-foreground hover:text-foreground"
+                                  >
+                                    {rStatus === "generating" ? <Loader2 className="h-3 w-3 animate-spin" />
+                                      : rStatus === "success" ? <CheckCircle className="h-3 w-3 text-green-500" />
+                                      : rStatus === "error" ? <XCircle className="h-3 w-3 text-red-500" />
+                                      : <RefreshCw className="h-3 w-3" />}
+                                    Regen
+                                  </Button>
+                                );
+                              })()}
                               <Button
                                 size="sm" variant="outline"
                                 onClick={async () => { const doc = await generatePDF(r, p); window.open(URL.createObjectURL(doc.output("blob")), "_blank"); }}

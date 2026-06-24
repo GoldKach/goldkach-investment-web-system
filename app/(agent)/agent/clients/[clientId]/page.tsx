@@ -91,6 +91,7 @@ export default async function ClientProfilePage({ params }: Props) {
           <PortfolioList
             portfolios={portfolioSummary?.portfolios ?? []}
             clientId={clientId}
+            masterWallet={portfolioSummary?.masterWallet ?? undefined}
           />
         )}
       </div>

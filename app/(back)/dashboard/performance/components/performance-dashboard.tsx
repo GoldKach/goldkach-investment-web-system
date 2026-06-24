@@ -142,13 +142,14 @@ export function PerformanceDashboard({ assets, portfolioSummaries }: Props) {
 
   /* ── Platform totals ── */
   const totals = useMemo(() => ({
-    totalNAV:      allPortfolios.reduce((s, p) => s + (p.wallet?.netAssetValue ?? 0), 0),
-    totalInvested: allPortfolios.reduce((s, p) => s + p.totalInvested, 0),
+    totalNAV:             allPortfolios.reduce((s, p) => s + (p.wallet?.netAssetValue ?? 0), 0),
+    totalInitialInvestment: portfolioSummaries.reduce((s, { summary }) =>
+      s + (summary?.masterWallet?.totalDeposited ?? 0) - (summary?.masterWallet?.totalFees ?? 0), 0),
     totalGainLoss: allPortfolios.reduce((s, p) => s + p.totalLossGain, 0),
     totalFees:     allPortfolios.reduce((s, p) => s + (p.wallet?.totalFees ?? 0), 0),
     portfolioCount: allPortfolios.length,
     positiveCount:  allPortfolios.filter((p) => p.totalLossGain > 0).length,
-  }), [allPortfolios]);
+  }), [allPortfolios, portfolioSummaries]);
 
   return (
     <div className="p-6 space-y-8">
@@ -166,7 +167,7 @@ export function PerformanceDashboard({ assets, portfolioSummaries }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: "Total NAV",       value: fmtShort(totals.totalNAV),      color: "text-blue-500" },
-          { label: "Initial Investment",  value: fmtShort(totals.totalInvested), color: "text-slate-600 dark:text-slate-300" },
+          { label: "Initial Investment",  value: fmtShort(totals.totalInitialInvestment), color: "text-slate-600 dark:text-slate-300" },
           { label: "Total Gain/Loss", value: fmtShort(totals.totalGainLoss), color: totals.totalGainLoss >= 0 ? "text-green-600" : "text-red-500" },
           { label: "Total Fees",      value: fmtShort(totals.totalFees),     color: "text-amber-500" },
           { label: "Portfolios",      value: totals.portfolioCount.toString(), color: "text-violet-500" },

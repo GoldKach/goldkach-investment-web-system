@@ -1417,9 +1417,10 @@ const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, n
 
 interface PortfolioDetailProps {
   userPortfolio: any
+  masterWallet?: { totalDeposited: number; totalFees: number } | null
 }
 
-export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
+export function UserPortfolioDetail({ userPortfolio, masterWallet }: PortfolioDetailProps) {
   const [redeemOpen, setRedeemOpen] = useState(false)
   const [amount, setAmount]         = useState("")
   const [isPending, startTransition] = useTransition()
@@ -1539,8 +1540,8 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
           },
           {
             label: "Initial Investment",
-            value: fmt.format(walletNAV),
-            sub: "Portfolio wallet NAV",
+            value: fmt.format((masterWallet?.totalDeposited ?? 0) - (masterWallet?.totalFees ?? 0)),
+            sub: "Total deposited minus fees",
             icon: TrendingUp,
             cls: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-l-emerald-500",
           },
@@ -1554,9 +1555,9 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
             border: isPositive ? "border-l-emerald-500" : "border-l-red-500",
           },
           {
-            label: "Initial Investment",
-            value: fmt.format(wallet?.netAssetValue ?? 0),
-            sub: "Portfolio wallet NAV",
+            label: "Total Fees",
+            value: fmt.format(masterWallet?.totalFees ?? 0),
+            sub: "Master wallet deductions",
             icon: CreditCard,
             cls: "text-violet-400", bg: "bg-violet-500/10", border: "border-l-violet-500",
           },
@@ -1636,33 +1637,6 @@ export function UserPortfolioDetail({ userPortfolio }: PortfolioDetailProps) {
           })
         }}
       />
-
-      {/* ── Wallet info ── */}
-      {wallet && (
-        <Card className="border-border bg-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Portfolio Wallet</span>
-              <span className="text-xs font-mono text-muted-foreground">· {wallet.accountNumber}</span>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-xs">
-              {[
-                { label: "Total Portfolio Value", value: fmt.format(totalCloseValue),   cls: "text-blue-400" },
-                { label: "Balance",      value: fmt.format(wallet.balance),          cls: "" },
-                { label: "Total Fees",   value: fmt.format(wallet.totalFees),        cls: "text-amber-400" },
-                { label: "Bank Fee",     value: `${wallet.bankFee}%`,               cls: "" },
-                { label: "Txn Fee",      value: `${wallet.transactionFee}%`,        cls: "" },
-              ].map((item) => (
-                <div key={item.label} className="rounded border border-border bg-muted/40 p-2">
-                  <p className="text-muted-foreground mb-0.5">{item.label}</p>
-                  <p className={`font-semibold ${item.cls}`}>{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ── Tabs ── */}
       <Tabs defaultValue="assets" className="space-y-4">

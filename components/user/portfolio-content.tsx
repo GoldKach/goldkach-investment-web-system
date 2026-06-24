@@ -14,17 +14,19 @@ import Link from "next/link"
 
 interface PortfolioListProps {
   userPortfolios: any[]
+  masterWallet?: { totalDeposited: number; totalFees: number } | null
 }
 
-export function PortfolioList({ userPortfolios }: PortfolioListProps) {
+export function PortfolioList({ userPortfolios, masterWallet }: PortfolioListProps) {
+  const initialInvestment = (masterWallet?.totalDeposited ?? 0) - (masterWallet?.totalFees ?? 0)
   const validPortfolios = userPortfolios.filter(up => up.portfolio)
 
   const portfolios = validPortfolios.map((up) => {
     const totalValue    = up.userAssets.reduce((sum: any, asset: any) => sum + asset.closeValue, 0)
-    const initialInvestment = Number(up.totalInvested ?? 0)
+    const invested      = Number(up.totalInvested ?? 0)
     // True gain/loss = current close value minus total amount ever invested
-    const totalLossGain = totalValue - initialInvestment
-    const lossGainPercentage = initialInvestment > 0 ? (totalLossGain / initialInvestment) * 100 : 0
+    const totalLossGain = totalValue - invested
+    const lossGainPercentage = invested > 0 ? (totalLossGain / invested) * 100 : 0
 
     return {
       id: up.portfolio!.id,
@@ -133,7 +135,7 @@ export function PortfolioList({ userPortfolios }: PortfolioListProps) {
           <h2 className="text-2xl font-bold">My Portfolios</h2>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
           {portfolios.map((portfolio) => {
             const isPositive = portfolio.totalLossGain >= 0
 

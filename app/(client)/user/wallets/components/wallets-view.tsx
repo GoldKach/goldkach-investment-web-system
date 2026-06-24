@@ -277,7 +277,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div className="rounded-lg bg-muted/30 p-3">
                       <p className="text-xs text-muted-foreground">Initial Investment</p>
-                      <p className="text-base font-bold text-blue-500">{fmt(up?.totalInvested ?? 0)}</p>
+                      <p className="text-base font-bold text-blue-500">{fmt((master?.totalDeposited ?? 0) - (master?.totalFees ?? 0))}</p>
                     </div>
                     <div className="rounded-lg bg-muted/30 p-3">
                       <p className="text-xs text-muted-foreground">Total Portfolio Value</p>
@@ -293,7 +293,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
 
                   {up && (
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>Invested: <span className="font-semibold text-foreground">{fmt(up.totalInvested)}</span></span>
+                      <span>NAV: <span className="font-semibold text-foreground">{fmt(up.totalInvested)}</span></span>
                       <span>·</span>
                       <span>Gain/Loss:
                         <span className={`font-semibold ml-1 ${isPositive ? "text-green-500" : "text-red-500"}`}>
