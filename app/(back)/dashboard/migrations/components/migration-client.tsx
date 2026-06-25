@@ -3,12 +3,12 @@
 
 import React, { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { previewBackfill, runBackfill, reactivateAllUsers, type MigrationPortfolioResult } from "@/actions/migrations";
+import { previewBackfill, runBackfill, reactivateAllUsers, resetCostPerShare, resetCostPrice, type MigrationPortfolioResult, type CostPerShareResetDetail, type CostPriceResetDetail } from "@/actions/migrations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle2, SkipForward, XCircle, Database, Play, Eye, RefreshCw, UserCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, SkipForward, XCircle, Database, Play, Eye, RefreshCw, UserCheck, DollarSign, ArrowRight } from "lucide-react";
 
 const inputCls = "bg-slate-50 dark:bg-[#161b4a]/60 border-slate-200 dark:border-[#2B2F77]/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus-visible:ring-[#3B82F6]/30 focus-visible:border-[#3B82F6]";
 
@@ -28,6 +28,66 @@ export default function MigrationsClient() {
   // Reactivate all users state
   const [reactivateResult, setReactivateResult] = useState<{ usersReactivated: number; masterWalletsReactivated: number; portfolioWalletsReactivated: number } | null>(null);
   const [isReactivating, startReactivateTransition] = useTransition();
+
+  // Cost-price reset state (fix costPrice reduced by redemptions)
+  const [cpPreview, setCpPreview] = useState<CostPriceResetDetail[] | null>(null);
+  const [cpRunResult, setCpRunResult] = useState<{ portfoliosAffected: number; totalAssetsUpdated: number } | null>(null);
+  const [isCpRunning, startCpTransition] = useTransition();
+  const [cpMode, setCpMode] = useState<"preview" | "run" | null>(null);
+
+  const handleCpPreview = () => {
+    startCpTransition(async () => {
+      const res = await resetCostPrice(true);
+      if (!res.success) { toast.error(res.error ?? "Preview failed."); return; }
+      setCpPreview(res.data?.details ?? []);
+      setCpMode("preview");
+      toast.success(`Preview: ${res.data?.portfoliosAffected ?? 0} portfolio(s) would be fixed.`);
+    });
+  };
+
+  const handleCpRun = () => {
+    startCpTransition(async () => {
+      const res = await resetCostPrice(false);
+      if (!res.success) { toast.error(res.error ?? "Reset failed."); return; }
+      setCpPreview(res.data?.details ?? []);
+      setCpRunResult({
+        portfoliosAffected: res.data?.portfoliosAffected ?? 0,
+        totalAssetsUpdated: res.data?.totalAssetsUpdated ?? 0,
+      });
+      setCpMode("run");
+      toast.success(res.message ?? "Cost price reset complete.");
+    });
+  };
+
+  // Cost-per-share reset state
+  const [cpsPreview, setCpsPreview] = useState<CostPerShareResetDetail[] | null>(null);
+  const [cpsRunResult, setCpsRunResult] = useState<{ portfoliosAffected: number; totalAssetsUpdated: number } | null>(null);
+  const [isCpsRunning, startCpsTransition] = useTransition();
+  const [cpsMode, setCpsMode] = useState<"preview" | "run" | null>(null);
+
+  const handleCpsPreview = () => {
+    startCpsTransition(async () => {
+      const res = await resetCostPerShare(true);
+      if (!res.success) { toast.error(res.error ?? "Preview failed."); return; }
+      setCpsPreview(res.data?.details ?? []);
+      setCpsMode("preview");
+      toast.success(`Preview: ${res.data?.portfoliosAffected ?? 0} portfolio(s) would be updated.`);
+    });
+  };
+
+  const handleCpsRun = () => {
+    startCpsTransition(async () => {
+      const res = await resetCostPerShare(false);
+      if (!res.success) { toast.error(res.error ?? "Reset failed."); return; }
+      setCpsPreview(res.data?.details ?? []);
+      setCpsRunResult({
+        portfoliosAffected: res.data?.portfoliosAffected ?? 0,
+        totalAssetsUpdated: res.data?.totalAssetsUpdated ?? 0,
+      });
+      setCpsMode("run");
+      toast.success(res.message ?? "Cost per share reset complete.");
+    });
+  };
 
   const handleReactivateAll = () => {
     startReactivateTransition(async () => {
@@ -124,6 +184,165 @@ export default function MigrationsClient() {
               : <><UserCheck className="w-4 h-4" /> Reactivate All Users Now</>
             }
           </Button>
+        </div>
+
+        {/* Reset Cost Price (fix redemption bug) */}
+        <div className="bg-white dark:bg-[#0f1135] border border-rose-500/30 rounded-2xl p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+              <DollarSign className="w-4 h-4 text-rose-500" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Fix Cost Price After Redemptions</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Corrects costPrice for portfolios where past redemptions incorrectly reduced the cost basis.
+                Recalculates totalInvested = original + all top-ups (excluding redemptions), then
+                restores costPrice per asset and portfolio wallet netAssetValue. Run after deploying the redemption fix.
+              </p>
+            </div>
+          </div>
+
+          {cpRunResult && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {[
+                { label: "Portfolios Fixed",   value: cpRunResult.portfoliosAffected },
+                { label: "Asset Rows Updated", value: cpRunResult.totalAssetsUpdated },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                  <p className="text-2xl font-bold text-rose-500 mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-3 mb-4">
+            <Button onClick={handleCpPreview} disabled={isCpRunning} variant="outline"
+              className="h-9 border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10">
+              {isCpRunning && cpMode !== "run" ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+              {isCpRunning && cpMode !== "run" ? "Previewing…" : "Preview Changes"}
+            </Button>
+            <Button onClick={handleCpRun} disabled={isCpRunning || !cpPreview}
+              className="h-9 bg-rose-600 hover:bg-rose-700 text-white font-semibold gap-2">
+              {isCpRunning && cpMode === "run" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {isCpRunning && cpMode === "run" ? "Fixing…" : "Apply Fix"}
+            </Button>
+          </div>
+          {!cpPreview && <p className="text-xs text-slate-400 dark:text-slate-500">Run preview first before the fix button becomes available.</p>}
+
+          {cpPreview && cpPreview.length === 0 && (
+            <p className="text-xs text-emerald-500 font-medium">All portfolios already have the correct cost price — nothing to fix.</p>
+          )}
+
+          {cpPreview && cpPreview.length > 0 && (
+            <div className="mt-3 rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 overflow-hidden">
+              <div className="px-4 py-2 border-b border-slate-100 dark:border-[#2B2F77]/20 bg-slate-50 dark:bg-[#0a0d24]">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {cpMode === "run" ? "Fixed" : "Would fix"} — {cpPreview.length} portfolio(s)
+                </p>
+              </div>
+              <div className="divide-y divide-slate-100 dark:divide-[#2B2F77]/20 max-h-72 overflow-y-auto">
+                {cpPreview.map((p) => (
+                  <div key={p.userPortfolioId} className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-slate-800 dark:text-white">{p.customName}</p>
+                      <span className="text-xs text-slate-400">
+                        NAV: <span className="text-rose-500">{p.previousTotalInvested.toLocaleString()}</span>
+                        <ArrowRight className="w-3 h-3 inline mx-1" />
+                        <span className="text-emerald-500">{p.correctTotalInvested.toLocaleString()}</span>
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {p.assetChanges.map((c) => (
+                        <div key={c.assetId} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-200 w-16">{c.symbol}</span>
+                          <span className="text-slate-400">cost:</span>
+                          <span className="text-rose-500">{c.costPriceFrom.toFixed(2)}</span>
+                          <ArrowRight className="w-3 h-3 shrink-0" />
+                          <span className="text-emerald-500">{c.costPriceTo.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Reset Cost Per Share */}
+        <div className="bg-white dark:bg-[#0f1135] border border-violet-500/30 rounded-2xl p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
+              <DollarSign className="w-4 h-4 text-violet-500" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Reset Cost Per Share to Original</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Reverts cost per share back to the admin-set price from when each portfolio was first allocated.
+                Only affects portfolios that had top-ups (which incorrectly changed the value). Idempotent — safe to run multiple times.
+              </p>
+            </div>
+          </div>
+
+          {cpsRunResult && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {[
+                { label: "Portfolios Fixed",   value: cpsRunResult.portfoliosAffected },
+                { label: "Asset Rows Updated", value: cpsRunResult.totalAssetsUpdated },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                  <p className="text-2xl font-bold text-violet-500 mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-3 mb-4">
+            <Button onClick={handleCpsPreview} disabled={isCpsRunning} variant="outline"
+              className="h-9 border-violet-500/40 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10">
+              {isCpsRunning && cpsMode !== "run" ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+              {isCpsRunning && cpsMode !== "run" ? "Previewing…" : "Preview Changes"}
+            </Button>
+            <Button onClick={handleCpsRun} disabled={isCpsRunning || !cpsPreview}
+              className="h-9 bg-violet-600 hover:bg-violet-700 text-white font-semibold gap-2">
+              {isCpsRunning && cpsMode === "run" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {isCpsRunning && cpsMode === "run" ? "Resetting…" : "Apply Reset"}
+            </Button>
+          </div>
+          {!cpsPreview && <p className="text-xs text-slate-400 dark:text-slate-500">Run preview first before the reset button becomes available.</p>}
+
+          {cpsPreview && cpsPreview.length === 0 && (
+            <p className="text-xs text-emerald-500 font-medium">All portfolios already have the correct cost per share — nothing to fix.</p>
+          )}
+
+          {cpsPreview && cpsPreview.length > 0 && (
+            <div className="mt-3 rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 overflow-hidden">
+              <div className="px-4 py-2 border-b border-slate-100 dark:border-[#2B2F77]/20 bg-slate-50 dark:bg-[#0a0d24]">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {cpsMode === "run" ? "Updated" : "Would update"} — {cpsPreview.length} portfolio(s)
+                </p>
+              </div>
+              <div className="divide-y divide-slate-100 dark:divide-[#2B2F77]/20 max-h-72 overflow-y-auto">
+                {cpsPreview.map((p) => (
+                  <div key={p.userPortfolioId} className="px-4 py-3">
+                    <p className="text-xs font-semibold text-slate-800 dark:text-white mb-1.5">{p.customName}</p>
+                    <div className="space-y-1">
+                      {p.changes.map((c) => (
+                        <div key={c.assetId} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                          <span className="font-mono font-medium text-slate-700 dark:text-slate-200 w-16">{c.symbol}</span>
+                          <span className="text-rose-500">{c.from.toFixed(4)}</span>
+                          <ArrowRight className="w-3 h-3 shrink-0" />
+                          <span className="text-emerald-500">{c.to.toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Warning banner */}

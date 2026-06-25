@@ -156,3 +156,64 @@ export async function reactivateAllUsers() {
     return { success: false, error: msg(e, "Failed to reactivate users.") };
   }
 }
+
+export interface CostPerShareResetDetail {
+  userPortfolioId: string;
+  customName: string;
+  changes: Array<{ assetId: string; symbol: string; from: number; to: number }>;
+}
+
+export interface CostPriceResetDetail {
+  userPortfolioId: string;
+  customName: string;
+  previousTotalInvested: number;
+  correctTotalInvested: number;
+  assetChanges: Array<{
+    assetId: string;
+    symbol: string;
+    costPriceFrom: number;
+    costPriceTo: number;
+    lossGainFrom: number;
+    lossGainTo: number;
+  }>;
+}
+
+export async function resetCostPrice(dryRun: boolean) {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/migrations/reset-cost-price", { dryRun }, { headers });
+    return {
+      success: true,
+      data: res.data?.data as {
+        dryRun: boolean;
+        portfoliosAffected: number;
+        totalAssetsUpdated?: number;
+        details: CostPriceResetDetail[];
+      },
+      message: res.data?.message ?? "Done.",
+      error: null,
+    };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to reset cost price.") };
+  }
+}
+
+export async function resetCostPerShare(dryRun: boolean) {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/migrations/reset-cost-per-share", { dryRun }, { headers });
+    return {
+      success: true,
+      data: res.data?.data as {
+        dryRun: boolean;
+        portfoliosAffected: number;
+        totalAssetsUpdated?: number;
+        details: CostPerShareResetDetail[];
+      },
+      message: res.data?.message ?? "Done.",
+      error: null,
+    };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to reset cost per share.") };
+  }
+}
