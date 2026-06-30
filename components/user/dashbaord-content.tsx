@@ -884,10 +884,14 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
   // ---------- KPIs ----------
   const cashBalance   = Number(wallet.balance       ?? 0)
   const netAssetValue = Number(wallet.netAssetValue  ?? 0)
-  const totalDeposited  = Number(wallet.totalDeposited ?? 0)
-  const totalWithdrawn  = Number(wallet.totalWithdrawn ?? 0)
-  const totalDeposits   = deposits.filter((d: any) => d.depositTarget === "MASTER" || !d.depositTarget).reduce((s: number, d: any) => s + d.amount, 0)
-  const totalWithdrawals = withdrawals.filter((w: any) => w.withdrawalType === "HARD_WITHDRAWAL" || !w.withdrawalType).reduce((s: number, w: any) => s + w.amount, 0)
+  // Compute from approved transactions so old clients (whose wallet stored totals may be wrong)
+  // and new clients both see accurate values.
+  const totalDeposited = deposits
+    .filter((d: any) => (d.depositTarget === "MASTER" || !d.depositTarget) && d.transactionStatus === "APPROVED")
+    .reduce((s: number, d: any) => s + d.amount, 0)
+  const totalWithdrawn = withdrawals
+    .filter((w: any) => w.withdrawalType === "HARD_WITHDRAWAL" && w.transactionStatus === "APPROVED")
+    .reduce((s: number, w: any) => s + w.amount, 0)
 
   // Portfolio breakdown from userPortfolios
   const portfolios = (user.userPortfolios ?? []).filter(Boolean)
@@ -1701,11 +1705,11 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <span className="text-sm text-muted-foreground">Total Deposited</span>
-                    <span className="font-semibold text-green-600">${Number(wallet.totalDeposited ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="font-semibold text-green-600">${totalDeposited.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <span className="text-sm text-muted-foreground">Total Withdrawn</span>
-                    <span className="font-semibold text-red-500">${Number(wallet.totalWithdrawn ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="font-semibold text-red-500">${totalWithdrawn.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>

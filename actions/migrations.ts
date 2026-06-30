@@ -217,3 +217,36 @@ export async function resetCostPerShare(dryRun: boolean) {
     return { success: false, error: msg(e, "Failed to reset cost per share.") };
   }
 }
+
+export interface FixReportClosePricesDetail {
+  portfolioId: string;
+  portfolioName: string;
+  reportDate: string;
+}
+
+export interface FixReportClosePricesSkippedNoHistory {
+  portfolioId: string;
+  portfolioName: string;
+  reportDate: string;
+  missingAssets: string[];
+}
+
+export async function fixReportClosePrices(dryRun: boolean) {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post("/migrations/fix-report-close-prices", { dryRun }, { headers });
+    return {
+      success: true,
+      data: res.data?.data as {
+        fixed: FixReportClosePricesDetail[];
+        skippedNoHistory: FixReportClosePricesSkippedNoHistory[];
+        skippedAlreadyCorrect: FixReportClosePricesDetail[];
+        errors: Array<{ portfolioId: string; portfolioName: string; reportDate: string; error: string }>;
+      },
+      message: res.data?.message ?? "Done.",
+      error: null,
+    };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to fix report close prices.") };
+  }
+}

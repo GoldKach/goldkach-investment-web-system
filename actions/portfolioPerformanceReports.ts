@@ -682,6 +682,27 @@ export async function regeneratePerformanceReport(input: GeneratePerformanceRepo
   }
 }
 
+/**
+ * POST /portfolio-performance-reports/generate-today
+ * Snapshots current live asset prices into AssetPriceHistory for today,
+ * then generates today's report using those just-captured prices.
+ * Use this to capture an up-to-date report at any time before the 2 PM EAT cron.
+ */
+export async function generateTodayReport(userPortfolioId: string) {
+  if (!userPortfolioId) return { success: false, error: "userPortfolioId is required." };
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.post(
+      "/portfolio-performance-reports/generate-today",
+      { userPortfolioId },
+      { headers }
+    );
+    return { success: true, data: res.data?.data as PortfolioPerformanceReport, message: res.data?.message as string | undefined };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to generate today's report") };
+  }
+}
+
 /** POST /portfolio-performance-reports/generate — single portfolio */
 export async function generatePerformanceReport(input: GeneratePerformanceReportInput) {
   if (!input.userPortfolioId) return { success: false, error: "userPortfolioId is required." };

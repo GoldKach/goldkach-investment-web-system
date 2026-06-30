@@ -3,12 +3,12 @@
 
 import React, { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { previewBackfill, runBackfill, reactivateAllUsers, resetCostPerShare, resetCostPrice, type MigrationPortfolioResult, type CostPerShareResetDetail, type CostPriceResetDetail } from "@/actions/migrations";
+import { previewBackfill, runBackfill, reactivateAllUsers, resetCostPerShare, resetCostPrice, fixReportClosePrices, type MigrationPortfolioResult, type CostPerShareResetDetail, type CostPriceResetDetail, type FixReportClosePricesDetail, type FixReportClosePricesSkippedNoHistory } from "@/actions/migrations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle2, SkipForward, XCircle, Database, Play, Eye, RefreshCw, UserCheck, DollarSign, ArrowRight } from "lucide-react";
+import { AlertTriangle, CheckCircle2, SkipForward, XCircle, Database, Play, Eye, RefreshCw, UserCheck, DollarSign, ArrowRight, FileText } from "lucide-react";
 
 const inputCls = "bg-slate-50 dark:bg-[#161b4a]/60 border-slate-200 dark:border-[#2B2F77]/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus-visible:ring-[#3B82F6]/30 focus-visible:border-[#3B82F6]";
 
@@ -86,6 +86,37 @@ export default function MigrationsClient() {
       });
       setCpsMode("run");
       toast.success(res.message ?? "Cost per share reset complete.");
+    });
+  };
+
+  // Fix report close prices state
+  const [frPreview, setFrPreview] = useState<{ fixed: FixReportClosePricesDetail[]; skippedNoHistory: FixReportClosePricesSkippedNoHistory[]; skippedAlreadyCorrect: FixReportClosePricesDetail[] } | null>(null);
+  const [frRunResult, setFrRunResult] = useState<{ fixed: number; skippedNoHistory: number; skippedAlreadyCorrect: number } | null>(null);
+  const [isFrRunning, startFrTransition] = useTransition();
+  const [frMode, setFrMode] = useState<"preview" | "run" | null>(null);
+
+  const handleFrPreview = () => {
+    startFrTransition(async () => {
+      const res = await fixReportClosePrices(true);
+      if (!res.success) { toast.error(res.error ?? "Preview failed."); return; }
+      setFrPreview(res.data ?? null);
+      setFrMode("preview");
+      toast.success(`Preview: ${res.data?.fixed.length ?? 0} report(s) would be regenerated.`);
+    });
+  };
+
+  const handleFrRun = () => {
+    startFrTransition(async () => {
+      const res = await fixReportClosePrices(false);
+      if (!res.success) { toast.error(res.error ?? "Fix failed."); return; }
+      setFrPreview(res.data ?? null);
+      setFrRunResult({
+        fixed: res.data?.fixed.length ?? 0,
+        skippedNoHistory: res.data?.skippedNoHistory.length ?? 0,
+        skippedAlreadyCorrect: res.data?.skippedAlreadyCorrect.length ?? 0,
+      });
+      setFrMode("run");
+      toast.success(res.message ?? "Report close prices fixed.");
     });
   };
 
@@ -341,6 +372,99 @@ export default function MigrationsClient() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Fix Report Close Prices */}
+        <div className="bg-white dark:bg-[#0f1135] border border-sky-500/30 rounded-2xl p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4 text-sky-500" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Fix Report Close Prices</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Scans all stored performance reports and compares each asset's stored close price against the price history table.
+                Reports with incorrect prices are deleted and regenerated using the exact historical price for that date.
+                Reports with no price history for any asset are skipped (not deleted). Portfolios with no stored report for a date are untouched.
+              </p>
+            </div>
+          </div>
+
+          {frRunResult && (
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[
+                { label: "Reports Fixed",          value: frRunResult.fixed,                color: "text-sky-500" },
+                { label: "Skipped (no history)",   value: frRunResult.skippedNoHistory,     color: "text-amber-500" },
+                { label: "Already Correct",        value: frRunResult.skippedAlreadyCorrect, color: "text-emerald-500" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="rounded-xl border border-sky-500/20 bg-sky-500/5 px-4 py-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                  <p className={`text-2xl font-bold ${color} mt-0.5`}>{value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-3 mb-4">
+            <Button onClick={handleFrPreview} disabled={isFrRunning} variant="outline"
+              className="h-9 border-sky-500/40 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10">
+              {isFrRunning && frMode !== "run" ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+              {isFrRunning && frMode !== "run" ? "Previewing…" : "Preview Changes"}
+            </Button>
+            <Button onClick={handleFrRun} disabled={isFrRunning || !frPreview}
+              className="h-9 bg-sky-600 hover:bg-sky-700 text-white font-semibold gap-2">
+              {isFrRunning && frMode === "run" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {isFrRunning && frMode === "run" ? "Fixing…" : "Apply Fix"}
+            </Button>
+          </div>
+          {!frPreview && <p className="text-xs text-slate-400 dark:text-slate-500">Run preview first before the fix button becomes available.</p>}
+
+          {frPreview && frPreview.fixed.length === 0 && frPreview.skippedNoHistory.length === 0 && (
+            <p className="text-xs text-emerald-500 font-medium">All report close prices are already correct — nothing to fix.</p>
+          )}
+
+          {frPreview && (frPreview.fixed.length > 0 || frPreview.skippedNoHistory.length > 0) && (
+            <div className="mt-3 space-y-3">
+              {frPreview.fixed.length > 0 && (
+                <div className="rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 overflow-hidden">
+                  <div className="px-4 py-2 border-b border-slate-100 dark:border-[#2B2F77]/20 bg-slate-50 dark:bg-[#0a0d24]">
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {frMode === "run" ? "Fixed" : "Would fix"} — {frPreview.fixed.length} report(s)
+                    </p>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-[#2B2F77]/20 max-h-48 overflow-y-auto">
+                    {frPreview.fixed.map((r, i) => (
+                      <div key={`${r.portfolioId}-${r.reportDate}-${i}`} className="px-4 py-2 flex items-center justify-between">
+                        <span className="text-xs font-medium text-slate-800 dark:text-white">{r.portfolioName}</span>
+                        <span className="text-xs font-mono text-sky-500">{r.reportDate}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {frPreview.skippedNoHistory.length > 0 && (
+                <div className="rounded-xl border border-amber-500/20 overflow-hidden">
+                  <div className="px-4 py-2 border-b border-amber-500/10 bg-amber-500/5">
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      Skipped (missing price history) — {frPreview.skippedNoHistory.length} report(s)
+                    </p>
+                  </div>
+                  <div className="divide-y divide-amber-500/10 max-h-48 overflow-y-auto">
+                    {frPreview.skippedNoHistory.map((r, i) => (
+                      <div key={`${r.portfolioId}-${r.reportDate}-${i}`} className="px-4 py-2">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-medium text-slate-800 dark:text-white">{r.portfolioName}</span>
+                          <span className="text-xs font-mono text-amber-500">{r.reportDate}</span>
+                        </div>
+                        <span className="text-xs text-slate-400">Missing: {r.missingAssets.join(", ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

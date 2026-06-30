@@ -35,9 +35,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp, ClipboardEdit, ExternalLink, ShieldCheck, FileDown
+  Mail, Phone, Calendar, Edit2, Activity, Loader2, Check, DollarSign, FileText, Eye, Download, ChevronDown, ChevronUp, ClipboardEdit, ExternalLink, ShieldCheck, FileDown, RefreshCw, CheckCircle, XCircle
 } from "lucide-react";
 import { updateUserById } from "@/actions/auth";
+import { regeneratePerformanceReport } from "@/actions/portfolioPerformanceReports";
 import { createDeposit } from "@/actions/deposits";
 import { updateIndividualOnboarding, updateCompanyOnboarding } from "@/actions/onboarding-admin";
 import { UploadButton } from "@/lib/uploadthing";
@@ -192,6 +193,8 @@ export function ClientDetail({
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [loadingReports, setLoadingReports] = useState<Set<string>>(new Set());
   const [filteredReports, setFilteredReports] = useState<Record<string, any[]>>(reports ?? {});
+  const [rowRegenStatus, setRowRegenStatus] = useState<Record<string, "idle" | "generating" | "success" | "error">>({});
+  const [generateForDateStatus, setGenerateForDateStatus] = useState<Record<string, "idle" | "generating" | "success" | "error">>({});
   
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -440,6 +443,51 @@ export function ClientDetail({
       toast.error("Failed to filter reports");
     } finally {
       setLoadingReports(new Set());
+    }
+  };
+
+  const handleRowRegen = async (portfolioId: string, reportDate: string) => {
+    const key = `${portfolioId}__${reportDate}`;
+    setRowRegenStatus((prev) => ({ ...prev, [key]: "generating" }));
+    const res = await regeneratePerformanceReport({ userPortfolioId: portfolioId, reportDate });
+    if (res.success) {
+      setRowRegenStatus((prev) => ({ ...prev, [key]: "success" }));
+      toast.success(`Report for ${new Date(reportDate).toLocaleDateString()} regenerated.`);
+      // Refresh just this portfolio's reports
+      const { listPerformanceReports } = await import("@/actions/portfolioPerformanceReports");
+      const refreshed = await listPerformanceReports({ userPortfolioId: portfolioId, period: "daily" });
+      if (refreshed.success && refreshed.data) {
+        setFilteredReports((prev) => ({
+          ...prev,
+          [portfolioId]: [...refreshed.data!].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()),
+        }));
+      }
+    } else {
+      setRowRegenStatus((prev) => ({ ...prev, [key]: "error" }));
+      toast.error(`Regen failed: ${res.error}`);
+    }
+  };
+
+  const handleGenerateForDate = async (portfolioId: string, dateStr: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setGenerateForDateStatus((prev) => ({ ...prev, [portfolioId]: "generating" }));
+    const res = await regeneratePerformanceReport({ userPortfolioId: portfolioId, reportDate: dateStr });
+    if (res.success) {
+      setGenerateForDateStatus((prev) => ({ ...prev, [portfolioId]: "success" }));
+      toast.success(`Report for ${new Date(dateStr).toLocaleDateString()} generated.`);
+      const { listPerformanceReports } = await import("@/actions/portfolioPerformanceReports");
+      const refreshed = await listPerformanceReports({ userPortfolioId: portfolioId, period: "daily" });
+      if (refreshed.success && refreshed.data) {
+        setFilteredReports((prev) => ({
+          ...prev,
+          [portfolioId]: [...refreshed.data!].sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime()),
+        }));
+      }
+      setTimeout(() => setGenerateForDateStatus((prev) => ({ ...prev, [portfolioId]: "idle" })), 3000);
+    } else {
+      setGenerateForDateStatus((prev) => ({ ...prev, [portfolioId]: "error" }));
+      toast.error(`Failed: ${res.error}`);
+      setTimeout(() => setGenerateForDateStatus((prev) => ({ ...prev, [portfolioId]: "idle" })), 3000);
     }
   };
 
@@ -763,6 +811,7 @@ export function ClientDetail({
               const portfolioReports = (filteredReports ?? {})[portfolio.id] ?? [];
               const latestReport = portfolioReports[0];
 
+              const gfdStatus = generateForDateStatus[portfolio.id] ?? "idle";
               return (
                 <div key={portfolio.id} className="rounded-lg border border-border/60 overflow-hidden">
                   <div
@@ -787,20 +836,55 @@ export function ClientDetail({
                         </>
                       )}
                     </div>
+                    {selectedDate && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={gfdStatus === "generating"}
+                        onClick={(e) => handleGenerateForDate(portfolio.id, selectedDate, e)}
+                        className="h-7 px-2 gap-1 text-xs shrink-0"
+                        title={`Generate report for ${selectedDate}`}
+                      >
+                        {gfdStatus === "generating" ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : gfdStatus === "success" ? <CheckCircle className="h-3 w-3 text-green-500" />
+                          : gfdStatus === "error" ? <XCircle className="h-3 w-3 text-red-500" />
+                          : <RefreshCw className="h-3 w-3" />}
+                        Generate {selectedDate}
+                      </Button>
+                    )}
                     {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                   </div>
 
                   {isExpanded && (
                     <div className="border-t border-border/60">
                       {portfolioReports.length === 0 ? (
-                        <p className="px-4 py-4 text-xs text-muted-foreground italic">
-                          No reports generated yet.
-                        </p>
+                        <div className="px-4 py-4 flex items-center gap-3">
+                          <p className="text-xs text-muted-foreground italic flex-1">
+                            {selectedDate ? `No report for ${selectedDate}.` : "No reports generated yet."}
+                          </p>
+                          {selectedDate && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={gfdStatus === "generating"}
+                              onClick={(e) => handleGenerateForDate(portfolio.id, selectedDate, e)}
+                              className="h-7 px-2 gap-1 text-xs shrink-0"
+                            >
+                              {gfdStatus === "generating" ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : gfdStatus === "success" ? <CheckCircle className="h-3 w-3 text-green-500" />
+                                : gfdStatus === "error" ? <XCircle className="h-3 w-3 text-red-500" />
+                                : <RefreshCw className="h-3 w-3" />}
+                              Generate for this date
+                            </Button>
+                          )}
+                        </div>
                       ) : (
                         <div className="divide-y divide-border/40">
                           {portfolioReports.map((report: any) => {
                             const pos = report.totalLossGain >= 0;
                             const isGen = generatingPdf === report.id;
+                            const regenKey = `${portfolio.id}__${report.reportDate}`;
+                            const rStatus = rowRegenStatus[regenKey] ?? "idle";
                             return (
                               <div key={report.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/10 flex-wrap">
                                 <div className="flex-1 min-w-0">
@@ -822,6 +906,20 @@ export function ClientDetail({
                                   <Button size="sm" variant="outline" onClick={() => handleDownload(report, portfolio)} disabled={isGen} className="gap-1.5 text-xs h-7">
                                     {isGen ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
                                     PDF
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleRowRegen(portfolio.id, report.reportDate)}
+                                    disabled={rStatus === "generating"}
+                                    title="Regenerate this report using historical close prices"
+                                    className="gap-1.5 text-xs h-7 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                                  >
+                                    {rStatus === "generating" ? <Loader2 className="h-3 w-3 animate-spin" />
+                                      : rStatus === "success" ? <CheckCircle className="h-3 w-3 text-green-500" />
+                                      : rStatus === "error" ? <XCircle className="h-3 w-3 text-red-500" />
+                                      : <RefreshCw className="h-3 w-3" />}
+                                    Regen
                                   </Button>
                                 </div>
                               </div>

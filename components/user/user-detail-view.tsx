@@ -1451,9 +1451,12 @@ export function UserDetailPreview({
   // ---------- KPIs ----------
   const availableBalance = Number(wallet.balance ?? 0)
   const netAssetValue = Number(wallet.netAssetValue ?? 0)
-  // Only external MASTER deposits — authoritative value from master wallet field
-  const totalDeposits = Number(wallet.totalDeposited ?? 0)
-  const masterDeposits = deposits.filter(d => d.depositTarget === "MASTER" || !d.depositTarget)
+  // Compute from approved transactions for accuracy across old and new clients.
+  // Old clients may have incorrect stored wallet totals — using transactions is always correct.
+  const masterDeposits = deposits.filter((d: any) =>
+    (d.depositTarget === "MASTER" || !d.depositTarget) && d.transactionStatus === "APPROVED"
+  )
+  const totalDeposits = masterDeposits.reduce((s: number, d: any) => s + Number(d.amount ?? 0), 0)
   // Only approved hard withdrawals (cash leaving the platform to client bank)
   const hardWithdrawals = withdrawals.filter((w: any) =>
     w.withdrawalType === "HARD_WITHDRAWAL" && w.transactionStatus === "APPROVED"
@@ -1709,7 +1712,7 @@ export function UserDetailPreview({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-amber-400">
-                  {fmtUSD.format(Number(wallet.totalDeposited ?? 0) - Number(wallet.totalFees ?? 0))}
+                  {fmtUSD.format(totalDeposits - Number(wallet.totalFees ?? 0))}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Total deposited minus fees</p>
               </CardContent>
@@ -2348,7 +2351,7 @@ export function UserDetailPreview({
           ) : (() => {
             const depositFees           = portfolioSummary.masterWallet?.totalFees ?? 0
             const computedTotalGainLoss = portfolioSummary.portfolios.reduce((s, p) => s + p.assets.reduce((as, a) => as + a.lossGain, 0), 0)
-            const computedTotalInvested = (portfolioSummary.masterWallet?.totalDeposited ?? 0) - (portfolioSummary.masterWallet?.totalFees ?? 0)
+            const computedTotalInvested = totalDeposits - (portfolioSummary.masterWallet?.totalFees ?? 0)
             const computedTotalValue = portfolioSummary.aggregate.totalValue
             const computedReturnPct = computedTotalInvested > 0
               ? ((computedTotalValue - computedTotalInvested) / computedTotalInvested) * 100
@@ -2525,7 +2528,7 @@ export function UserDetailPreview({
                             {/* Stats row */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                               {[
-                                { label: "Initial Investment", value: fmtUSD.format((portfolioSummary.masterWallet?.totalDeposited ?? 0) - (portfolioSummary.masterWallet?.totalFees ?? 0)), cls: "", border: "" },
+                                { label: "Initial Investment", value: fmtUSD.format(totalDeposits - (portfolioSummary.masterWallet?.totalFees ?? 0)), cls: "", border: "" },
                                 { label: "Total Portfolio Value", value: fmtUSD.format(p.portfolioValue), cls: "", border: "" },
                                 { label: "Gain / Loss", value: (pos ? "+" : "") + fmtUSD.format(gainLossFromAssets), cls: pos ? "text-emerald-400" : "text-red-400", border: pos ? "border-emerald-500/20 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5" },
                                 { label: "Total Portfolio Value", value: fmtUSD.format(p.wallet?.netAssetValue ?? 0), cls: "text-blue-400", border: "" },

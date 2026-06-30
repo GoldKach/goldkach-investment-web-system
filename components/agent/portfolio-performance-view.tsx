@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PeriodFilter } from "@/components/agent/period-filter";
 import { ErrorSection } from "@/components/agent/error-section";
-import { listPerformanceReports, regeneratePerformanceReport } from "@/actions/portfolioPerformanceReports";
+import { listPerformanceReports, regeneratePerformanceReport, generateTodayReport } from "@/actions/portfolioPerformanceReports";
 import type {
   PortfolioPerformanceReport,
   UserPortfolio,
@@ -81,14 +81,15 @@ export function PortfolioPerformanceView({
   const handleRecaptureToday = async () => {
     setIsRecapturing(true);
     setRecaptureStatus("idle");
-    const res = await regeneratePerformanceReport({ userPortfolioId });
+    // Use generate-today: snapshots current live prices then generates report
+    const res = await generateTodayReport(userPortfolioId);
     if (res.success) {
       setRecaptureStatus("success");
-      toast.success("Today's report recaptured with current prices.");
+      toast.success("Today's report generated with current live prices.");
       await refreshReports();
     } else {
       setRecaptureStatus("error");
-      toast.error(`Recapture failed: ${res.error}`);
+      toast.error(`Failed: ${res.error}`);
     }
     setIsRecapturing(false);
   };
@@ -128,15 +129,15 @@ export function PortfolioPerformanceView({
           onClick={handleRecaptureToday}
           disabled={isRecapturing}
           className="gap-1.5 text-xs h-7"
-          title="Delete today's stored report and regenerate it now with current prices"
+          title="Snapshot current live prices and generate today's report now"
         >
           {isRecapturing
-            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Recapturing…</>
+            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
             : recaptureStatus === "success"
-            ? <><CheckCircle className="h-3.5 w-3.5 text-green-500" /> Recaptured</>
+            ? <><CheckCircle className="h-3.5 w-3.5 text-green-500" /> Generated</>
             : recaptureStatus === "error"
             ? <><XCircle className="h-3.5 w-3.5 text-red-500" /> Retry</>
-            : <><RefreshCw className="h-3.5 w-3.5" /> Recapture Current Report</>}
+            : <><RefreshCw className="h-3.5 w-3.5" /> Generate Today's Report</>}
         </Button>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

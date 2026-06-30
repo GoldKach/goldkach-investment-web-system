@@ -56,13 +56,20 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
 
   // First deposit fee breakdown
   const [firstDeposit, setFirstDeposit] = useState<Deposit | null>(null);
+  // Computed from approved MASTER deposits — accurate for both old and new clients
+  const [computedTotalDeposited, setComputedTotalDeposited] = useState<number | null>(null);
 
   useEffect(() => {
-    listDeposits({ userId, pageSize: 50 }).then((res) => {
-      const first = (res.data ?? [])
+    listDeposits({ userId, pageSize: 200 }).then((res) => {
+      const all = res.data ?? [];
+      const first = all
         .filter((d) => d.depositTarget === "MASTER" && d.isFirstDeposit)
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0] ?? null;
       setFirstDeposit(first);
+      const computed = all
+        .filter((d) => (d.depositTarget === "MASTER" || !d.depositTarget) && d.transactionStatus === "APPROVED")
+        .reduce((s, d) => s + Number(d.amount ?? 0), 0);
+      setComputedTotalDeposited(computed);
     }).catch(() => {});
   }, [userId]);
 
@@ -171,7 +178,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
             {[
               { label: "Available Balance", value: fmt(master?.balance ?? 0), color: "text-green-500" },
               { label: "Total Portfolio Value",  value: fmt(investmentReturn), color: "text-blue-500" },
-              { label: "Total Deposited",   value: fmt(master?.totalDeposited ?? 0), color: "text-foreground" },
+              { label: "Total Deposited",   value: fmt(computedTotalDeposited ?? master?.totalDeposited ?? 0), color: "text-foreground" },
               { label: "Total Fees",        value: fmt(master?.totalFees ?? 0), color: "text-amber-500" },
             ].map((m) => (
               <div key={m.label} className="rounded-lg bg-muted/30 p-3">
@@ -277,7 +284,7 @@ export function WalletsView({ userId, walletDetail, portfolioSummary }: Props) {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div className="rounded-lg bg-muted/30 p-3">
                       <p className="text-xs text-muted-foreground">Initial Investment</p>
-                      <p className="text-base font-bold text-blue-500">{fmt((master?.totalDeposited ?? 0) - (master?.totalFees ?? 0))}</p>
+                      <p className="text-base font-bold text-blue-500">{fmt((computedTotalDeposited ?? master?.totalDeposited ?? 0) - (master?.totalFees ?? 0))}</p>
                     </div>
                     <div className="rounded-lg bg-muted/30 p-3">
                       <p className="text-xs text-muted-foreground">Total Portfolio Value</p>
