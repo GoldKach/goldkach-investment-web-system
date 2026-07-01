@@ -170,7 +170,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className="bg-muted/50 border-border"
+                  className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
                   disabled={isSubmitting}
                   required
                 />
@@ -181,7 +181,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="bg-muted/50 border-border"
+                  className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
                   disabled={isSubmitting}
                   required
                 />
@@ -195,7 +195,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g. John Doe"
-                className="bg-muted/50 border-border"
+                className="bg-muted/50 border-border dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
                 disabled={isSubmitting}
               />
               <p className="text-xs text-muted-foreground">
@@ -210,7 +210,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                 <Input
                   value={user.email}
                   disabled
-                  className="bg-muted/30 border-border text-muted-foreground text-sm"
+                  className="bg-muted/30 border-border text-muted-foreground text-sm dark:bg-[#161b4a]/40 dark:border-[#2B2F77]/50 dark:text-slate-400"
                 />
                 <p className="text-xs text-muted-foreground">Change in the Security tab</p>
               </div>
@@ -219,7 +219,7 @@ export function ProfileTab({ user }: ProfileTabProps) {
                 <Input
                   value={user.phone || "Not set"}
                   disabled
-                  className="bg-muted/30 border-border text-muted-foreground text-sm"
+                  className="bg-muted/30 border-border text-muted-foreground text-sm dark:bg-[#161b4a]/40 dark:border-[#2B2F77]/50 dark:text-slate-400"
                 />
                 <p className="text-xs text-muted-foreground">Change in the Security tab</p>
               </div>

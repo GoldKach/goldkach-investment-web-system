@@ -149,15 +149,10 @@ export function PortfolioList({ portfolios, clientId, basePath = "/agent/clients
             )}
 
             {/* Action buttons */}
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3">
               <Link href={`${basePath}/${clientId}/portfolios/${p.id}`}>
                 <Button size="sm" variant="outline" className="w-full gap-2 text-xs">
                   <BarChart2 className="h-3.5 w-3.5" /> View Portfolio
-                </Button>
-              </Link>
-              <Link href={`${basePath}/${clientId}/portfolios/${p.id}/reports`}>
-                <Button size="sm" variant="outline" className="w-full gap-2 text-xs border-[#2B2F77]/30 text-[#2B2F77] dark:text-[#3B82F6] hover:bg-[#2B2F77]/10">
-                  <FileText className="h-3.5 w-3.5" /> View Reports & PDF
                 </Button>
               </Link>
             </div>

@@ -42,7 +42,7 @@ function PasswordInput({
         disabled={disabled}
         required={required}
         minLength={minLength}
-        className="bg-muted/50 border-border pr-10"
+        className="bg-muted/50 border-border pr-10 dark:bg-[#161b4a]/60 dark:border-[#2B2F77]/50 dark:text-white dark:placeholder:text-slate-500"
       />
       <button
         type="button"

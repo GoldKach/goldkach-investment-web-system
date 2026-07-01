@@ -1529,7 +1529,7 @@ export function UserPortfolioDetail({ userPortfolio, masterWallet }: PortfolioDe
       </div>
 
       {/* ── KPI cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {[
           {
             label: "Total Portfolio Value",
@@ -1537,13 +1537,6 @@ export function UserPortfolioDetail({ userPortfolio, masterWallet }: PortfolioDe
             sub: "Sum of asset close values",
             icon: Wallet,
             cls: "text-blue-400", bg: "bg-blue-500/10", border: "border-l-blue-500",
-          },
-          {
-            label: "Initial Investment",
-            value: fmt.format((masterWallet?.totalDeposited ?? 0) - (masterWallet?.totalFees ?? 0)),
-            sub: "Total deposited minus fees",
-            icon: TrendingUp,
-            cls: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-l-emerald-500",
           },
           {
             label: "Gain / Loss",

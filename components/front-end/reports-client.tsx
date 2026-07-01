@@ -1668,7 +1668,7 @@ Overall, the portfolio demonstrated the benefits of combining high-growth sector
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-300 dark:border-slate-700 mb-4">
                         <div>
-                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Net Asset Value</p>
+                          <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">Cost Value</p>
                           <p className="text-slate-900 dark:text-white font-semibold text-lg">{formatCurrency(report.totalCostPrice)}</p>
                         </div>
                         <div>

@@ -72,7 +72,7 @@ export function ClientProfileView({ client, individualOnboarding, companyOnboard
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Field label="Account Number" value={client.masterWallet.accountNumber} />
             <Field
-              label="Net Asset Value"
+              label="Total Portfolio Value"
               value={
                 client.masterWallet.netAssetValue != null
                   ? `$${Number(client.masterWallet.netAssetValue).toLocaleString()}`

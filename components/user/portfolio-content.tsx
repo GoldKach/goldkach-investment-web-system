@@ -155,15 +155,9 @@ export function PortfolioList({ userPortfolios, masterWallet }: PortfolioListPro
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
-                      <p className="text-xl font-bold">${portfolio.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Initial Investment</p>
-                      <p className="text-xl font-bold">${portfolio.initialInvestment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
+                    <p className="text-xl font-bold">${portfolio.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   </div>
 
                   <div className="space-y-2 pt-2 border-t">
