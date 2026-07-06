@@ -437,6 +437,14 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
 
   const totalPortfolios = clientPortfolios.reduce((s, cp) => s + cp.portfolios.length, 0);
 
+  const summaryTotals = useMemo(() => ({
+    totalDeposited: clientPortfolios.reduce((s, cp) => s + (cp.masterWallet?.totalDeposited ?? 0), 0),
+    totalGains: clientPortfolios.reduce((s, cp) =>
+      s + cp.portfolios.reduce((ps: number, p: any) => ps + (p.totalLossGain ?? 0), 0), 0),
+    totalPortfolioValue: clientPortfolios.reduce((s, cp) =>
+      s + cp.portfolios.reduce((ps: number, p: any) => ps + (p.portfolioValue ?? 0), 0), 0),
+  }), [clientPortfolios]);
+
   const filteredClients = searchQuery.trim()
     ? clientPortfolios.filter(({ client }) => {
         const name = [client.firstName, client.lastName].filter(Boolean).join(" ").toLowerCase();
@@ -448,6 +456,33 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
 
   return (
     <div className="space-y-6">
+
+      {/* ── Summary KPI Cards ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-primary/20">
+          <CardContent className="pt-5">
+            <p className="text-xs text-slate-400 mb-1">Total Deposited</p>
+            <p className="text-2xl font-bold text-slate-800 dark:text-white">{fmt(summaryTotals.totalDeposited)}</p>
+            <p className="text-xs text-slate-400 mt-1">Across all clients</p>
+          </CardContent>
+        </Card>
+        <Card className="border-primary/20">
+          <CardContent className="pt-5">
+            <p className="text-xs text-slate-400 mb-1">Total Gains</p>
+            <p className={`text-2xl font-bold ${summaryTotals.totalGains >= 0 ? "text-green-600" : "text-red-500"}`}>
+              {summaryTotals.totalGains >= 0 ? "+" : ""}{fmt(summaryTotals.totalGains)}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Unrealized gain / loss</p>
+          </CardContent>
+        </Card>
+        <Card className="border-primary/20">
+          <CardContent className="pt-5">
+            <p className="text-xs text-slate-400 mb-1">Total Portfolio Value</p>
+            <p className="text-2xl font-bold text-[#2B2F77] dark:text-[#3B82F6]">{fmt(summaryTotals.totalPortfolioValue)}</p>
+            <p className="text-xs text-slate-400 mt-1">Current market value</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ── Combined AUM Report ─────────────────────────────────────────── */}
       <Card className="border-primary/20">
