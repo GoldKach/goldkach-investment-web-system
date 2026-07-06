@@ -661,6 +661,7 @@ export async function deleteDeposit(id: string) {
 }
 
 export interface DepositFeeSummary {
+  totalDeposited: number;
   totalBankCost: number;
   totalTransactionCost: number;
   totalCashAtBank: number;
