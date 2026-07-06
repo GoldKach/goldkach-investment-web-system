@@ -757,7 +757,7 @@ export async function generateAllReportsForDate(reportDate: string) {
     const res = await api.post(
       "/portfolio-performance-reports/generate-all-for-date",
       { reportDate },
-      { headers, timeout: 120_000 }
+      { headers, timeout: 300_000 }
     );
     return { success: true, data: res.data?.data as GenerateAllReportsResult };
   } catch (e: any) {

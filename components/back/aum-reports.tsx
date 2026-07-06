@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { Download, Eye, FileText, ChevronDown, ChevronUp, Loader2, RefreshCw, Calendar, X, Search, TableIcon, Sheet, Wallet } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -263,9 +264,23 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
       let reportsByPortfolio: Record<string, any[]> = {};
 
       if (combinedDate) {
-        // Regenerate all portfolio reports for the selected date so the snapshots
-        // contain the close prices that are currently in the asset table.
-        await generateAllReportsForDate(new Date(combinedDate + "T00:00:00.000Z").toISOString());
+        const genResult = await generateAllReportsForDate(new Date(combinedDate + "T00:00:00.000Z").toISOString());
+        if (!genResult.success) {
+          toast.error(`Failed to generate reports: ${genResult.error}`);
+          setCombinedLoading(false);
+          return;
+        }
+        if (genResult.data) {
+          const { success: ok, failed, total } = genResult.data;
+          if (failed > 0 && ok === 0) {
+            toast.error(`Report generation failed for all ${total} portfolios for this date.`);
+            setCombinedLoading(false);
+            return;
+          }
+          if (failed > 0) {
+            toast.warning(`Generated ${ok}/${total} reports. ${failed} portfolios failed.`);
+          }
+        }
 
         // Fetch the freshly generated snapshots
         const allPortfolios = clientPortfolios.flatMap((cp) => cp.portfolios);
