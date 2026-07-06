@@ -80,6 +80,14 @@ export default async function MyClientProfilePage({ params }: Props) {
         client={client}
         individualOnboarding={individualOnboarding}
         companyOnboarding={companyOnboarding}
+        advisorName={
+          session.user
+            ? `${(session.user as any).firstName ?? ""} ${(session.user as any).lastName ?? ""}`.trim() ||
+              (session.user as any).name ||
+              (session.user as any).email ||
+              ""
+            : ""
+        }
       />
 
       <div className="space-y-4">

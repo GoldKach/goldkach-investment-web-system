@@ -1038,6 +1038,7 @@ import {
   Image as ImageIcon, File, Building2, CheckCircle2, Clock, XCircle,
   Layers, BarChart2, PieChartIcon, Banknote, Calendar, Hash, ChevronDown, Loader2,
   Wifi, MapPin, Monitor, Smartphone, Tablet, LogOut, RefreshCw, AlertTriangle,
+  ShieldAlert, Pencil,
 } from "lucide-react"
 import { listUserSessions, revokeSession, type Session as UserSession } from "@/actions/sessions"
 import type { PortfolioSummary } from "@/actions/portfolio-summary"
@@ -1048,8 +1049,21 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
+import { RISK_QUESTIONS, computeRiskProfile, isQuestionnaireComplete, deriveInvestmentProfileFields, type RiskAnswers } from "@/lib/risk-questionnaire"
+import { generateRiskQuestionnairePdf } from "@/lib/generate-risk-questionnaire-pdf"
+import { updateIndividualOnboarding, updateCompanyOnboarding } from "@/actions/onboarding-admin"
+import { RiskQuestionnaireForm } from "@/components/onboarding/risk-questionnaire-form"
+
+const RISK_PROFILES = [
+  "Conservative (Income)",
+  "Balanced (Income and Growth)",
+  "Growth",
+]
 
 type TxStatus = "PENDING" | "APPROVED" | "REJECTED"
 
@@ -1086,6 +1100,7 @@ type Wallet = {
 }
 
 type EntityOnboarding = {
+  id?: string | null
   fullName?: string | null
   entityType?: string | null
   dateOfBirth?: string | null
@@ -1110,6 +1125,14 @@ type EntityOnboarding = {
   isApproved?: boolean | null
   consentToDataCollection?: boolean | null
   agreeToTerms?: boolean | null
+  riskQuestionnaire?: Record<string, number> | null
+  riskScore?: number | null
+  riskProfile?: string | null
+  suggestedStrategy?: string | null
+  advisorOverride?: boolean | null
+  advisorOverrideProfile?: string | null
+  advisorOverrideReason?: string | null
+  consentConfirmed?: boolean | null
   // Documents
   nationalIdUrl?: string | null
   passportPhotoUrl?: string | null
@@ -1385,6 +1408,109 @@ export function UserDetailPreview({
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // ── Risk Questionnaire Edit state ─────────────────────────────────────
+  const _rqExisting: RiskAnswers = (user.entityOnboarding?.riskQuestionnaire as RiskAnswers | null) ?? {}
+  const [rqEditOpen, setRqEditOpen] = useState(false)
+  const [rqEditAnswers, setRqEditAnswers] = useState<RiskAnswers>(_rqExisting)
+  const [rqOverrideMode, setRqOverrideMode] = useState<"no_change" | "change">(
+    user.entityOnboarding?.advisorOverride === true ? "change" : "no_change"
+  )
+  const [rqOverrideProfile, setRqOverrideProfile] = useState<string>(
+    user.entityOnboarding?.advisorOverrideProfile ?? RISK_PROFILES[0]
+  )
+  const [rqOverrideReason, setRqOverrideReason] = useState<string>(
+    user.entityOnboarding?.advisorOverrideReason ?? ""
+  )
+  const [rqSaving, setRqSaving] = useState(false)
+  const [rqPdfLoading, setRqPdfLoading] = useState(false)
+
+  const rqHasAnswers = isQuestionnaireComplete(_rqExisting)
+  const rqEditResult = isQuestionnaireComplete(rqEditAnswers) ? computeRiskProfile(rqEditAnswers) : null
+
+  function openRqEditDialog() {
+    setRqEditAnswers(_rqExisting)
+    setRqOverrideMode(user.entityOnboarding?.advisorOverride === true ? "change" : "no_change")
+    setRqOverrideProfile(user.entityOnboarding?.advisorOverrideProfile ?? RISK_PROFILES[0])
+    setRqOverrideReason(user.entityOnboarding?.advisorOverrideReason ?? "")
+    setRqEditOpen(true)
+  }
+
+  async function handleRqSave() {
+    const onboardingId = user.entityOnboarding?.id
+    const entityType = user.entityOnboarding?.entityType
+    if (!onboardingId) return
+    if (!isQuestionnaireComplete(rqEditAnswers)) {
+      toast.error("Please answer all 10 questions before saving.")
+      return
+    }
+    if (rqOverrideMode === "change" && !rqOverrideReason.trim()) {
+      toast.error("Please provide a reason for the profile change.")
+      return
+    }
+    setRqSaving(true)
+    try {
+      const { score, profile, strategy } = computeRiskProfile(rqEditAnswers)
+      const derived = deriveInvestmentProfileFields(rqEditAnswers)
+      const effectiveProfile = rqOverrideMode === "change" ? rqOverrideProfile : profile
+      const effectiveStrategy =
+        rqOverrideMode === "change"
+          ? rqOverrideProfile.includes("Conservative")
+            ? "70% Income ETFs / 30% Growth ETFs"
+            : rqOverrideProfile.includes("Balanced")
+            ? "50% Income ETFs / 50% Growth ETFs"
+            : "100% Growth ETFs"
+          : strategy
+      const payload = {
+        riskQuestionnaire: rqEditAnswers,
+        riskScore: score,
+        riskProfile: effectiveProfile,
+        suggestedStrategy: effectiveStrategy,
+        advisorOverride: rqOverrideMode === "change",
+        advisorOverrideProfile: rqOverrideMode === "change" ? rqOverrideProfile : null,
+        advisorOverrideReason: rqOverrideMode === "change" ? rqOverrideReason.trim() : null,
+        ...derived,
+      }
+      const res = entityType === "company"
+        ? await updateCompanyOnboarding(onboardingId, payload)
+        : await updateIndividualOnboarding(onboardingId, payload)
+      if (!res.success) {
+        toast.error(res.error ?? "Failed to save questionnaire.")
+      } else {
+        toast.success("Questionnaire updated successfully.")
+        setRqEditOpen(false)
+        window.location.reload()
+      }
+    } catch {
+      toast.error("An error occurred while saving.")
+    } finally {
+      setRqSaving(false)
+    }
+  }
+
+  async function handleRqDownloadPdf() {
+    if (!rqHasAnswers) return
+    const displayName = user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "Client"
+    const accountNumber = (wallet as any).accountNumber ?? null
+    setRqPdfLoading(true)
+    try {
+      await generateRiskQuestionnairePdf({
+        clientName: displayName,
+        accountNumber,
+        answers: _rqExisting,
+        riskProfile: user.entityOnboarding?.riskProfile ?? null,
+        suggestedStrategy: user.entityOnboarding?.suggestedStrategy ?? null,
+        advisorOverride: user.entityOnboarding?.advisorOverride ?? null,
+        advisorOverrideProfile: user.entityOnboarding?.advisorOverrideProfile ?? null,
+        advisorOverrideReason: user.entityOnboarding?.advisorOverrideReason ?? null,
+        consentConfirmed: user.entityOnboarding?.consentConfirmed ?? false,
+      })
+    } catch {
+      toast.error("Failed to generate PDF.")
+    } finally {
+      setRqPdfLoading(false)
+    }
+  }
 
   function togglePortfolio(id: string) {
     setExpandedPortfolios((prev) => {
@@ -2100,6 +2226,215 @@ export function UserDetailPreview({
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Risk Questionnaire */}
+              <Card>
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+                  <div>
+                    <CardTitle>Investor Risk Questionnaire</CardTitle>
+                    <CardDescription>GoldKach suitability assessment</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {rqHasAnswers && (
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={handleRqDownloadPdf} disabled={rqPdfLoading}>
+                        {rqPdfLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                        Download PDF
+                      </Button>
+                    )}
+                    {user.entityOnboarding?.id && (
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={openRqEditDialog}>
+                        <Pencil className="h-3 w-3" />
+                        {rqHasAnswers ? "Edit Answers" : "Fill Questionnaire"}
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {rqHasAnswers ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        <div className="rounded-lg bg-muted/40 px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Risk Profile</p>
+                          <Badge variant="outline" className={`text-xs ${(() => {
+                            const p = user.entityOnboarding?.riskProfile
+                            if (!p) return ""
+                            if (p.includes("Conservative")) return "border-blue-300 text-blue-700 dark:text-blue-400"
+                            if (p.includes("Balanced")) return "border-amber-300 text-amber-700 dark:text-amber-400"
+                            if (p.includes("Growth")) return "border-green-300 text-green-700 dark:text-green-400"
+                            return ""
+                          })()}`}>
+                            {user.entityOnboarding?.riskProfile ?? "—"}
+                          </Badge>
+                        </div>
+                        <div className="rounded-lg bg-muted/40 px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Suggested Strategy</p>
+                          <p className="text-sm font-medium">{user.entityOnboarding?.suggestedStrategy ?? "—"}</p>
+                        </div>
+                      </div>
+                      {user.entityOnboarding?.advisorOverride === true && (
+                        <div className="flex items-start gap-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 px-4 py-3">
+                          <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                          <div className="text-xs space-y-0.5">
+                            <p className="font-semibold text-amber-700 dark:text-amber-400">Advisor Override Applied</p>
+                            <p className="text-amber-600 dark:text-amber-500">
+                              Profile changed to <strong>{user.entityOnboarding.advisorOverrideProfile}</strong>
+                            </p>
+                            {user.entityOnboarding.advisorOverrideReason && (
+                              <p className="text-amber-600 dark:text-amber-500">Reason: {user.entityOnboarding.advisorOverrideReason}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {RISK_QUESTIONS.map((q, idx) => {
+                          const selScore = _rqExisting[q.id]
+                          const selOpt = q.options.find((o) => o.score === selScore)
+                          return (
+                            <div key={q.id} className="flex gap-3 text-sm border-b border-muted/50 pb-2 last:border-0">
+                              <span className="text-muted-foreground font-mono text-xs min-w-[18px] pt-0.5">{idx + 1}.</span>
+                              <div className="flex-1">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{q.title}</p>
+                                <p className="text-sm font-medium">{selOpt?.label ?? <span className="text-muted-foreground">Not answered</span>}</p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 py-6 text-muted-foreground">
+                      <FileText className="h-5 w-5" />
+                      <p className="text-sm">Risk questionnaire not yet completed.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Risk Questionnaire Edit Dialog */}
+              <Dialog open={rqEditOpen} onOpenChange={setRqEditOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                  <DialogHeader className="px-6 pt-6 pb-3 border-b border-slate-200 dark:border-[#2B2F77]/30">
+                    <DialogTitle>Edit Investor Risk Questionnaire</DialogTitle>
+                    <DialogDescription>
+                      Update the client&apos;s risk questionnaire answers and apply an override if needed.
+                      {rqEditResult && (
+                        <span className="block mt-1 font-medium text-slate-700 dark:text-slate-300">
+                          Computed score: <span className="text-[#193388] dark:text-blue-400">{rqEditResult.score}/50</span> —{" "}
+                          <Badge variant="outline" className={`text-xs ${
+                            rqEditResult.profile.includes("Conservative") ? "border-blue-300 text-blue-700 dark:text-blue-400" :
+                            rqEditResult.profile.includes("Balanced") ? "border-amber-300 text-amber-700 dark:text-amber-400" :
+                            "border-green-300 text-green-700 dark:text-green-400"
+                          }`}>
+                            {rqEditResult.profile}
+                          </Badge>
+                        </span>
+                      )}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
+                    <RiskQuestionnaireForm
+                      answers={rqEditAnswers}
+                      onAnswerChange={(qId, score) => setRqEditAnswers((prev) => ({ ...prev, [qId]: score }))}
+                      idPrefix="admin-edit"
+                    />
+
+                    {/* Advisor Override Section */}
+                    <div className="mt-6 rounded-xl border border-slate-200 dark:border-[#2B2F77]/30 p-4 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4 text-[#193388] dark:text-blue-400" />
+                        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Advisor Override</h4>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        If you believe a different risk profile is more suitable than the computed one, select &ldquo;Change applied&rdquo; and provide a reason. This will be recorded on the official questionnaire PDF.
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <label className={`flex items-center gap-2.5 cursor-pointer rounded-lg border px-4 py-3 flex-1 transition-colors ${
+                          rqOverrideMode === "no_change"
+                            ? "border-[#193388] bg-[#193388]/5 dark:bg-[#193388]/10"
+                            : "border-slate-200 dark:border-[#2B2F77]/30 hover:border-slate-300"
+                        }`}>
+                          <input
+                            type="radio"
+                            name="rqOverrideMode"
+                            value="no_change"
+                            checked={rqOverrideMode === "no_change"}
+                            onChange={() => setRqOverrideMode("no_change")}
+                            className="accent-[#193388]"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">No change</p>
+                            <p className="text-xs text-slate-500">Use the computed profile from the answers</p>
+                          </div>
+                        </label>
+                        <label className={`flex items-center gap-2.5 cursor-pointer rounded-lg border px-4 py-3 flex-1 transition-colors ${
+                          rqOverrideMode === "change"
+                            ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20"
+                            : "border-slate-200 dark:border-[#2B2F77]/30 hover:border-slate-300"
+                        }`}>
+                          <input
+                            type="radio"
+                            name="rqOverrideMode"
+                            value="change"
+                            checked={rqOverrideMode === "change"}
+                            onChange={() => setRqOverrideMode("change")}
+                            className="accent-amber-500"
+                          />
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Change applied</p>
+                            <p className="text-xs text-slate-500">Override with a different risk profile</p>
+                          </div>
+                        </label>
+                      </div>
+                      {rqOverrideMode === "change" && (
+                        <div className="space-y-3 pt-1">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              Adjusted Risk Profile <span className="text-red-500">*</span>
+                            </Label>
+                            <select
+                              value={rqOverrideProfile}
+                              onChange={(e) => setRqOverrideProfile(e.target.value)}
+                              className="w-full rounded-lg border border-slate-200 dark:border-[#2B2F77]/40 bg-white dark:bg-[#1a1f4e] text-sm text-slate-800 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#193388]/40"
+                            >
+                              {RISK_PROFILES.map((p) => (
+                                <option key={p} value={p}>{p}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              Reason for the change <span className="text-red-500">*</span>
+                            </Label>
+                            <Textarea
+                              value={rqOverrideReason}
+                              onChange={(e) => setRqOverrideReason(e.target.value)}
+                              placeholder="Explain why a different profile is more appropriate for this client..."
+                              className="text-sm min-h-[80px] resize-none"
+                            />
+                            {rqOverrideReason.trim().length === 0 && (
+                              <p className="text-xs text-red-500">A reason is required when overriding the profile.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <DialogFooter className="px-6 py-4 border-t border-slate-200 dark:border-[#2B2F77]/30">
+                    <Button variant="outline" onClick={() => setRqEditOpen(false)} disabled={rqSaving}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleRqSave}
+                      disabled={rqSaving || !isQuestionnaireComplete(rqEditAnswers) || (rqOverrideMode === "change" && !rqOverrideReason.trim())}
+                      className="bg-[#193388] hover:bg-[#193388]/90 text-white"
+                    >
+                      {rqSaving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save Questionnaire"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Compliance & Verification */}
               <Card>

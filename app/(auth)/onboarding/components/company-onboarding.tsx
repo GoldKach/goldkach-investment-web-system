@@ -36,6 +36,13 @@ import { UploadDropzone } from "@/lib/uploadthing"
 import { submitCompanyOnboarding } from "@/actions/onboarding"
 import { clearOnboardingSession } from "@/actions/auth"
 import { AgentSelector } from "./agent-selector"
+import { RiskQuestionnaireForm } from "@/components/onboarding/risk-questionnaire-form"
+import {
+  isQuestionnaireComplete,
+  computeRiskProfile,
+  deriveInvestmentProfileFields,
+  type RiskAnswers,
+} from "@/lib/risk-questionnaire"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +96,7 @@ type FormData = {
   timeHorizon: string
   riskTolerance: string
   investmentExperience: string
+  riskQuestionnaire: RiskAnswers
   sourceOfIncome: string
   expectedInvestment: string
 
@@ -154,6 +162,7 @@ const initialFormData: FormData = {
   timeHorizon: "",
   riskTolerance: "",
   investmentExperience: "",
+  riskQuestionnaire: {},
   sourceOfIncome: "",
   expectedInvestment: "",
   isPEP: "",
@@ -490,11 +499,7 @@ export default function CompanyOnboardingForm({ user }: Props) {
 
   const validateStep2 = () => true // UBOs optional
 
-  const validateStep3 = () =>
-    !!formData.primaryGoal &&
-    !!formData.timeHorizon &&
-    !!formData.riskTolerance &&
-    !!formData.investmentExperience
+  const validateStep3 = () => isQuestionnaireComplete(formData.riskQuestionnaire)
 
   const validateStep4 = () => !!formData.isPEP && !!formData.sanctionsOrLegal
 
@@ -556,8 +561,14 @@ export default function CompanyOnboardingForm({ user }: Props) {
 
     setLoading(true)
     try {
+      const { score, profile, strategy } = computeRiskProfile(formData.riskQuestionnaire)
+      const derived = deriveInvestmentProfileFields(formData.riskQuestionnaire)
       const payload = {
         ...formData,
+        ...derived,
+        riskScore: score,
+        riskProfile: profile,
+        suggestedStrategy: strategy,
         phoneNumbers: formData.phoneNumbers.filter((p) => p.trim() !== ""),
       }
 
@@ -773,69 +784,14 @@ export default function CompanyOnboardingForm({ user }: Props) {
           {/* ── STEP 3: Investment Profile ── */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              <div className="space-y-2">
-                <Label>Primary Investment Goal *</Label>
-                <RadioGroup value={formData.primaryGoal} onValueChange={(v) => update("primaryGoal", v)}>
-                  {[
-                    { value: "growth", label: "Growth — Maximize returns" },
-                    { value: "income", label: "Income — Regular returns" },
-                    { value: "capital-preservation", label: "Capital Preservation — Protect principal" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={`cg-${o.value}`} />
-                      <Label htmlFor={`cg-${o.value}`}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              <div className="space-y-2">
-                <Label>Investment Time Horizon *</Label>
-                <RadioGroup value={formData.timeHorizon} onValueChange={(v) => update("timeHorizon", v)}>
-                  {[
-                    { value: "1-3-years", label: "1-3 years" },
-                    { value: "3-5-years", label: "3-5 years" },
-                    { value: "5-10-years", label: "5-10 years" },
-                    { value: "over-10-years", label: "Over 10 years" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={`ct-${o.value}`} />
-                      <Label htmlFor={`ct-${o.value}`}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              <div className="space-y-2">
-                <Label>Risk Tolerance *</Label>
-                <RadioGroup value={formData.riskTolerance} onValueChange={(v) => update("riskTolerance", v)}>
-                  {[
-                    { value: "aggressive", label: "Aggressive — High risk, high return" },
-                    { value: "moderate-risk", label: "Moderate — Balanced approach" },
-                    { value: "conservative", label: "Conservative — Low risk" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={`cr-${o.value}`} />
-                      <Label htmlFor={`cr-${o.value}`}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              <div className="space-y-2">
-                <Label>Investment Experience *</Label>
-                <RadioGroup value={formData.investmentExperience} onValueChange={(v) => update("investmentExperience", v)}>
-                  {[
-                    { value: "none", label: "None" },
-                    { value: "limited", label: "Limited" },
-                    { value: "moderate", label: "Moderate" },
-                    { value: "extensive", label: "Extensive" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={`ce-${o.value}`} />
-                      <Label htmlFor={`ce-${o.value}`}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <RiskQuestionnaireForm
+                answers={formData.riskQuestionnaire}
+                onAnswerChange={(qId, score) =>
+                  update("riskQuestionnaire", { ...formData.riskQuestionnaire, [qId]: score })
+                }
+                idPrefix="co"
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[#193388]/15">
                 <div className="space-y-2">
                   <Label>Source of Income</Label>
                   <Textarea placeholder="Primary source of company income" value={formData.sourceOfIncome} onChange={(e) => update("sourceOfIncome", e.target.value)} rows={2} />

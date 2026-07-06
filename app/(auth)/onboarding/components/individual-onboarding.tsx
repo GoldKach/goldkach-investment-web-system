@@ -38,6 +38,13 @@ import {
 import { submitIndividualOnboarding } from "@/actions/onboarding"
 import { clearOnboardingSession } from "@/actions/auth"
 import { AgentSelector } from "./agent-selector"
+import { RiskQuestionnaireForm } from "@/components/onboarding/risk-questionnaire-form"
+import {
+  isQuestionnaireComplete,
+  computeRiskProfile,
+  deriveInvestmentProfileFields,
+  type RiskAnswers,
+} from "@/lib/risk-questionnaire"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,11 +92,12 @@ type FormData = {
   hasBusiness: string
   avatarUrl: string
 
-  // Investment profile
+  // Investment profile (derived from questionnaire)
   primaryGoal: string
   timeHorizon: string
   riskTolerance: string
   investmentExperience: string
+  riskQuestionnaire: RiskAnswers
 
   // Compliance
   isPEP: string
@@ -156,6 +164,7 @@ const initialFormData: FormData = {
   timeHorizon: "",
   riskTolerance: "",
   investmentExperience: "",
+  riskQuestionnaire: {},
   isPEP: "",
   publicPosition: "",
   relationshipToCountry: "",
@@ -536,11 +545,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
     return formData.beneficiaries.length > 0 && formData.nextOfKin.length > 0 && bValid && nValid
   }
 
-  const validateStep2 = () =>
-    !!formData.primaryGoal &&
-    !!formData.timeHorizon &&
-    !!formData.riskTolerance &&
-    !!formData.investmentExperience
+  const validateStep2 = () => isQuestionnaireComplete(formData.riskQuestionnaire)
 
   const validateStep3 = () => !!formData.isPEP
 
@@ -605,9 +610,15 @@ export default function IndividualOnboardingForm({ user }: Props) {
 
     setLoading(true)
     try {
+      const { score, profile, strategy } = computeRiskProfile(formData.riskQuestionnaire)
+      const derived = deriveInvestmentProfileFields(formData.riskQuestionnaire)
       const res = await submitIndividualOnboarding(
         {
           ...formData,
+          ...derived,
+          riskScore: score,
+          riskProfile: profile,
+          suggestedStrategy: strategy,
           entityType: "individual",
           agentId: formData.agentId || null,
         },
@@ -808,70 +819,13 @@ export default function IndividualOnboardingForm({ user }: Props) {
 
           {/* ── STEP 2: Investment Profile ── */}
           {currentStep === 2 && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Label>Primary Investment Goal *</Label>
-                <RadioGroup value={formData.primaryGoal} onValueChange={(v) => update("primaryGoal", v)}>
-                  {[
-                    { value: "growth", label: "Growth — Maximize returns" },
-                    { value: "income", label: "Income — Regular returns" },
-                    { value: "capital-preservation", label: "Capital Preservation — Protect principal" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={o.value} />
-                      <Label htmlFor={o.value}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              <div className="space-y-2">
-                <Label>Investment Time Horizon *</Label>
-                <RadioGroup value={formData.timeHorizon} onValueChange={(v) => update("timeHorizon", v)}>
-                  {[
-                    { value: "1-3-years", label: "1-3 years" },
-                    { value: "3-5-years", label: "3-5 years" },
-                    { value: "5-10-years", label: "5-10 years" },
-                    { value: "over-10-years", label: "Over 10 years" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={o.value} />
-                      <Label htmlFor={o.value}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              <div className="space-y-2">
-                <Label>Risk Tolerance *</Label>
-                <RadioGroup value={formData.riskTolerance} onValueChange={(v) => update("riskTolerance", v)}>
-                  {[
-                    { value: "aggressive", label: "Aggressive — High risk, high return" },
-                    { value: "moderate-risk", label: "Moderate — Balanced approach" },
-                    { value: "conservative", label: "Conservative — Low risk" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={o.value} />
-                      <Label htmlFor={o.value}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              <div className="space-y-2">
-                <Label>Investment Experience *</Label>
-                <RadioGroup value={formData.investmentExperience} onValueChange={(v) => update("investmentExperience", v)}>
-                  {[
-                    { value: "none", label: "None — First time investor" },
-                    { value: "limited", label: "Limited — Some experience" },
-                    { value: "moderate", label: "Moderate — Regular investor" },
-                    { value: "extensive", label: "Extensive — Experienced investor" },
-                  ].map((o) => (
-                    <div key={o.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={o.value} id={o.value} />
-                      <Label htmlFor={o.value}>{o.label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-            </div>
+            <RiskQuestionnaireForm
+              answers={formData.riskQuestionnaire}
+              onAnswerChange={(qId, score) =>
+                update("riskQuestionnaire", { ...formData.riskQuestionnaire, [qId]: score })
+              }
+              idPrefix="ind"
+            />
           )}
 
           {/* ── STEP 3: Compliance ── */}
