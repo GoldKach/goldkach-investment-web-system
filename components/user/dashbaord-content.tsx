@@ -1135,7 +1135,6 @@ export function DashboardContent({ user }: { user: UserForDashboard }) {
                         </div>
                         <div className="text-right space-y-1">
                           <p className="text-sm font-bold">${nav.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                          <p className="text-xs text-muted-foreground">Invested: ${invested.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           <p className={`text-xs font-medium ${gain >= 0 ? "text-green-600" : "text-red-600"}`}>
                             {gain >= 0 ? "+" : ""}${Math.abs(gain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({pct.toFixed(2)}%)
                           </p>

@@ -73,6 +73,18 @@ export const ourFileRouter = {
     console.log("file url", file.url);
     return { uploadedBy: "ADMIN" };
   }),
+  signatureImage: f({ image: { maxFileSize: "4MB" } }).onUploadComplete(
+    async ({ file }) => {
+      console.log("signature url", file.url);
+      return { uploadedBy: "CLIENT" };
+    }
+  ),
+  signedAgreementPdf: f({ pdf: { maxFileSize: "16MB" } }).onUploadComplete(
+    async ({ file }) => {
+      console.log("signed agreement url", file.url);
+      return { uploadedBy: "CLIENT" };
+    }
+  ),
   depositProof: f({ image: { maxFileSize: "8MB" }, pdf: { maxFileSize: "8MB" } })
   .onUploadComplete(async ({ metadata, file }) => {
     console.log("deposit proof url", file.url);

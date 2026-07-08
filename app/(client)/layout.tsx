@@ -24,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   if (role === "AGENT") redirect("/agent");
   if (role === "CLIENT_RELATIONS") redirect("/cr");
   if (role === "ACCOUNT_MANAGER") redirect("/accountant");
+  if (role === "ONBOARDING_OFFICER") redirect("/onboarding-officer");
   if (role === "SUPER_ADMIN" || role === "ADMIN" || role === "MANAGER") redirect("/dashboard");
 
   // Only USER role (or unknown) continues here

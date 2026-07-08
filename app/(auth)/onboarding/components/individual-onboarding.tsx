@@ -1,7 +1,7 @@
 // components/onboarding/individual-onboarding-form.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
@@ -23,10 +23,15 @@ import {
   CheckCircle2,
   Plus,
   Trash2,
+  PenLine,
+  Upload as UploadIcon,
+  Type,
+  RotateCcw,
+  Info,
 } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
-import { UploadDropzone } from "@/lib/uploadthing"
+import { UploadDropzone, useUploadThing } from "@/lib/uploadthing"
 import {
   Select,
   SelectContent,
@@ -35,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 import { submitIndividualOnboarding } from "@/actions/onboarding"
 import { clearOnboardingSession } from "@/actions/auth"
 import { AgentSelector } from "./agent-selector"
@@ -80,6 +86,7 @@ type NextOfKin = {
 }
 
 type FormData = {
+  title: string
   fullName: string
   dateOfBirth: string
   tin: string
@@ -123,6 +130,12 @@ type FormData = {
   // Agent
   agentId: string
 
+  // Signature
+  signatureMethod: "draw" | "upload" | "type"
+  signatureImageUrl: string
+  signatureTypedName: string
+  signatureConfirmed: boolean
+
   // Relations
   beneficiaries: Beneficiary[]
   nextOfKin: NextOfKin[]
@@ -149,6 +162,7 @@ const emptyNextOfKin = (): NextOfKin => ({
 })
 
 const initialFormData: FormData = {
+  title: "",
   fullName: "",
   dateOfBirth: "",
   tin: "",
@@ -181,6 +195,10 @@ const initialFormData: FormData = {
   tinCertificateUrl: "",
   bankStatementUrl: "",
   agentId: "",
+  signatureMethod: "draw",
+  signatureImageUrl: "",
+  signatureTypedName: "",
+  signatureConfirmed: false,
   beneficiaries: [emptyBeneficiary()],
   nextOfKin: [emptyNextOfKin()],
 }
@@ -418,6 +436,332 @@ function ReviewField({ label, value }: { label: string; value: string | boolean 
   )
 }
 
+// ─── Signature ────────────────────────────────────────────────────────────────
+
+const SIG_METHODS = [
+  { id: "draw" as const,   icon: PenLine,     label: "Draw Signature",  desc: "Sign using mouse, touch, or stylus" },
+  { id: "upload" as const, icon: UploadIcon,  label: "Upload Image",    desc: "PNG, JPG or JPEG, max 5 MB" },
+  { id: "type" as const,   icon: Type,        label: "Type Your Name",  desc: "Full legal name as e-signature" },
+]
+
+function trimCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = src.getContext("2d")!
+  const { width, height } = src
+  const d = ctx.getImageData(0, 0, width, height).data
+  let x0 = width, y0 = height, x1 = 0, y1 = 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      if (d[i + 3] > 0 && (d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250)) {
+        if (x < x0) x0 = x; if (y < y0) y0 = y
+        if (x > x1) x1 = x; if (y > y1) y1 = y
+      }
+    }
+  }
+  if (x0 >= x1 || y0 >= y1) return src
+  const pad = 12
+  const sx = Math.max(0, x0 - pad), sy = Math.max(0, y0 - pad)
+  const sw = Math.min(width, x1 + pad) - sx, sh = Math.min(height, y1 + pad) - sy
+  const out = document.createElement("canvas")
+  out.width = sw; out.height = sh
+  const oc = out.getContext("2d")!
+  oc.fillStyle = "#fff"; oc.fillRect(0, 0, sw, sh)
+  oc.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh)
+  return out
+}
+
+function SignaturePad({
+  currentUrl,
+  onApplied,
+  onClear,
+}: {
+  currentUrl: string
+  onApplied: (url: string) => void
+  onClear: () => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing = useRef(false)
+  const lastPos = useRef({ x: 0, y: 0 })
+  const [isEmpty, setIsEmpty] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const { startUpload } = useUploadThing("signatureImage")
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.fillStyle = "#fff"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.strokeStyle = "#000"
+    ctx.lineWidth = 2.5
+    ctx.lineCap = "round"
+    ctx.lineJoin = "round"
+  }, [])
+
+  function getPos(e: { clientX: number; clientY: number }) {
+    const canvas = canvasRef.current!
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    }
+  }
+
+  function startDraw(pos: { x: number; y: number }) {
+    const ctx = canvasRef.current?.getContext("2d")
+    if (!ctx) return
+    drawing.current = true
+    lastPos.current = pos
+    ctx.beginPath()
+    ctx.fillStyle = "#000"
+    ctx.arc(pos.x, pos.y, 1.2, 0, Math.PI * 2)
+    ctx.fill()
+    setIsEmpty(false)
+  }
+
+  function continueDraw(pos: { x: number; y: number }) {
+    if (!drawing.current) return
+    const ctx = canvasRef.current?.getContext("2d")
+    if (!ctx) return
+    ctx.beginPath()
+    ctx.moveTo(lastPos.current.x, lastPos.current.y)
+    ctx.lineTo(pos.x, pos.y)
+    ctx.stroke()
+    lastPos.current = pos
+  }
+
+  function stopDraw() { drawing.current = false }
+
+  function clearCanvas() {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext("2d")
+    if (!canvas || !ctx) return
+    ctx.fillStyle = "#fff"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    setIsEmpty(true)
+    onClear()
+  }
+
+  async function applySignature() {
+    const canvas = canvasRef.current
+    if (!canvas || isEmpty) return
+    setUploading(true)
+    try {
+      const trimmed = trimCanvas(canvas)
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        trimmed.toBlob((b) => (b ? resolve(b) : reject(new Error("blob failed"))), "image/png")
+      )
+      const file = new File([blob], "signature.png", { type: "image/png" })
+      const uploaded = await startUpload([file])
+      const uploadedFile = uploaded?.[0]
+      const url = uploadedFile?.ufsUrl ?? (uploadedFile as any)?.url
+      if (url) {
+        onApplied(url)
+      } else {
+        toast.error("Failed to get signature URL.")
+      }
+    } catch {
+      toast.error("Failed to upload signature. Please try again.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // ── Applied state: show preview ──
+  if (currentUrl) {
+    return (
+      <div className="space-y-3">
+        <div className="border-2 border-green-300 rounded-lg bg-white p-4 flex items-center justify-center min-h-[110px]">
+          <img src={currentUrl} alt="Your signature" className="max-h-24 object-contain" />
+        </div>
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+          <span className="text-sm text-green-700 font-medium">Signature applied</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => { setIsEmpty(true); onClear() }}
+            className="ml-auto gap-1.5 border-[#193388] text-[#193388]"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Redraw
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Drawing state ──
+  return (
+    <div className="space-y-3">
+      <div className="border-2 border-[#193388]/30 rounded-lg overflow-hidden bg-white">
+        <div className="bg-[#193388]/5 border-b border-[#193388]/20 px-3 py-1.5 flex items-center justify-between">
+          <p className="text-xs text-[#193388] dark:text-blue-300 font-medium">
+            Draw your signature in the box below
+          </p>
+          <p className="text-[10px] text-muted-foreground">Mouse · Touch · Stylus</p>
+        </div>
+        <canvas
+          ref={canvasRef}
+          width={700}
+          height={200}
+          className="w-full h-44 touch-none cursor-crosshair block"
+          style={{ background: "white" }}
+          onMouseDown={(e) => startDraw(getPos(e))}
+          onMouseMove={(e) => continueDraw(getPos(e))}
+          onMouseUp={stopDraw}
+          onMouseLeave={stopDraw}
+          onTouchStart={(e) => { e.preventDefault(); startDraw(getPos(e.touches[0])) }}
+          onTouchMove={(e) => { e.preventDefault(); continueDraw(getPos(e.touches[0])) }}
+          onTouchEnd={(e) => { e.preventDefault(); stopDraw() }}
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={clearCanvas}
+          disabled={isEmpty}
+          className="gap-1.5 border-[#193388] text-[#193388]"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Clear
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={applySignature}
+          disabled={isEmpty || uploading}
+          className="gap-1.5 bg-[#193388] hover:bg-[#142a80] text-white"
+        >
+          {uploading
+            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</>
+            : <><CheckCircle2 className="h-3.5 w-3.5" /> Apply Signature</>
+          }
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function UploadSignaturePanel({
+  currentUrl,
+  onApplied,
+  onClear,
+}: {
+  currentUrl: string
+  onApplied: (url: string) => void
+  onClear: () => void
+}) {
+  const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { startUpload } = useUploadThing("signatureImage")
+
+  async function handleFile(file: File) {
+    const allowed = ["image/png", "image/jpeg", "image/jpg"]
+    if (!allowed.includes(file.type)) {
+      toast.error("Only PNG, JPG, or JPEG images are accepted.")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File must be under 5 MB.")
+      return
+    }
+    setUploading(true)
+    try {
+      const uploaded = await startUpload([file])
+      const uploadedFile = uploaded?.[0]
+      const url = uploadedFile?.ufsUrl ?? (uploadedFile as any)?.url
+      if (url) {
+        onApplied(url)
+      } else {
+        toast.error("Failed to get signature URL.")
+      }
+    } catch {
+      toast.error("Upload failed. Please try again.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  if (currentUrl) {
+    return (
+      <div className="space-y-3">
+        <div className="border-2 border-green-300 rounded-lg bg-white p-4 flex items-center justify-center min-h-[110px]">
+          <img src={currentUrl} alt="Uploaded signature" className="max-h-24 object-contain" />
+        </div>
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+          <span className="text-sm text-green-700 font-medium">Signature uploaded</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onClear}
+            className="ml-auto gap-1.5 border-[#193388] text-[#193388]"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Replace
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragOver(false)
+          const file = e.dataTransfer.files?.[0]
+          if (file) handleFile(file)
+        }}
+        onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors ${
+          dragOver
+            ? "border-[#193388] bg-[#193388]/10"
+            : "border-[#193388]/30 hover:border-[#193388]/60 hover:bg-[#193388]/5"
+        }`}
+      >
+        {uploading ? (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin text-[#193388]" />
+            <p className="text-sm text-muted-foreground">Uploading…</p>
+          </>
+        ) : (
+          <>
+            <UploadIcon className="h-8 w-8 text-[#193388]/60" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-[#193388] dark:text-blue-300">
+                Drop your signature image here
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">PNG, JPG, JPEG · Max 5 MB</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" className="border-[#193388] text-[#193388]">
+              Browse File
+            </Button>
+          </>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) handleFile(file)
+          e.target.value = ""
+        }}
+      />
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function IndividualOnboardingForm({ user }: Props) {
@@ -432,6 +776,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
   const [tinValidating, setTinValidating] = useState(false)
   const [agreementConfirmed, setAgreementConfirmed] = useState(false)
   const [lockedAgentId, setLockedAgentId] = useState<string | null>(null)
+  const { startUpload: uploadAgreementPdf } = useUploadThing("signedAgreementPdf")
 
   useEffect(() => {
     try {
@@ -557,6 +902,14 @@ export default function IndividualOnboardingForm({ user }: Props) {
 
   const validateStep5 = () => !!formData.nationalIdUrl && !!formData.bankStatementUrl
 
+  const validateSignature = () => {
+    if (!formData.signatureConfirmed) return false
+    const m = formData.signatureMethod
+    if (m === "draw" || m === "upload") return !!formData.signatureImageUrl
+    if (m === "type") return formData.signatureTypedName.trim().length >= 3
+    return false
+  }
+
   const validateStep6 = () =>
     validateStep0() &&
     validateStep1() &&
@@ -564,7 +917,8 @@ export default function IndividualOnboardingForm({ user }: Props) {
     validateStep3() &&
     validateStep4() &&
     validateStep5() &&
-    agreementConfirmed
+    agreementConfirmed &&
+    validateSignature()
 
   const isStepValid = (step: number) => {
     switch (step) {
@@ -594,6 +948,14 @@ export default function IndividualOnboardingForm({ user }: Props) {
     if (currentStep > 0) setCurrentStep((s) => s - 1)
   }
 
+  // Coordinates calibrated from the actual PDF (Letter 612×792, origin bottom-left).
+  // Signature row ≈ y=450, Name ≈ y=423, Date ≈ y=353.
+  const PDF_SIG     = { x: 130, y: 443, maxW: 175, maxH: 24 }
+  const PDF_NAME    = { x: 105, y: 421 }
+  const PDF_TITLE   = { x: 105, y: 399 }
+  const PDF_COMPANY = { x: 105, y: 377 }
+  const PDF_DATE    = { x:  95, y: 353 }
+
   const handleSubmit = async () => {
     if (!isStepValid(6)) {
       toast.error("Please complete all required steps and confirm the agreement")
@@ -609,9 +971,87 @@ export default function IndividualOnboardingForm({ user }: Props) {
     }
 
     setLoading(true)
+    let signedAgreementUrl: string | undefined
     try {
+      // ── Step 1: Generate signed PDF ──────────────────────────────────────────
+      try {
+        const templateRes = await fetch("/GoldKach Uganda Investment Management Agreement 2026.pdf")
+        if (templateRes.ok) {
+          const pdfDoc = await PDFDocument.load(await templateRes.arrayBuffer())
+          const lastPage = pdfDoc.getPages().at(-1)!
+          const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica)
+          const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+          const ink = rgb(0.04, 0.04, 0.04)
+
+          // Client name
+          lastPage.drawText(formData.fullName, {
+            x: PDF_NAME.x, y: PDF_NAME.y, size: 10,
+            font: helveticaBold, color: ink,
+          })
+
+          // Title
+          if (formData.title) {
+            lastPage.drawText(formData.title, {
+              x: PDF_TITLE.x, y: PDF_TITLE.y, size: 10,
+              font: helvetica, color: ink,
+            })
+          }
+
+          // Company (employer name, or "NONE" for individuals with no company)
+          const companyText = formData.companyName?.trim() || "NONE"
+          lastPage.drawText(companyText, {
+            x: PDF_COMPANY.x, y: PDF_COMPANY.y, size: 10,
+            font: helvetica, color: ink,
+          })
+
+          // Date signed
+          const dateStr = new Date().toLocaleDateString("en-UG", {
+            year: "numeric", month: "long", day: "numeric",
+          })
+          lastPage.drawText(dateStr, {
+            x: PDF_DATE.x, y: PDF_DATE.y, size: 10,
+            font: helvetica, color: ink,
+          })
+
+          // Signature
+          if (formData.signatureMethod === "type") {
+            const italic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic)
+            lastPage.drawText(formData.signatureTypedName.trim() || formData.fullName, {
+              x: PDF_SIG.x, y: PDF_SIG.y, size: 22,
+              font: italic, color: rgb(0.05, 0.05, 0.35),
+            })
+          } else if (formData.signatureImageUrl) {
+            const imgRes = await fetch(formData.signatureImageUrl)
+            if (imgRes.ok) {
+              const imgBytes = await imgRes.arrayBuffer()
+              const isJpeg = /\.(jpe?g)(\?|$)/i.test(formData.signatureImageUrl)
+              const embedded = isJpeg
+                ? await pdfDoc.embedJpg(imgBytes)
+                : await pdfDoc.embedPng(imgBytes)
+              const dims = embedded.scale(1)
+              const scale = Math.min(PDF_SIG.maxW / dims.width, PDF_SIG.maxH / dims.height)
+              lastPage.drawImage(embedded, {
+                x: PDF_SIG.x, y: PDF_SIG.y,
+                width: dims.width * scale, height: dims.height * scale,
+              })
+            }
+          }
+
+          const pdfBytes = await pdfDoc.save()
+          const pdfBlob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" })
+          const pdfFile = new File([pdfBlob], `signed-agreement-${userId}.pdf`, { type: "application/pdf" })
+          const uploaded = await uploadAgreementPdf([pdfFile])
+          const f0 = uploaded?.[0]
+          signedAgreementUrl = f0?.ufsUrl ?? (f0 as any)?.url ?? undefined
+        }
+      } catch (pdfErr) {
+        console.error("PDF signing failed (non-blocking):", pdfErr)
+      }
+
+      // ── Step 2: Submit onboarding ─────────────────────────────────────────────
       const { score, profile, strategy } = computeRiskProfile(formData.riskQuestionnaire)
       const derived = deriveInvestmentProfileFields(formData.riskQuestionnaire)
+      const sigMethod = formData.signatureMethod
       const res = await submitIndividualOnboarding(
         {
           ...formData,
@@ -621,6 +1061,10 @@ export default function IndividualOnboardingForm({ user }: Props) {
           suggestedStrategy: strategy,
           entityType: "individual",
           agentId: formData.agentId || null,
+          signatureType: sigMethod === "draw" ? "DRAWN" : sigMethod === "upload" ? "UPLOADED" : "TYPED",
+          signatureImageUrl: sigMethod !== "type" ? formData.signatureImageUrl : undefined,
+          signatureTypedName: sigMethod === "type" ? formData.signatureTypedName.trim() : undefined,
+          signedAgreementUrl,
         },
         userId
       )
@@ -698,6 +1142,17 @@ export default function IndividualOnboardingForm({ user }: Props) {
           {/* ── STEP 0: Personal Info ── */}
           {currentStep === 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Select value={formData.title} onValueChange={(v) => update("title", v)}>
+                  <SelectTrigger><SelectValue placeholder="Select title" /></SelectTrigger>
+                  <SelectContent>
+                    {["Mr.", "Mrs.", "Ms.", "Miss", "Dr.", "Prof.", "Eng.", "Rev."].map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Full Name *</Label>
                 <Input placeholder="First and last name" value={formData.fullName} onChange={(e) => update("fullName", e.target.value)} />
@@ -975,6 +1430,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
 
               {/* Review summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-2 border-[#193388]/30 rounded-lg bg-[#dce6f1]/20 dark:bg-[#193388]/5">
+                {formData.title && <ReviewField label="Title" value={formData.title} />}
                 <ReviewField label="Full Name" value={formData.fullName} />
                 <ReviewField label="Date of Birth" value={formData.dateOfBirth} />
                 <ReviewField label="Phone" value={formData.phoneNumber} />
@@ -1010,7 +1466,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
                   <h3 className="font-semibold">Investment Management Agreement</h3>
                 </div>
                 <iframe
-                  src="/GoldKach UG Investment Management Agreement - New Version.pdf"
+                  src="/GoldKach Uganda Investment Management Agreement 2026.pdf"
                   className="w-full h-[500px]"
                   title="Investment Management Agreement"
                 />
@@ -1031,6 +1487,120 @@ export default function IndividualOnboardingForm({ user }: Props) {
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                       By checking this box, you confirm that you have read, understood, and agree to all terms in the agreement above. This is required to submit your application.
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Signature Section ── */}
+              <div className="border-2 border-[#193388]/30 rounded-lg overflow-hidden">
+                <div className="bg-[#193388] px-4 py-3 flex items-center gap-2 text-white">
+                  <PenLine className="h-5 w-5" />
+                  <h3 className="font-semibold">Your Official Signature</h3>
+                </div>
+                <div className="p-4 space-y-4 bg-[#dce6f1]/20 dark:bg-[#193388]/5">
+                  <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
+                      Your signature will be securely stored and used to sign documents on the platform.
+                      Choose your preferred method below.
+                    </p>
+                  </div>
+
+                  {/* Method selector */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {SIG_METHODS.map((m) => {
+                      const Icon = m.icon
+                      const active = formData.signatureMethod === m.id
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            update("signatureMethod", m.id)
+                            update("signatureImageUrl", "")
+                            update("signatureTypedName", "")
+                            update("signatureConfirmed", false)
+                          }}
+                          className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 text-left transition-all ${
+                            active
+                              ? "border-[#193388] bg-[#193388]/10 text-[#193388] dark:text-blue-300"
+                              : "border-slate-200 dark:border-slate-700 text-muted-foreground hover:border-[#193388]/50"
+                          }`}
+                        >
+                          <Icon className="h-6 w-6" />
+                          <span className="text-sm font-semibold">{m.label}</span>
+                          <span className="text-xs text-center leading-snug">{m.desc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Draw panel */}
+                  {formData.signatureMethod === "draw" && (
+                    <SignaturePad
+                      currentUrl={formData.signatureImageUrl}
+                      onApplied={(url) => update("signatureImageUrl", url)}
+                      onClear={() => update("signatureImageUrl", "")}
+                    />
+                  )}
+
+                  {/* Upload panel */}
+                  {formData.signatureMethod === "upload" && (
+                    <UploadSignaturePanel
+                      currentUrl={formData.signatureImageUrl}
+                      onApplied={(url) => update("signatureImageUrl", url)}
+                      onClear={() => update("signatureImageUrl", "")}
+                    />
+                  )}
+
+                  {/* Type panel */}
+                  {formData.signatureMethod === "type" && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="sig-typed-name" className="text-sm font-medium">
+                          Full Legal Name
+                        </Label>
+                        <Input
+                          id="sig-typed-name"
+                          value={formData.signatureTypedName}
+                          onChange={(e) => update("signatureTypedName", e.target.value)}
+                          placeholder="Type your full legal name"
+                          className="mt-1 border-[#193388]/30 focus-visible:ring-[#193388]"
+                        />
+                        {formData.signatureTypedName.trim().length > 0 &&
+                          formData.signatureTypedName.trim().length < 3 && (
+                          <p className="text-xs text-red-500 mt-1">Minimum 3 characters required</p>
+                        )}
+                      </div>
+                      {formData.signatureTypedName.trim().length >= 3 && (
+                        <div className="border-2 border-[#193388]/30 rounded-lg bg-white dark:bg-slate-900 px-6 py-5 text-center min-h-[80px] flex items-center justify-center">
+                          <p
+                            className="text-[#193388] dark:text-blue-300 select-none"
+                            style={{ fontFamily: "'Dancing Script', 'Brush Script MT', cursive", fontSize: "2rem" }}
+                          >
+                            {formData.signatureTypedName.trim()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Signature confirmation checkbox */}
+                  <div className="flex items-start space-x-3 p-4 border-2 border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                    <Checkbox
+                      id="sig-confirm"
+                      checked={formData.signatureConfirmed}
+                      onCheckedChange={(c) => update("signatureConfirmed", c as boolean)}
+                      className="mt-0.5 h-5 w-5 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                    <div>
+                      <Label htmlFor="sig-confirm" className="font-semibold text-slate-900 dark:text-white cursor-pointer">
+                        I confirm that this is my official signature *
+                      </Label>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                        I authorize the platform to use this signature whenever my signature is required on documents within the system.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

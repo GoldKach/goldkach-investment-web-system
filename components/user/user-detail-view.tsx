@@ -1056,7 +1056,9 @@ import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
 import { RISK_QUESTIONS, computeRiskProfile, isQuestionnaireComplete, deriveInvestmentProfileFields, type RiskAnswers } from "@/lib/risk-questionnaire"
 import { generateRiskQuestionnairePdf } from "@/lib/generate-risk-questionnaire-pdf"
-import { updateIndividualOnboarding, updateCompanyOnboarding } from "@/actions/onboarding-admin"
+import { updateIndividualOnboarding, updateCompanyOnboarding, saveSignedAgreementUrl } from "@/actions/onboarding-admin"
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
+import { useUploadThing } from "@/lib/uploadthing"
 import { RiskQuestionnaireForm } from "@/components/onboarding/risk-questionnaire-form"
 
 const RISK_PROFILES = [
@@ -1140,11 +1142,19 @@ type EntityOnboarding = {
   bankStatementUrl?: string | null
   proofOfAddressUrl?: string | null
   signatureUrl?: string | null
+  signedAgreementUrl?: string | null
   certificateOfIncorporationUrl?: string | null
   memorandumUrl?: string | null
   articlesUrl?: string | null
   companyTinUrl?: string | null
   additionalDocumentUrl?: string | null
+}
+
+type ClientSignature = {
+  signatureType: "DRAWN" | "UPLOADED" | "TYPED"
+  imageUrl?: string | null
+  typedName?: string | null
+  signedAt?: string | null
 }
 
 type UserForDashboard = {
@@ -1164,6 +1174,7 @@ type UserForDashboard = {
   deposits?: Deposit[] | null
   withdrawals?: Withdrawal[] | null
   entityOnboarding?: EntityOnboarding | null
+  signature?: ClientSignature | null
 }
 
 type TxRow = {
@@ -1408,6 +1419,117 @@ export function UserDetailPreview({
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // ── Signed agreement regeneration ─────────────────────────────────────
+  const [regenLoading, setRegenLoading] = useState(false)
+  const [localSignedAgreementUrl, setLocalSignedAgreementUrl] = useState<string | null | undefined>(undefined)
+  const { startUpload: uploadAgreementPdf } = useUploadThing("signedAgreementPdf")
+
+  const effectiveSignedAgreementUrl =
+    localSignedAgreementUrl !== undefined
+      ? localSignedAgreementUrl
+      : user.entityOnboarding?.signedAgreementUrl ?? null
+
+  const PDF_SIG     = { x: 130, y: 443, maxW: 175, maxH: 24 }
+  const PDF_NAME    = { x: 105, y: 421 }
+  const PDF_TITLE   = { x: 105, y: 399 }
+  const PDF_COMPANY = { x: 105, y: 377 }
+  const PDF_DATE    = { x:  95, y: 353 }
+
+  async function handleRegenerateAgreement() {
+    const sig = user.signature
+    const fullName = user.entityOnboarding?.fullName ?? user.name ?? ""
+    if (!sig) {
+      toast.error("No signature data on file for this client.")
+      return
+    }
+    if (!fullName) {
+      toast.error("Client name is missing.")
+      return
+    }
+    setRegenLoading(true)
+    try {
+      const templateRes = await fetch("/GoldKach Uganda Investment Management Agreement 2026.pdf")
+      if (!templateRes.ok) throw new Error("Failed to fetch agreement template")
+      const pdfDoc = await PDFDocument.load(await templateRes.arrayBuffer())
+      const lastPage = pdfDoc.getPages().at(-1)!
+      const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica)
+      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+      const ink = rgb(0.04, 0.04, 0.04)
+
+      // Name
+      lastPage.drawText(fullName, {
+        x: PDF_NAME.x, y: PDF_NAME.y, size: 10, font: helveticaBold, color: ink,
+      })
+
+      // Title
+      const title = (user.entityOnboarding as any)?.title as string | undefined
+      if (title) {
+        lastPage.drawText(title, {
+          x: PDF_TITLE.x, y: PDF_TITLE.y, size: 10, font: helvetica, color: ink,
+        })
+      }
+
+      // Company (employer name, or "NONE" for individuals with no company)
+      const companyText = (user.entityOnboarding?.companyName as string | undefined)?.trim() || "NONE"
+      lastPage.drawText(companyText, {
+        x: PDF_COMPANY.x, y: PDF_COMPANY.y, size: 10, font: helvetica, color: ink,
+      })
+
+      // Date — use the original signedAt or today
+      const dateStr = new Date(sig.signedAt ?? Date.now()).toLocaleDateString("en-UG", {
+        year: "numeric", month: "long", day: "numeric",
+      })
+      lastPage.drawText(dateStr, {
+        x: PDF_DATE.x, y: PDF_DATE.y, size: 10, font: helvetica, color: ink,
+      })
+
+      // Signature
+      if (sig.signatureType === "TYPED") {
+        const italic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic)
+        lastPage.drawText(sig.typedName?.trim() || fullName, {
+          x: PDF_SIG.x, y: PDF_SIG.y, size: 22,
+          font: italic, color: rgb(0.05, 0.05, 0.35),
+        })
+      } else if (sig.imageUrl) {
+        const imgRes = await fetch(sig.imageUrl)
+        if (imgRes.ok) {
+          const imgBytes = await imgRes.arrayBuffer()
+          const isJpeg = /\.(jpe?g)(\?|$)/i.test(sig.imageUrl)
+          const embedded = isJpeg
+            ? await pdfDoc.embedJpg(imgBytes)
+            : await pdfDoc.embedPng(imgBytes)
+          const dims = embedded.scale(1)
+          const scale = Math.min(PDF_SIG.maxW / dims.width, PDF_SIG.maxH / dims.height)
+          lastPage.drawImage(embedded, {
+            x: PDF_SIG.x, y: PDF_SIG.y,
+            width: dims.width * scale, height: dims.height * scale,
+          })
+        }
+      }
+
+      const pdfBytes = await pdfDoc.save()
+      const pdfBlob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfFile = new (globalThis as any).File([pdfBlob], `signed-agreement-${user.id}.pdf`, { type: "application/pdf" }) as File
+
+      const uploaded = await uploadAgreementPdf([pdfFile])
+      const f0 = uploaded?.[0]
+      const url = f0?.ufsUrl ?? (f0 as any)?.url
+      if (!url) throw new Error("Upload returned no URL")
+
+      const res = await saveSignedAgreementUrl(user.id, url)
+      if (!res.success) throw new Error(res.error ?? "Save failed")
+
+      setLocalSignedAgreementUrl(url)
+      toast.success("Signed agreement generated and saved.")
+    } catch (err: any) {
+      console.error("regenerate agreement error:", err)
+      toast.error(err?.message ?? "Failed to generate signed agreement.")
+    } finally {
+      setRegenLoading(false)
+    }
+  }
 
   // ── Risk Questionnaire Edit state ─────────────────────────────────────
   const _rqExisting: RiskAnswers = (user.entityOnboarding?.riskQuestionnaire as RiskAnswers | null) ?? {}
@@ -2516,6 +2638,100 @@ export function UserDetailPreview({
                   All documents submitted during the onboarding process
                 </p>
 
+                {/* ── Signed Investment Agreement (prominent, always visible) ── */}
+                {user.entityOnboarding?.entityType !== "company" && (
+                  <Card className="mb-6 border-2 border-[#193388]/30 bg-[#dce6f1]/20 dark:bg-[#193388]/5">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-[#193388] dark:text-blue-300">
+                        <FileText className="h-5 w-5" />
+                        Investment Management Agreement
+                      </CardTitle>
+                      <CardDescription>
+                        Signed copy of the agreement submitted during onboarding
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {effectiveSignedAgreementUrl ? (
+                        <div className="space-y-3">
+                          {/* Inline preview */}
+                          <div className="rounded-lg border overflow-hidden bg-white dark:bg-slate-900">
+                            <iframe
+                              src={effectiveSignedAgreementUrl}
+                              className="w-full h-[480px]"
+                              title="Signed Investment Management Agreement"
+                            />
+                          </div>
+                          {/* Action buttons */}
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              variant="outline"
+                              className="gap-2 border-[#193388] text-[#193388] hover:bg-[#193388]/10"
+                              onClick={() => setPreviewDocument({
+                                url: effectiveSignedAgreementUrl!,
+                                name: "Signed Investment Management Agreement",
+                                type: "pdf",
+                              })}
+                            >
+                              <Eye className="h-4 w-4" />
+                              Full Screen
+                            </Button>
+                            <Button
+                              className="gap-2 bg-[#193388] hover:bg-[#142a80] text-white"
+                              onClick={() => window.open(effectiveSignedAgreementUrl!, "_blank")}
+                            >
+                              <Download className="h-4 w-4" />
+                              Download PDF
+                            </Button>
+                            {user.signature && (
+                              <Button
+                                variant="outline"
+                                className="gap-2 ml-auto"
+                                disabled={regenLoading}
+                                onClick={handleRegenerateAgreement}
+                              >
+                                {regenLoading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4" />
+                                )}
+                                Regenerate
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 p-4 rounded-lg border border-dashed border-muted-foreground/30 text-muted-foreground">
+                            <FileText className="h-8 w-8 shrink-0 opacity-40" />
+                            <div>
+                              <p className="text-sm font-medium">No signed agreement on file</p>
+                              <p className="text-xs mt-0.5">
+                                {user.signature
+                                  ? "Signature data found — click below to generate the signed agreement."
+                                  : "The client has not yet completed onboarding or the agreement was not generated."}
+                              </p>
+                            </div>
+                          </div>
+                          {user.signature && (
+                            <Button
+                              className="gap-2 bg-[#193388] hover:bg-[#142a80] text-white"
+                              disabled={regenLoading}
+                              onClick={handleRegenerateAgreement}
+                            >
+                              {regenLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
+                              {regenLoading ? "Generating…" : "Generate Signed Agreement"}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Identity Documents */}
                 <Card className="mb-4">
                   <CardHeader>
@@ -2603,14 +2819,14 @@ export function UserDetailPreview({
                     <CardDescription>Other supporting documents</CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4 md:grid-cols-2">
-                    <DocumentCard 
-                      title="Signature Specimen" 
-                      url={user.entityOnboarding.signatureUrl} 
+                    <DocumentCard
+                      title="Signature Specimen"
+                      url={user.entityOnboarding.signatureUrl}
                     />
                     {user.entityOnboarding.additionalDocumentUrl && (
-                      <DocumentCard 
-                        title="Additional Document" 
-                        url={user.entityOnboarding.additionalDocumentUrl} 
+                      <DocumentCard
+                        title="Additional Document"
+                        url={user.entityOnboarding.additionalDocumentUrl}
                       />
                     )}
                   </CardContent>

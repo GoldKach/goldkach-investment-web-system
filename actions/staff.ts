@@ -56,7 +56,8 @@ export type StaffRole =
   | "STAFF"
   | "ADMIN"
   | "MANAGER"
-  | "SUPER_ADMIN";
+  | "SUPER_ADMIN"
+  | "ONBOARDING_OFFICER";
 
 export interface StaffProfile {
   id: string;

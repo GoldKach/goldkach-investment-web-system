@@ -41,6 +41,7 @@ async function withAuthRetry<T>(fn: (headers: Record<string, string>) => Promise
 
 export interface IndividualOnboardingData {
   id: string;
+  title?: string | null;
   fullName?: string | null;
   dateOfBirth?: string | null;
   tin?: string | null;
@@ -167,5 +168,18 @@ export async function getOnboardingByUserId(userId: string) {
     return { success: true, data: null };
   } catch (e: any) {
     return { success: false, error: msg(e, "Failed to load onboarding") };
+  }
+}
+
+/** PATCH /users/:id/signed-agreement — save generated signed PDF URL */
+export async function saveSignedAgreementUrl(userId: string, signedAgreementUrl: string) {
+  if (!userId || !signedAgreementUrl) return { success: false, error: "Missing required fields." };
+  try {
+    const res = await withAuthRetry((headers) =>
+      api.patch(`/users/${userId}/signed-agreement`, { signedAgreementUrl }, { headers })
+    );
+    return { success: true, data: res.data };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to save signed agreement URL.") };
   }
 }

@@ -1,13 +1,17 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { Spinner } from "@/components/ui/spinner"
-import { getUserById } from "@/actions/auth"
+import { getUserById, getSession } from "@/actions/auth"
 import { getPortfolioSummary } from "@/actions/portfolio-summary"
+import { getAMLRiskAssessment } from "@/actions/aml-risk-assessment"
 import { UserDetailPreview } from "@/components/user/user-detail-view"
+import { AMLRiskAssessmentForm } from "@/components/shared/aml-risk-assessment-form"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TrendingUp, TrendingDown, BarChart2, Wallet } from "lucide-react"
+
+const AML_ALLOWED_ROLES = ["SUPER_ADMIN", "ADMIN", "MANAGER", "ONBOARDING_OFFICER"]
 
 export const dynamic = "force-dynamic"
 
@@ -18,12 +22,20 @@ function fmt(n: number) {
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [userRes, summaryRes] = await Promise.allSettled([
+  const [userRes, summaryRes, sessionRes, amlRes] = await Promise.allSettled([
     getUserById(id),
     getPortfolioSummary(id),
+    getSession(),
+    getAMLRiskAssessment(id),
   ])
 
   const rawUser = userRes.status === "fulfilled" ? userRes.value?.data : null
+  const session = sessionRes.status === "fulfilled" ? sessionRes.value : null
+  const viewerRole: string = (session as any)?.user?.role ?? ""
+  const showAML = AML_ALLOWED_ROLES.includes(viewerRole)
+  const amlData = amlRes.status === "fulfilled" && (amlRes.value as any)?.success
+    ? (amlRes.value as any)?.data?.data ?? null
+    : null
 
   // Normalize: UserDetailPreview reads user.entityOnboarding
   // Backend returns companyOnboarding and individualOnboarding as separate fields
@@ -43,11 +55,29 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     ? summaryRes.value.data
     : null
 
+  const clientName =
+    rawUser
+      ? [rawUser.firstName, rawUser.lastName].filter(Boolean).join(" ") || rawUser.email || rawUser.name || ""
+      : ""
+
   return (
     <div className="container px-4 mx-auto py-8 space-y-8">
       <Suspense fallback={<div className="flex min-h-[400px] items-center justify-center"><Spinner className="h-8 w-8" /></div>}>
         <UserDetailPreview user={user} />
       </Suspense>
+
+      {/* AML/CFT Risk Assessment — visible to SUPER_ADMIN, ADMIN, MANAGER only */}
+      {showAML && rawUser && (
+        <AMLRiskAssessmentForm
+          userId={rawUser.id}
+          clientName={clientName}
+          initialData={amlData}
+          currentUser={{
+            name: [(session as any)?.user?.firstName, (session as any)?.user?.lastName].filter(Boolean).join(" "),
+            role: viewerRole,
+          }}
+        />
+      )}
 
       {/* Portfolio Reports Section */}
       {portfolioSummary && portfolioSummary.portfolios.length > 0 && (

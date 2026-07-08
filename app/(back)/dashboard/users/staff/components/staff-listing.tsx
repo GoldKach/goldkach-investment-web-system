@@ -84,6 +84,7 @@ const STAFF_ROLES: { value: StaffRole; label: string }[] = [
   { value: "AGENT", label: "Agent" },
   { value: "CLIENT_RELATIONS", label: "Client Relations" },
   { value: "ACCOUNT_MANAGER", label: "Account Manager" },
+  { value: "ONBOARDING_OFFICER", label: "Onboarding Officer" },
   { value: "STAFF", label: "Staff" },
   { value: "ADMIN", label: "Admin" },
   { value: "MANAGER", label: "Manager" },
@@ -93,6 +94,7 @@ const ROLE_COLORS: Record<string, string> = {
   AGENT: "bg-blue-500/15 text-blue-400 border-blue-500/20",
   CLIENT_RELATIONS: "bg-violet-500/15 text-violet-400 border-violet-500/20",
   ACCOUNT_MANAGER: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+  ONBOARDING_OFFICER: "bg-indigo-500/15 text-indigo-400 border-indigo-500/20",
   STAFF: "bg-slate-500/15 text-slate-400 border-slate-500/20",
   ADMIN: "bg-amber-500/15 text-amber-400 border-amber-500/20",
   MANAGER: "bg-rose-500/15 text-rose-400 border-rose-500/20",
@@ -144,6 +146,23 @@ function StaffFormDialog({
     bio: editTarget?.staffProfile?.bio ?? "",
     employeeId: editTarget?.staffProfile?.employeeId ?? "",
   });
+
+  // Re-populate form whenever a different staff member is opened for editing
+  useEffect(() => {
+    setErrors({});
+    setForm({
+      firstName: editTarget?.firstName ?? "",
+      lastName: editTarget?.lastName ?? "",
+      email: editTarget?.email ?? "",
+      phone: editTarget?.phone ?? "",
+      password: "",
+      role: editTarget?.role ?? "STAFF",
+      department: editTarget?.staffProfile?.department ?? "",
+      position: editTarget?.staffProfile?.position ?? "",
+      bio: editTarget?.staffProfile?.bio ?? "",
+      employeeId: editTarget?.staffProfile?.employeeId ?? "",
+    });
+  }, [editTarget?.id, open]);
 
   const set = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>

@@ -70,6 +70,7 @@ const ROLE_COLORS: Record<string, string> = {
   AGENT: "bg-blue-500/15 text-blue-400 border-blue-500/20",
   CLIENT_RELATIONS: "bg-violet-500/15 text-violet-400 border-violet-500/20",
   ACCOUNT_MANAGER: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+  ONBOARDING_OFFICER: "bg-indigo-500/15 text-indigo-400 border-indigo-500/20",
   STAFF: "bg-slate-500/15 text-slate-400 border-slate-500/20",
   ADMIN: "bg-amber-500/15 text-amber-400 border-amber-500/20",
   MANAGER: "bg-rose-500/15 text-rose-400 border-rose-500/20",
