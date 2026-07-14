@@ -72,7 +72,8 @@ export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients:
     return (
       displayName(u).toLowerCase().includes(q) ||
       (u.email ?? "").toLowerCase().includes(q) ||
-      (u.phone ?? "").includes(query)
+      (u.phone ?? "").includes(query) ||
+      (u.masterWallet?.accountNumber ?? "").toLowerCase().includes(q)
     );
   });
 
@@ -165,7 +166,7 @@ export function CRClientsTable({ clients, basePath = "/cr/clients" }: { clients:
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 type="search"
-                placeholder="Search clients…"
+                placeholder="Search by name, email, phone or account number…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="pl-9 h-8 text-xs"
