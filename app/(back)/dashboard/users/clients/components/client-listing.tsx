@@ -469,7 +469,7 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
   const filtered = clients.filter((c) => {
     const matchSearch =
       !search ||
-      `${c.firstName} ${c.lastName} ${c.email} ${c.phone} ${c.name}`
+      `${c.firstName} ${c.lastName} ${c.email} ${c.phone} ${c.name} ${c.masterWallet?.accountNumber ?? ""}`
         .toLowerCase()
         .includes(search.toLowerCase());
 
@@ -570,7 +570,7 @@ export default function ClientsListing({ clients: initialClients }: { clients: C
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email or phone..."
+            placeholder="Search by name, email, phone or account number..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-muted/50 border-border"
