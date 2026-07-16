@@ -1070,7 +1070,12 @@ export default function IndividualOnboardingForm({ user }: Props) {
       )
 
       if (!res.success) {
-        toast.error(res.error || "Submission failed.")
+        if (res.error === "No token provided" || res.error?.includes("token")) {
+          toast.error("Your session expired. Please log in again to submit your application.")
+          router.push("/login?alert=" + encodeURIComponent("Your session expired. Please log in to continue your onboarding."))
+        } else {
+          toast.error(res.error || "Submission failed.")
+        }
         return
       }
 

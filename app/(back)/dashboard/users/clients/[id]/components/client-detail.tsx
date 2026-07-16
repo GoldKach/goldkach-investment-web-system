@@ -248,7 +248,6 @@ export function ClientDetail({
     certificateOfIncorporationUrl: effectiveOnboarding?.certificateOfIncorporationUrl ?? "",
     memorandumUrl: effectiveOnboarding?.memorandumUrl ?? "",
     articlesUrl: effectiveOnboarding?.articlesUrl ?? "",
-    companyTinUrl: effectiveOnboarding?.companyTinUrl ?? "",
   }));
 
   function handleOnboardingChange(field: string, value: string) {
@@ -269,18 +268,20 @@ export function ClientDetail({
         // Only send fields relevant to the onboarding type to avoid schema validation errors
         let patch: Record<string, any>;
         if (effectiveOnboardingType === "company") {
+          // Strip individual-only fields; keep shared docs (bankStatementUrl, tinCertificateUrl,
+          // signatureUrl, additionalDocumentUrl, proofOfAddressUrl) in the company patch
           const {
             fullName, dateOfBirth, nationality, countryOfResidence,
-            employmentStatus, occupation,
-            nationalIdUrl, passportPhotoUrl, tinCertificateUrl,
-            bankStatementUrl, proofOfAddressUrl, signatureUrl, additionalDocumentUrl,
+            homeAddress, employmentStatus, occupation,
+            nationalIdUrl, passportPhotoUrl,
             ...companyFields
           } = raw;
           patch = companyFields;
         } else {
+          // Strip company-only fields; keep shared docs in the individual patch
           const {
             registrationNumber, companyAddress, businessType, incorporationDate,
-            certificateOfIncorporationUrl, memorandumUrl, articlesUrl, companyTinUrl,
+            certificateOfIncorporationUrl, memorandumUrl, articlesUrl,
             ...individualFields
           } = raw;
           patch = individualFields;
@@ -1261,7 +1262,7 @@ export function ClientDetail({
                     { field: "certificateOfIncorporationUrl", label: "Certificate of Incorporation" },
                     { field: "memorandumUrl", label: "Memorandum of Association" },
                     { field: "articlesUrl", label: "Articles of Association" },
-                    { field: "companyTinUrl", label: "Company TIN Certificate" },
+                    { field: "tinCertificateUrl", label: "Company TIN Certificate" },
                   ].map(({ field, label }) => (
                     <DocUploadRow
                       key={field}

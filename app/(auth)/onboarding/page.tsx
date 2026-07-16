@@ -64,7 +64,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { getSession } from "@/actions/auth";
+import { getSession, refreshAccessToken } from "@/actions/auth";
 import CompanyOnboardingForm from "./components/company-onboarding";
 import IndividualOnboardingForm from "./components/individual-onboarding";
 
@@ -99,6 +99,21 @@ export default function OnboardingPage() {
         try {
           const parsed = JSON.parse(raw) as OnboardingUser | null;
           if (parsed?.id && parsed?.email) {
+            // Ensure we have a valid auth cookie so the submit server action can send the token.
+            // Email verification sets the cookie, but it may have expired if the user returns later.
+            const session = await getSession();
+            if (!session) {
+              // Access token missing or expired — attempt a silent refresh before giving up.
+              const refreshed = await refreshAccessToken();
+              if (!refreshed.success) {
+                // Cannot restore session; send user to login so cookies are re-established.
+                router.replace(
+                  "/login?alert=" +
+                    encodeURIComponent("Your session expired. Please log in to continue your onboarding.")
+                );
+                return;
+              }
+            }
             setBootstrap({ ...parsed, entityType: parsed.entityType ?? entityTypeFromQuery ?? "individual" });
             setIsLoading(false);
             return;
