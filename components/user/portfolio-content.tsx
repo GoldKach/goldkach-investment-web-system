@@ -9,7 +9,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowDownIcon, ArrowUpIcon, TrendingUp, Wallet } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, Clock, TrendingUp, Wallet } from "lucide-react"
 import Link from "next/link"
 
 interface PortfolioListProps {
@@ -57,18 +57,71 @@ export function PortfolioList({ userPortfolios, masterWallet }: PortfolioListPro
 
   if (validPortfolios.length === 0) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>No Portfolios Found</CardTitle>
-            <CardDescription>You don't have any portfolios yet.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/user/deposits">
-              <Button className="w-full">Make your first deposit and wait for portfolio activation</Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="p-6 flex items-center justify-center min-h-[500px]">
+        <div className="w-full max-w-md text-center space-y-6">
+          {/* Icon */}
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="h-20 w-20 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                <Clock className="h-9 w-9 text-amber-500" />
+              </div>
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-400 flex items-center justify-center">
+                <span className="h-2 w-2 rounded-full bg-white" />
+              </span>
+            </div>
+          </div>
+
+          {/* Heading */}
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
+              Portfolio Allocation Pending
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Your account is active and your deposit has been received. Our team is currently
+              reviewing your investment profile and will allocate your portfolio shortly.
+            </p>
+          </div>
+
+          {/* Status pill */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 text-amber-700 dark:text-amber-400 text-sm font-medium">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+            </span>
+            Awaiting portfolio allocation
+          </div>
+
+          {/* What to expect */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/30 p-4 text-left space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">What happens next</p>
+            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 h-4 w-4 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                </span>
+                Our team reviews your onboarding profile and risk assessment
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 h-4 w-4 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                </span>
+                A portfolio matching your investment goals is assigned to you
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 h-4 w-4 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                </span>
+                You will be notified once your portfolio is live and visible here
+              </li>
+            </ul>
+          </div>
+
+          <Link href="/user/deposits">
+            <Button variant="outline" className="w-full">
+              View My Deposits
+            </Button>
+          </Link>
+        </div>
       </div>
     )
   }
