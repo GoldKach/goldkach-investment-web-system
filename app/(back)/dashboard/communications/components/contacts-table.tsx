@@ -1,8 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { toast } from "sonner";
-import { Download, Mail, MessageSquare, Search, Send } from "lucide-react";
+import {
+  Download,
+  Mail,
+  MessageSquare,
+  Search,
+  Send,
+  History,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +33,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { RichTextEditor } from "@/components/front-end/rich-text-editor";
-import { sendBulkEmail } from "@/actions/communications";
+import { sendBulkEmail, getSentEmails } from "@/actions/communications";
 
 interface Contact {
   id: string;
@@ -30,6 +42,17 @@ interface Contact {
   phone: string;
   status?: string;
   role?: string;
+}
+
+interface SentEmail {
+  id: string;
+  subject: string;
+  message: string;
+  recipients: string[];
+  sentCount: number;
+  failedCount: number;
+  sentByName: string | null;
+  sentAt: string;
 }
 
 interface ContactsTableProps {
@@ -134,6 +157,147 @@ function ContactTable({
   );
 }
 
+function EmailHistoryRow({ email }: { email: SentEmail }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const date = new Date(email.sentAt);
+  const formatted = date.toLocaleString("en-UG", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <div className="border border-slate-200 dark:border-[#2B2F77]/30 rounded-xl overflow-hidden">
+      <button
+        className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-[#2B2F77]/10 transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex-1 min-w-0 space-y-1">
+          <p className="font-medium text-slate-800 dark:text-white truncate">{email.subject}</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {email.recipients.length} recipient{email.recipients.length !== 1 ? "s" : ""}
+            </span>
+            <span className="flex items-center gap-1">
+              <Mail className="h-3 w-3 text-green-500" />
+              {email.sentCount} sent
+            </span>
+            {email.failedCount > 0 && (
+              <span className="flex items-center gap-1 text-red-500">
+                <AlertCircle className="h-3 w-3" />
+                {email.failedCount} failed
+              </span>
+            )}
+            <span>{formatted}</span>
+            {email.sentByName && <span>by {email.sentByName}</span>}
+          </div>
+        </div>
+        <div className="shrink-0 text-slate-400 mt-1">
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-slate-100 dark:border-[#2B2F77]/20 px-5 py-4 space-y-4 bg-slate-50/50 dark:bg-[#2B2F77]/5">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Recipients</p>
+            <div className="flex flex-wrap gap-1.5">
+              {email.recipients.map((r) => (
+                <span
+                  key={r}
+                  className="inline-block text-xs bg-white dark:bg-[#1a1e4a] border border-slate-200 dark:border-[#2B2F77]/40 rounded px-2 py-0.5 text-slate-600 dark:text-slate-300"
+                >
+                  {r}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Message</p>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1a1e4a] border border-slate-200 dark:border-[#2B2F77]/40 rounded-lg p-4"
+              dangerouslySetInnerHTML={{ __html: email.message }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmailHistory() {
+  const [emails, setEmails] = useState<SentEmail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getSentEmails();
+      if (res.success) {
+        setEmails(res.data ?? []);
+      } else {
+        setError(res.error ?? "Failed to load email history.");
+      }
+    } catch {
+      setError("Unexpected error loading history.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-slate-400 gap-2">
+        <RefreshCw className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Loading email history…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+        <AlertCircle className="h-6 w-6 text-red-400" />
+        <p className="text-sm text-red-500">{error}</p>
+        <Button size="sm" variant="outline" onClick={load} className="gap-2">
+          <RefreshCw className="h-3.5 w-3.5" /> Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (emails.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+        <History className="h-8 w-8 opacity-40" />
+        <p className="text-sm">No emails sent yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">{emails.length} email blast{emails.length !== 1 ? "s" : ""} sent</p>
+        <Button size="sm" variant="ghost" onClick={load} className="gap-1.5 text-xs">
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </Button>
+      </div>
+      {emails.map((e) => (
+        <EmailHistoryRow key={e.id} email={e} />
+      ))}
+    </div>
+  );
+}
+
 export function ContactsTable({ clients, agents }: ContactsTableProps) {
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
@@ -165,7 +329,7 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
       toast.error("Subject and message are required.");
       return;
     }
-    
+
     let recipients: string[] = [];
     if (emailDialog.target === "all") {
       recipients = [...clients, ...agents].map((c) => c.email);
@@ -187,7 +351,7 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
           subject: emailForm.subject,
           message: emailForm.message,
         });
-        
+
         if (result.success) {
           toast.success(`Sent to ${result.sent || recipients.length} recipients.`);
           setEmailDialog({ open: false, target: null });
@@ -206,6 +370,10 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
         <TabsList>
           <TabsTrigger value="clients">Clients ({clients.length})</TabsTrigger>
           <TabsTrigger value="agents">Staff ({agents.length})</TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5">
+            <History className="h-3.5 w-3.5" />
+            Sent Emails
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="clients" className="mt-6 space-y-4">
@@ -299,6 +467,10 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
             onToggleAll={toggleAllAgents}
           />
         </TabsContent>
+
+        <TabsContent value="history" className="mt-6">
+          <EmailHistory />
+        </TabsContent>
       </Tabs>
 
       <Dialog open={emailDialog.open} onOpenChange={(o) => !isSending && setEmailDialog({ open: o, target: emailDialog.target })}>
@@ -306,10 +478,10 @@ export function ContactsTable({ clients, agents }: ContactsTableProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
-              {emailDialog.target === "all" 
-                ? `Send to All (${clients.length + agents.length})` 
-                : emailDialog.target === "clients" 
-                  ? `Send to ${selectedClients.size} Client(s)` 
+              {emailDialog.target === "all"
+                ? `Send to All (${clients.length + agents.length})`
+                : emailDialog.target === "clients"
+                  ? `Send to ${selectedClients.size} Client(s)`
                   : `Send to ${selectedAgents.size} Staff Member(s)`}
             </DialogTitle>
           </DialogHeader>
