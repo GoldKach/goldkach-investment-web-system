@@ -941,32 +941,56 @@ export default function ReportsClient({
   }
 
   const addPageBorderAndLogo = async (doc: jsPDF) => {
-    // Add blue border around entire page
-    doc.setDrawColor(25, 51, 136) // GoldKach blue
+    const pageW = doc.internal.pageSize.getWidth()
+    const pageH = doc.internal.pageSize.getHeight()
+
+    doc.setDrawColor(25, 51, 136)
     doc.setLineWidth(4)
-    doc.rect(5, 5, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 10, 'S')
-    
-    // Add GoldKach logo from public directory
+    doc.rect(5, 5, pageW - 10, pageH - 10, 'S')
+
+    let logoImg: HTMLImageElement | null = null
     try {
-      const logoImg = await loadLogoImage()
+      logoImg = await loadLogoImage()
       doc.addImage(logoImg, 'JPEG', 10, 10, 45, 35)
-    } catch (error) {
-      // Fallback to text if image fails to load
-      console.error('Logo loading failed, using text fallback:', error)
+    } catch {
       doc.setFillColor(255, 255, 255)
       doc.rect(10, 10, 45, 35, 'F')
-      
       doc.setFontSize(14)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(25, 51, 136)
       doc.text('GoldKach', 15, 25)
-      
       doc.setFontSize(7)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(41, 128, 185)
       doc.text('Unlocking Global Investments', 15, 32)
     }
-    
+
+    // Logo watermark centred on page
+    if (logoImg) {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = logoImg.naturalWidth
+        canvas.height = logoImg.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(logoImg, 0, 0)
+          const dataUrl = canvas.toDataURL('image/jpeg')
+          const wmH = 48
+          const wmW = wmH * (logoImg.naturalWidth / logoImg.naturalHeight)
+          const x = (pageW - wmW) / 2
+          const y = (pageH - wmH) / 2
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { GState } = require('jspdf')
+          doc.saveGraphicsState()
+          doc.setGState(new GState({ opacity: 0.06 }))
+          doc.addImage(dataUrl, 'JPEG', x, y, wmW, wmH)
+          doc.restoreGraphicsState()
+        }
+      } catch {
+        // GState not available — skip watermark silently
+      }
+    }
+
     doc.setTextColor(0, 0, 0)
   }
 

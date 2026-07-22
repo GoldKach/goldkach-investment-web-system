@@ -313,9 +313,9 @@ export function DepositDetailsModal({
             </div>
           </div>
 
-          {/* Deposited By */}
+          {/* Captured By */}
           <div>
-            <h3 className={hd}><UserCheck className="h-4 w-4" /> Deposited By</h3>
+            <h3 className={hd}><UserCheck className="h-4 w-4" /> Captured By</h3>
             <div className={card}>
               <div className="flex justify-between"><span className={lbl}>Staff Name</span><span className={val}>{deposit.createdByName || adminName}</span></div>
               {deposit.createdByRole && <div className="flex justify-between"><span className={lbl}>Role</span><span className={val}>{deposit.createdByRole}</span></div>}

@@ -16,47 +16,80 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
+  X,
+  FileDown,
 } from "lucide-react"
-import { type Deposit } from "@/actions/deposits"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { type Deposit, type DepositsAnalyticsData } from "@/actions/deposits"
 import { useRouter } from "next/navigation"
 import { DepositDetailsModal } from "./deposit-details-modal"
 import { CreateDepositDialog } from "./create-deposit-dialog"
 import { DepositReceipt } from "./deposit-receipt"
+import { DepositsAnalytics } from "./deposits-analytics"
 import { toast } from "sonner"
 import { downloadReceiptPdf } from "@/lib/download-receipt"
+import { downloadDepositsPdf } from "@/lib/generate-deposits-pdf"
+import { DepositTrendChart } from "./deposit-trend-chart"
 
 interface AdminDepositsContentProps {
-  deposits:  Deposit[]
-  adminId:   string
-  adminName: string
+  deposits:         Deposit[]
+  analytics:        DepositsAnalyticsData | null
+  adminId:          string
+  adminName:        string
+  canCreate?:       boolean
+  restrictToTarget?: string
+  onRefresh?:       () => void
 }
 
-export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepositsContentProps) {
+export function AdminDepositsContent({ deposits, analytics, adminId, adminName, canCreate = true, restrictToTarget, onRefresh }: AdminDepositsContentProps) {
   const [searchQuery,     setSearchQuery]     = useState("")
   const [statusFilter,    setStatusFilter]    = useState<string>("all")
   const [typeFilter,      setTypeFilter]      = useState<string>("all")
+  const [dateFrom,        setDateFrom]        = useState<string>("")
+  const [dateTo,          setDateTo]          = useState<string>("")
   const [selectedDeposit, setSelectedDeposit] = useState<Deposit | null>(null)
   const [isModalOpen,     setIsModalOpen]     = useState(false)
   const [createOpen,      setCreateOpen]      = useState(false)
-  const [page,          setPage]          = useState(1)
+  const [page,            setPage]            = useState(1)
   const ITEMS_PER_PAGE = 15
   const router = useRouter()
 
+  const hasDateRange = dateFrom || dateTo
+
   const filteredDeposits = useMemo(() => {
     return deposits.filter(deposit => {
+      const q = searchQuery.toLowerCase()
+      const accountNumber = (deposit.depositTarget === "MASTER"
+        ? deposit.masterWallet?.accountNumber
+        : deposit.portfolioWallet?.accountNumber) ?? ""
       const matchesSearch =
-        deposit.transactionId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deposit.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deposit.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deposit.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        deposit.id.toLowerCase().includes(searchQuery.toLowerCase())
+        deposit.transactionId?.toLowerCase().includes(q) ||
+        deposit.user?.firstName?.toLowerCase().includes(q) ||
+        deposit.user?.lastName?.toLowerCase().includes(q) ||
+        deposit.user?.email?.toLowerCase().includes(q) ||
+        accountNumber.toLowerCase().includes(q) ||
+        deposit.id.toLowerCase().includes(q)
 
       const matchesStatus = statusFilter === "all" || deposit.transactionStatus === statusFilter
-      const matchesType   = typeFilter   === "all" || deposit.depositTarget     === typeFilter
+      const matchesType   = (restrictToTarget ? deposit.depositTarget === restrictToTarget
+                              : typeFilter === "all" || deposit.depositTarget === typeFilter)
 
-      return matchesSearch && matchesStatus && matchesType
+      const ds = (deposit.createdAt ?? "").slice(0, 10)
+      const matchesFrom = !dateFrom || ds >= dateFrom
+      const matchesTo   = !dateTo   || ds <= dateTo
+
+      return matchesSearch && matchesStatus && matchesType && matchesFrom && matchesTo
     })
-  }, [deposits, searchQuery, statusFilter, typeFilter])
+  }, [deposits, searchQuery, statusFilter, typeFilter, dateFrom, dateTo, restrictToTarget])
 
   const totalPages = Math.ceil(filteredDeposits.length / ITEMS_PER_PAGE)
   const paginatedDeposits = filteredDeposits.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
@@ -65,7 +98,7 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
 
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, statusFilter, typeFilter, deposits.length])
+  }, [searchQuery, statusFilter, typeFilter, dateFrom, dateTo, deposits.length])
 
   const stats = useMemo(() => {
     const pending  = deposits.filter(d => d.transactionStatus === "PENDING")
@@ -91,7 +124,76 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
     setIsModalOpen(true)
   }
 
-  const handleRefresh = () => router.refresh()
+  const handleRefresh = () => { if (onRefresh) onRefresh(); else router.refresh(); }
+
+  // ─── Export helpers ──────────────────────────────────────────────────────────
+
+  function friendlyDate(iso: string) {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+  }
+
+  function rangePeriodLabel() {
+    if (dateFrom && dateTo) return `${friendlyDate(dateFrom)} – ${friendlyDate(dateTo)}`;
+    if (dateFrom) return `From ${friendlyDate(dateFrom)}`;
+    if (dateTo)   return `Up to ${friendlyDate(dateTo)}`;
+    return "";
+  }
+
+  function exportCurrentView() {
+    const hasFilters = statusFilter !== "all" || typeFilter !== "all" || searchQuery || hasDateRange;
+    const label = hasDateRange
+      ? "Deposits — Date Range"
+      : hasFilters ? "Deposits — Filtered View" : "Deposits — All Loaded";
+    const sub = hasDateRange
+      ? rangePeriodLabel()
+      : `${filteredDeposits.length} deposit${filteredDeposits.length !== 1 ? "s" : ""} matching current filters`;
+    downloadDepositsPdf({ label, period: sub, deposits: filteredDeposits });
+  }
+
+  function exportForRange() {
+    if (!hasDateRange) return;
+    downloadDepositsPdf({
+      label:   "Deposits — Date Range",
+      period:  rangePeriodLabel(),
+      deposits: filteredDeposits,
+    });
+  }
+
+  function exportByPeriod(period: "today" | "week" | "month") {
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+    const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
+    let filtered: Deposit[];
+    let label: string;
+    let sub: string;
+
+    if (period === "today") {
+      filtered = deposits.filter(d => (d.createdAt ?? "").slice(0, 10) === todayStr);
+      label = "Deposits — Today";
+      sub = now.toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+    } else if (period === "week") {
+      filtered = deposits.filter(d => {
+        const ds = (d.createdAt ?? "").slice(0, 10);
+        return ds >= weekStartStr && ds <= todayStr;
+      });
+      label = "Deposits — This Week";
+      sub = `${friendlyDate(weekStartStr)} – ${friendlyDate(todayStr)}`;
+    } else {
+      filtered = deposits.filter(d => (d.createdAt ?? "").slice(0, 10) >= monthStartStr);
+      label = "Deposits — This Month";
+      sub = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    }
+
+    downloadDepositsPdf({ label, period: sub, deposits: filtered });
+  }
 
   const handleDownloadReceipt = useCallback(async (deposit: Deposit, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -133,14 +235,16 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
             <p className="text-slate-500 dark:text-slate-400">Review and manage all deposit requests</p>
           </div>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => setCreateOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Deposit
-            </Button>
+            {canCreate && (
+              <Button
+                size="sm"
+                onClick={() => setCreateOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Deposit
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -150,16 +254,57 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export PDF
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <DropdownMenuLabel className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  Period
+                </DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => exportByPeriod("today")} className="gap-2 cursor-pointer">
+                  <Download className="h-3.5 w-3.5 text-blue-500" /> Today
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportByPeriod("week")} className="gap-2 cursor-pointer">
+                  <Download className="h-3.5 w-3.5 text-indigo-500" /> This Week
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportByPeriod("month")} className="gap-2 cursor-pointer">
+                  <Download className="h-3.5 w-3.5 text-violet-500" /> This Month
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-700" />
+                <DropdownMenuLabel className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  Current View
+                </DropdownMenuLabel>
+                <DropdownMenuItem onClick={exportCurrentView} className="gap-2 cursor-pointer">
+                  <FileDown className="h-3.5 w-3.5 text-green-500" />
+                  <span>Filtered view <span className="text-slate-400 text-xs">({filteredDeposits.length})</span></span>
+                </DropdownMenuItem>
+                {hasDateRange && (
+                  <>
+                    <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-700" />
+                    <DropdownMenuLabel className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                      Date Range
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem onClick={exportForRange} className="gap-2 cursor-pointer">
+                      <CalendarDays className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="truncate">{rangePeriodLabel()}</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
+
+        {/* Analytics */}
+        {analytics && <DepositsAnalytics analytics={analytics} />}
 
         {/* Statistics Cards */}
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
@@ -183,19 +328,25 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
           ))}
         </div>
 
+        {/* Trend Chart */}
+        <DepositTrendChart deposits={deposits} />
+
         {/* Filters */}
         <Card className="bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-700">
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Search by transaction ID, user name, or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400"
-                />
-              </div>
+            {/* Search row — sits above other filters */}
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search by transaction ID, name, email, or GK account number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400"
+            />
+          </div>
+
+          {/* Filter row: status, type, date range */}
+          <div className="flex flex-col md:flex-row gap-4">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full md:w-48 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
                   <Filter className="h-4 w-4 mr-2" />
@@ -208,17 +359,65 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
                   <SelectItem value="REJECTED">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full md:w-48 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="MASTER">Master (External)</SelectItem>
-                  <SelectItem value="ALLOCATION">Allocation (Internal)</SelectItem>
-                </SelectContent>
-              </Select>
+              {!restrictToTarget && (
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-full md:w-48 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="MASTER">Master (External)</SelectItem>
+                    <SelectItem value="ALLOCATION">Allocation (Internal)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {/* Date range: From */}
+              <div className="relative flex items-center">
+                <CalendarDays className="absolute left-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  title="From date"
+                  className="pl-9 pr-3 h-10 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
+                />
+              </div>
+              <span className="text-slate-400 text-sm hidden md:inline">to</span>
+              {/* Date range: To */}
+              <div className="relative flex items-center">
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  title="To date"
+                  className="pl-3 pr-3 h-10 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
+                />
+              </div>
+              {hasDateRange && (
+                <button
+                  onClick={() => { setDateFrom(""); setDateTo(""); }}
+                  title="Clear date range"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
+            {hasDateRange && (
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  {rangePeriodLabel()} — {filteredDeposits.length} deposit{filteredDeposits.length !== 1 ? "s" : ""}
+                </p>
+                <Button
+                  size="sm"
+                  onClick={exportForRange}
+                  className="h-7 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  Print Range
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -245,15 +444,39 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
                     className="relative flex items-center justify-between p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                     onClick={() => handleViewDetails(deposit)}
                   >
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
-                      <div>
-                        <p className="text-xs text-slate-400 dark:text-slate-500">User</p>
-                        <p className="text-slate-900 dark:text-white font-medium">
-                          {[deposit.user?.firstName, deposit.user?.lastName].filter(Boolean).join(" ") || "N/A"}
-                        </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{deposit.user?.email || ""}</p>
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-3 min-w-0">
+                      {/* Col 1-2: User (wider) */}
+                      <div className="md:col-span-2 flex items-start gap-2.5 min-w-0">
+                        <Avatar className="h-9 w-9 shrink-0 mt-0.5">
+                          <AvatarImage
+                            src={
+                              (deposit.user as any)?.individualOnboarding?.passportPhotoUrl ||
+                              (deposit.user as any)?.imageUrl ||
+                              ""
+                            }
+                            alt={[deposit.user?.firstName, deposit.user?.lastName].filter(Boolean).join(" ") || ""}
+                          />
+                          <AvatarFallback className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-bold">
+                            {[deposit.user?.firstName?.[0], deposit.user?.lastName?.[0]].filter(Boolean).join("") || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="text-xs text-slate-400 dark:text-slate-500">User</p>
+                          <p className="text-sm text-slate-900 dark:text-white font-medium leading-snug">
+                            {[deposit.user?.firstName, deposit.user?.lastName].filter(Boolean).join(" ") || "N/A"}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{deposit.user?.email || ""}</p>
+                          {(deposit.masterWallet?.accountNumber || deposit.portfolioWallet?.accountNumber) && (
+                            <p className="text-xs font-mono font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
+                              {deposit.depositTarget === "MASTER"
+                                ? deposit.masterWallet?.accountNumber
+                                : deposit.portfolioWallet?.accountNumber}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
+                      {/* Col 2: Amount */}
                       <div>
                         <p className="text-xs text-slate-400 dark:text-slate-500">Amount</p>
                         <p className="text-slate-900 dark:text-white font-bold text-lg">
@@ -261,27 +484,36 @@ export function AdminDepositsContent({ deposits, adminId, adminName }: AdminDepo
                         </p>
                       </div>
 
-                      <div>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">Type</p>
-                        <Badge
-                          variant="outline"
-                          className={
-                            deposit.depositTarget === "MASTER"
-                              ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30"
-                              : "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30"
-                          }
-                        >
-                          {deposit.depositTarget === "MASTER" ? "External" : "Allocation"}
-                        </Badge>
-                      </div>
-
+                      {/* Col 3: Transaction ID with Type + Date below */}
                       <div>
                         <p className="text-xs text-slate-400 dark:text-slate-500">Transaction ID</p>
                         <code className="text-slate-700 dark:text-white text-xs font-mono">
                           {deposit.transactionId || "N/A"}
                         </code>
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                          <Badge
+                            variant="outline"
+                            className={
+                              deposit.depositTarget === "MASTER"
+                                ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30"
+                                : "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30"
+                            }
+                          >
+                            {deposit.depositTarget === "MASTER" ? "External" : "Allocation"}
+                          </Badge>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {deposit.createdAt
+                              ? new Date(deposit.createdAt).toLocaleDateString("en-UG", {
+                                  day: "2-digit", month: "short", year: "numeric",
+                                }) + " · " + new Date(deposit.createdAt).toLocaleTimeString("en-UG", {
+                                  hour: "2-digit", minute: "2-digit",
+                                })
+                              : "—"}
+                          </span>
+                        </div>
                       </div>
 
+                      {/* Col 4: Status */}
                       <div>
                         <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">Status</p>
                         <Badge variant="outline" className={getStatusBadge(deposit.transactionStatus)}>

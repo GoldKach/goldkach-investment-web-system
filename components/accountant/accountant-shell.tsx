@@ -11,7 +11,7 @@ import {
   SidebarProvider, SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LayoutDashboard, LogOut, BarChart2, FileText, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, BarChart2, FileText, Users, ArrowDownCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/front-end/theme-toggle";
 import { logoutUser } from "@/actions/auth";
 
@@ -19,6 +19,7 @@ const navLinks = [
   { title: "Portfolio Summary",   url: "/accountant",                         icon: LayoutDashboard },
   { title: "My Clients",          url: "/accountant/clients/my-clients",      icon: Users },
   { title: "All Clients",         url: "/accountant/clients",                 icon: Users },
+  { title: "Deposits",            url: "/accountant/deposits",                icon: ArrowDownCircle },
   { title: "Financial Analytics", url: "/accountant/analytics",               icon: BarChart2 },
   { title: "Reports",             url: "/accountant/reports",                 icon: FileText },
 ];
@@ -62,7 +63,7 @@ function AccountantSidebar({ user }: { user: any }) {
         <SidebarGroup>
           <SidebarMenu className="space-y-0.5">
             {navLinks.map((link) => {
-              const isActive = pathname === link.url;
+              const isActive = pathname === link.url || (link.url !== "/accountant" && pathname.startsWith(link.url));
               return (
                 <SidebarMenuItem key={link.title}>
                   <SidebarMenuButton asChild tooltip={link.title} className={`h-9 rounded-lg px-3 text-sm font-medium transition-colors ${isActive ? "bg-[#2B2F77]/10 dark:bg-[#3B82F6]/15 text-[#2B2F77] dark:text-[#3B82F6] font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2B2F77]/20"}`}>

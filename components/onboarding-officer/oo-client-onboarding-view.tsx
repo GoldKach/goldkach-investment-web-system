@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   CheckCircle, XCircle, User, Building2, FileText, ShieldCheck,
   Briefcase, Heart, AlertTriangle, Download, Eye, ExternalLink,
-  Clock, Phone, Mail, MapPin, Calendar, CreditCard,
+  Clock, Phone, Mail, MapPin, Calendar, CreditCard, ClipboardEdit,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { updateUserById } from "@/actions/auth";
+import { EditOnboardingModal } from "@/components/shared/edit-onboarding-modal";
 
 type OBData = {
   type: "individual" | "company";
@@ -79,6 +80,7 @@ export function OOClientOnboardingView({
   const [action, setAction] = useState<"approve" | "reject" | null>(null);
   const [processing, setProcessing] = useState(false);
   const [localApproved, setLocalApproved] = useState<boolean | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const ob = onboardingData?.data ?? {};
   const obType = onboardingData?.type ?? "individual";
@@ -181,24 +183,35 @@ export function OOClientOnboardingView({
               ) : null}
             </div>
 
-            {/* Approval Actions */}
-            {!currentlyApproved && user.status !== "DEACTIVATED" && (
-              <div className="flex gap-2 shrink-0">
+            {/* Actions */}
+            <div className="flex flex-wrap gap-2 shrink-0">
+              {onboardingData && (
                 <Button
                   variant="outline"
-                  className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
-                  onClick={() => setAction("reject")}
+                  className="gap-2"
+                  onClick={() => setEditModalOpen(true)}
                 >
-                  <XCircle className="h-4 w-4" /> Reject
+                  <ClipboardEdit className="h-4 w-4" /> Edit Onboarding
                 </Button>
-                <Button
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => setAction("approve")}
-                >
-                  <CheckCircle className="h-4 w-4" /> Approve
-                </Button>
-              </div>
-            )}
+              )}
+              {!currentlyApproved && user.status !== "DEACTIVATED" && (
+                <>
+                  <Button
+                    variant="outline"
+                    className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                    onClick={() => setAction("reject")}
+                  >
+                    <XCircle className="h-4 w-4" /> Reject
+                  </Button>
+                  <Button
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => setAction("approve")}
+                  >
+                    <CheckCircle className="h-4 w-4" /> Approve
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -393,6 +406,14 @@ export function OOClientOnboardingView({
           </CardContent>
         </Card>
       )}
+
+      {/* Edit onboarding modal */}
+      <EditOnboardingModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        onboardingData={onboardingData}
+        displayName={displayName}
+      />
 
       {/* Approval confirmation dialog */}
       <AlertDialog open={action !== null} onOpenChange={() => setAction(null)}>

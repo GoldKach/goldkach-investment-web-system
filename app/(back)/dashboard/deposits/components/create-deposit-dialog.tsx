@@ -176,9 +176,9 @@ export function CreateDepositDialog({
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-2">
 
-          {/* Deposited By */}
+          {/* Captured By */}
           <div className="space-y-1.5">
-            <Label className="text-slate-700 dark:text-slate-300 font-medium">Deposited By</Label>
+            <Label className="text-slate-700 dark:text-slate-300 font-medium">Captured By</Label>
             <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
               <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-700 dark:text-blue-400 font-semibold text-sm shrink-0">
                 {adminName?.charAt(0)?.toUpperCase() ?? "U"}

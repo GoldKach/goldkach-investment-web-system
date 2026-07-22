@@ -3,29 +3,40 @@
 import { useState, useEffect } from "react";
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { listDeposits } from "@/actions/deposits";
+import { listDeposits, getDepositsAnalytics, type DepositsAnalyticsData } from "@/actions/deposits";
 import { AdminDepositsContent } from "./admin-deposits-content";
 
 export function DepositsShell({
   adminId,
   adminName,
+  canCreate = true,
+  restrictToTarget,
 }: {
   adminId: string;
   adminName: string;
+  canCreate?: boolean;
+  restrictToTarget?: string;
 }) {
-  const [deposits, setDeposits] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [deposits,  setDeposits]  = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<DepositsAnalyticsData | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listDeposits({ sortBy: "createdAt", order: "desc", pageSize: 500 });
-      if (res.success && res.data) {
-        setDeposits(res.data);
+      const [depositsRes, analyticsRes] = await Promise.all([
+        listDeposits({ sortBy: "createdAt", order: "desc", pageSize: 500 }),
+        getDepositsAnalytics(),
+      ]);
+      if (depositsRes.success && depositsRes.data) {
+        setDeposits(depositsRes.data);
       } else {
-        setError(res.error ?? "Failed to load deposits.");
+        setError(depositsRes.error ?? "Failed to load deposits.");
+      }
+      if (analyticsRes.success && analyticsRes.data) {
+        setAnalytics(analyticsRes.data);
       }
     } catch (err: any) {
       setError(err?.message ?? "Unexpected error loading deposits.");
@@ -60,5 +71,15 @@ export function DepositsShell({
     );
   }
 
-  return <AdminDepositsContent deposits={deposits} adminId={adminId} adminName={adminName} />;
+  return (
+    <AdminDepositsContent
+      deposits={deposits}
+      analytics={analytics}
+      adminId={adminId}
+      adminName={adminName}
+      canCreate={canCreate}
+      restrictToTarget={restrictToTarget}
+      onRefresh={load}
+    />
+  );
 }

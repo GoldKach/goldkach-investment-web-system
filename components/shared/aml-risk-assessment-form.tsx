@@ -234,21 +234,6 @@ function printAML(d: AMLData, clientName: string) {
   .page { padding: 20mm 18mm; max-width: 210mm; margin: 0 auto; position: relative; z-index: 1; }
 
   /* ── Watermark ── */
-  .watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-45deg);
-    font-size: 72px;
-    font-weight: 900;
-    color: rgba(25, 51, 136, 0.07);
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 0;
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    user-select: none;
-  }
   .watermark-logo {
     position: fixed;
     top: 50%;
@@ -287,17 +272,14 @@ function printAML(d: AMLData, clientName: string) {
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     th { background: #1a3388 !important; color: white !important; }
-    .watermark { position: fixed !important; }
     .watermark-logo { position: fixed !important; }
   }
 </style>
 </head>
 <body>
 
-  <!-- Watermark logo (behind everything) -->
-  <img class="watermark-logo" src="${logoUrl}" alt="" />
-  <!-- Watermark text -->
-  <div class="watermark">CONFIDENTIAL</div>
+  <!-- Watermark logo -->
+  <img class="watermark-logo" src="${logoUrl}" alt="" onerror="this.style.display='none'" />
 
 <div class="page">
   <div class="hdr">

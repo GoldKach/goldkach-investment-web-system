@@ -169,7 +169,7 @@ export const DepositReceipt = forwardRef<HTMLDivElement, DepositReceiptProps>(
           {/* Right column */}
           <div style={{ flex: 1 }}>
             <SectionTitle>Recorded By</SectionTitle>
-            <Row label="Deposited By" value={deposit.createdByName || staffName || "N/A"} />
+            <Row label="Captured By" value={deposit.createdByName || staffName || "N/A"} />
             <Row label="Created At"   value={fmtDate(deposit.createdAt)} />
 
             {deposit.transactionStatus === "APPROVED" && (

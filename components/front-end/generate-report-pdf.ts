@@ -95,14 +95,19 @@ const loadLogoImage = (): Promise<HTMLImageElement> => {
 };
 
 const addPageBorderAndLogo = async (doc: jsPDF) => {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+
   doc.setDrawColor(25, 51, 136);
   doc.setLineWidth(4);
-  doc.rect(5, 5, doc.internal.pageSize.getWidth() - 10, doc.internal.pageSize.getHeight() - 10, "S");
+  doc.rect(5, 5, pageW - 10, pageH - 10, "S");
 
-  try {
-    const logoImg = await loadLogoImage();
+  const logoImg = await loadLogoImage();
+  const logoLoaded = logoImg.naturalWidth > 0;
+
+  if (logoLoaded) {
     doc.addImage(logoImg, "JPEG", 10, 10, 45, 35);
-  } catch {
+  } else {
     doc.setFillColor(255, 255, 255);
     doc.rect(10, 10, 45, 35, "F");
     doc.setFontSize(14);
@@ -114,6 +119,33 @@ const addPageBorderAndLogo = async (doc: jsPDF) => {
     doc.setTextColor(41, 128, 185);
     doc.text("Unlocking Global Investments", 15, 32);
   }
+
+  // Logo watermark centred on page
+  if (logoLoaded) {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = logoImg.naturalWidth;
+      canvas.height = logoImg.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(logoImg, 0, 0);
+        const dataUrl = canvas.toDataURL("image/jpeg");
+        const wmH = 48;
+        const wmW = wmH * (logoImg.naturalWidth / logoImg.naturalHeight);
+        const x = (pageW - wmW) / 2;
+        const y = (pageH - wmH) / 2;
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { GState } = require("jspdf");
+        doc.saveGraphicsState();
+        doc.setGState(new GState({ opacity: 0.06 }));
+        doc.addImage(dataUrl, "JPEG", x, y, wmW, wmH);
+        doc.restoreGraphicsState();
+      }
+    } catch {
+      // GState not available — skip watermark silently
+    }
+  }
+
   doc.setTextColor(0, 0, 0);
 };
 

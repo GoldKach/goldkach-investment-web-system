@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -8,7 +9,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Wallet, Users, ArrowUpRight, ArrowDownRight, Download, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Users, ArrowUpRight, ArrowDownRight, Download, FileText, CalendarDays, X, FileDown, ExternalLink } from "lucide-react";
+import { downloadDepositsPdf } from "@/lib/generate-deposits-pdf";
 
 type Period = "day" | "week" | "month" | "quarter" | "year";
 
@@ -69,6 +71,8 @@ export function AccountantDashboard({ clientSummaries, wallets, deposits, withdr
   const [period, setPeriod] = useState<Period>("month");
   const [showDeposits, setShowDeposits] = useState(false);
   const [showWithdrawals, setShowWithdrawals] = useState(false);
+  const [depDateFrom, setDepDateFrom] = useState("");
+  const [depDateTo,   setDepDateTo]   = useState("");
 
   const periodStart = useMemo(() => getPeriodStart(period), [period]);
 
@@ -331,7 +335,7 @@ export function AccountantDashboard({ clientSummaries, wallets, deposits, withdr
               <CardTitle className="text-base">Deposits</CardTitle>
               <CardDescription>{deposits.length} deposits total</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => setShowDeposits(!showDeposits)}>
                 {showDeposits ? "Hide" : "View"} Deposits
               </Button>
@@ -339,8 +343,74 @@ export function AccountantDashboard({ clientSummaries, wallets, deposits, withdr
                 <Download className="h-4 w-4" />
                 Export CSV
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  const filtered = depDateFrom || depDateTo
+                    ? deposits.filter(d => {
+                        const ds = (d.createdAt ?? "").slice(0, 10);
+                        return (!depDateFrom || ds >= depDateFrom) && (!depDateTo || ds <= depDateTo);
+                      })
+                    : deposits;
+                  const label = depDateFrom && depDateTo
+                    ? `Deposits — ${depDateFrom} – ${depDateTo}`
+                    : depDateFrom ? `Deposits — From ${depDateFrom}`
+                    : depDateTo   ? `Deposits — Up to ${depDateTo}`
+                    : "Deposits — All";
+                  const period2 = depDateFrom || depDateTo
+                    ? `${depDateFrom || "start"} – ${depDateTo || "now"}`
+                    : "All deposits";
+                  downloadDepositsPdf({ label, period: period2, deposits: filtered });
+                }}
+              >
+                <FileDown className="h-4 w-4" />
+                Export PDF
+              </Button>
+              <Link href="/accountant/deposits">
+                <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                  <ExternalLink className="h-4 w-4" />
+                  Full Deposits Page
+                </Button>
+              </Link>
             </div>
           </div>
+
+          {/* Date range filter */}
+          {showDeposits && (
+            <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border">
+              <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={depDateFrom}
+                  onChange={e => setDepDateFrom(e.target.value)}
+                  title="From date"
+                  className="h-8 px-2 rounded-md border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
+                />
+              </div>
+              <span className="text-muted-foreground text-xs">to</span>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={depDateTo}
+                  onChange={e => setDepDateTo(e.target.value)}
+                  title="To date"
+                  className="h-8 px-2 rounded-md border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
+                />
+              </div>
+              {(depDateFrom || depDateTo) && (
+                <button
+                  onClick={() => { setDepDateFrom(""); setDepDateTo(""); }}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="Clear date range"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
         </CardHeader>
         {showDeposits && (
           <CardContent className="p-0">
@@ -350,25 +420,55 @@ export function AccountantDashboard({ clientSummaries, wallets, deposits, withdr
                   <tr>
                     <th className="px-4 py-3 text-left">Date</th>
                     <th className="px-4 py-3 text-left">Client</th>
+                    <th className="px-4 py-3 text-left">GK Account</th>
                     <th className="px-4 py-3 text-right">Amount</th>
-                    <th className="px-4 py-3 text-left">Method</th>
+                    <th className="px-4 py-3 text-left">Type</th>
                     <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3 text-left">Reference</th>
+                    <th className="px-4 py-3 text-left">Transaction ID</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {deposits.slice(0, 50).map((d, i) => (
-                    <tr key={d.id ?? i} className="border-b border-border last:border-0 hover:bg-muted/10">
-                      <td className="px-4 py-3">{new Date(d.createdAt).toLocaleDateString()}</td>
-                      <td className="px-4 py-3">{[d.user?.firstName, d.user?.lastName].filter(Boolean).join(" ") || d.user?.email || "N/A"}</td>
-                      <td className="px-4 py-3 text-right font-medium text-green-600">{fmt(d.amount)}</td>
-                      <td className="px-4 py-3">{d.method || "N/A"}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={d.transactionStatus === "APPROVED" ? "default" : "secondary"} className={d.transactionStatus === "APPROVED" ? "bg-green-500" : ""}>{d.transactionStatus}</Badge>
-                      </td>
-                      <td className="px-4 py-3">{d.referenceNo || "N/A"}</td>
-                    </tr>
-                  ))}
+                  {deposits
+                    .filter(d => {
+                      const ds = (d.createdAt ?? "").slice(0, 10);
+                      return (!depDateFrom || ds >= depDateFrom) && (!depDateTo || ds <= depDateTo);
+                    })
+                    .slice(0, 100)
+                    .map((d, i) => {
+                      const gkAccount = d.depositTarget === "MASTER"
+                        ? d.masterWallet?.accountNumber
+                        : d.portfolioWallet?.accountNumber;
+                      return (
+                        <tr key={d.id ?? i} className="border-b border-border last:border-0 hover:bg-muted/10">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <p className="font-medium">{new Date(d.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(d.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-medium">{[d.user?.firstName, d.user?.lastName].filter(Boolean).join(" ") || "N/A"}</p>
+                            <p className="text-xs text-muted-foreground">{d.user?.email || ""}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            {gkAccount
+                              ? <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{gkAccount}</span>
+                              : <span className="text-muted-foreground text-xs">—</span>
+                            }
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-green-600">{fmt(d.amount)}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className={d.depositTarget === "MASTER" ? "text-blue-600 border-blue-300 dark:border-blue-700" : "text-purple-600 border-purple-300 dark:border-purple-700"}>
+                              {d.depositTarget === "MASTER" ? "External" : "Allocation"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={d.transactionStatus === "APPROVED" ? "default" : "secondary"} className={d.transactionStatus === "APPROVED" ? "bg-green-500" : ""}>
+                              {d.transactionStatus}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{d.transactionId || "—"}</td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>

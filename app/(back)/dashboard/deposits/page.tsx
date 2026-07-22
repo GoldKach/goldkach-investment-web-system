@@ -9,12 +9,11 @@ export default async function AdminDepositsPage() {
   if (!session?.user) redirect("/login");
 
   const role = (session.user as any)?.role;
-  const adminRoles = ["ADMIN", "SUPER_ADMIN", "MANAGER"];
+  const adminRoles = ["ADMIN", "SUPER_ADMIN", "MANAGER", "ACCOUNT_MANAGER"];
   if (!adminRoles.includes(role)) {
     if (role === "USER") redirect("/user/deposits");
     if (role === "AGENT") redirect("/agent");
     if (role === "CLIENT_RELATIONS") redirect("/cr");
-    if (role === "ACCOUNT_MANAGER") redirect("/accountant");
     redirect("/dashboard");
   }
 

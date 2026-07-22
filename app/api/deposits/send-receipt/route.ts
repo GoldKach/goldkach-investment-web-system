@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
 </td>
 <td width="4%"></td>
 <td width="48%" style="vertical-align:top;">
-  ${sectionTitle("Deposited By")}
+  ${sectionTitle("Captured By")}
   ${row("Staff Name", deposit.createdByName || "N/A")}
   ${row("Created At", fmtDate(deposit.createdAt))}
   <div style="margin-top:16px;"></div>

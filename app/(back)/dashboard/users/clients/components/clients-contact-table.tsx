@@ -43,7 +43,7 @@ function getAddress(u: Client) {
   );
 }
 
-function downloadContactsPDF(clients: Client[]) {
+function downloadContactsPDF(clients: Client[], logoUrl: string) {
   // Use jsPDF-style manual PDF generation via browser print
   // Build an HTML table and trigger print-to-PDF
   const rows = clients.map((u, i) => `
@@ -81,13 +81,16 @@ function downloadContactsPDF(clients: Client[]) {
         thead tr { background: #1e3a8a; color: white; }
         thead th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
         tbody tr:hover { background: #eff6ff; }
+        .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);width:360px;opacity:0.07;pointer-events:none;z-index:-1;}
         @media print {
           body { padding: 12px; }
           button { display: none; }
+          .watermark{opacity:0.09;}
         }
       </style>
     </head>
     <body>
+      <img class="watermark" src="${logoUrl}" alt="" onerror="this.style.display='none'" />
       <div class="header">
         <div>
           <h1>GoldKach Investment</h1>
@@ -159,7 +162,7 @@ export function ClientsContactTable({
           variant="outline"
           size="sm"
           className="gap-2"
-          onClick={() => downloadContactsPDF(filtered)}
+          onClick={() => downloadContactsPDF(filtered, `${window.location.origin}/logos/GoldKach-Logo-New-3.png`)}
         >
           <Download className="h-4 w-4" />
           Download PDF

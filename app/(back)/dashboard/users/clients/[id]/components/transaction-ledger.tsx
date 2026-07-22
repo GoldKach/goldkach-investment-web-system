@@ -123,8 +123,10 @@ function downloadLedgerPDF(
     tfoot tr{background:#f3f4f6;font-weight:700}
     tfoot td{padding:9px 10px;font-size:11px;border-top:2px solid #1e3a8a}
     .footer-note{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;text-align:center}
-    @media print{body{padding:12px}}
+    .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);width:360px;opacity:0.07;pointer-events:none;z-index:-1;}
+    @media print{body{padding:12px}.watermark{opacity:0.09;}}
   </style></head><body>
+  <img class="watermark" src="${logoUrl}" alt="" onerror="this.style.display='none'" />
   <div class="header">
     <div>
       <div class="brand">

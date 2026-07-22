@@ -296,6 +296,8 @@ export interface Deposit {
     firstName?: string | null;
     lastName?:  string | null;
     email?:     string | null;
+    imageUrl?:  string | null;
+    individualOnboarding?: { passportPhotoUrl?: string | null } | null;
   } | null;
   portfolioWallet?: {
     id:             string;
@@ -359,6 +361,24 @@ export interface ListDepositsParams {
   sortBy?:         "createdAt" | "amount" | "transactionStatus" | "approvedAt" | "rejectedAt";
   order?:          "asc" | "desc";
   include?:        DepositInclude | DepositInclude[];
+  startDate?:      string;
+  endDate?:        string;
+}
+
+export interface DepositPeriodStat { count: number; amount: number }
+export interface DepositChartRow  { label: string; count: number; amount: number }
+export interface DepositsAnalyticsData {
+  periods: {
+    today:       DepositPeriodStat;
+    thisWeek:    DepositPeriodStat;
+    thisMonth:   DepositPeriodStat;
+    last3Months: DepositPeriodStat;
+    lastQuarter: DepositPeriodStat;
+    lastYear:    DepositPeriodStat;
+  };
+  daily:   DepositChartRow[];
+  weekly:  DepositChartRow[];
+  monthly: DepositChartRow[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -678,5 +698,16 @@ export async function getDepositFeeSummary(userId: string) {
     return { success: true, data: res.data?.data as DepositFeeSummary };
   } catch (e: any) {
     return { success: false, error: msg(e, "Failed to get deposit fee summary") };
+  }
+}
+
+/** GET /deposits/analytics — period totals + daily/weekly/monthly chart data */
+export async function getDepositsAnalytics() {
+  try {
+    const headers = await authHeaderFromCookies();
+    const res = await api.get("/deposits/analytics", { headers });
+    return { success: true, data: res.data?.data as DepositsAnalyticsData };
+  } catch (e: any) {
+    return { success: false, error: msg(e, "Failed to load deposit analytics") };
   }
 }

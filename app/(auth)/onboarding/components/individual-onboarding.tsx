@@ -900,7 +900,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
     !!formData.expectedInvestment &&
     !!formData.sanctionsOrLegal
 
-  const validateStep5 = () => !!formData.nationalIdUrl && !!formData.bankStatementUrl
+  const validateStep5 = () => !!formData.nationalIdUrl && !!formData.bankStatementUrl && !!formData.passportPhotoUrl
 
   const validateSignature = () => {
     if (!formData.signatureConfirmed) return false
@@ -1387,7 +1387,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
               <div className="bg-[#193388] text-white rounded-lg p-4">
                 <h4 className="font-semibold mb-1">Document Upload</h4>
                 <p className="text-sm text-blue-200">
-                  National ID or Passport and Bank Statement are required. Passport photo and TIN certificate are optional.
+                  National ID or Passport, Bank Statement, and Passport Photo are required. TIN certificate is optional.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-4">
@@ -1409,6 +1409,7 @@ export default function IndividualOnboardingForm({ user }: Props) {
                 />
                 <DocumentUploadCard
                   label="Passport Photo"
+                  required
                   value={formData.passportPhotoUrl}
                   onUpload={(url) => update("passportPhotoUrl", url)}
                   onClear={() => update("passportPhotoUrl", "")}

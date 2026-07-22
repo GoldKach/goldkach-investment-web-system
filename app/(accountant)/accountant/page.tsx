@@ -16,7 +16,7 @@ export default async function AccountantPage() {
   const [clientsRes, walletsRes, depositsRes, withdrawalsRes] = await Promise.all([
     getClientsForAssignmentAction(),
     listMasterWallets(),
-    listDeposits({ sortBy: "createdAt", order: "desc", pageSize: 500, include: ["user"] }),
+    listDeposits({ sortBy: "createdAt", order: "desc", pageSize: 500, include: ["user", "masterWallet", "portfolioWallet"] }),
     listWithdrawals({ sortBy: "createdAt", order: "desc", pageSize: 500, include: ["user"] }),
   ]);
 
