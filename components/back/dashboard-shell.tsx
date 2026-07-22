@@ -29,10 +29,8 @@ export default function DashboardShell({
     <SidebarProvider>
       <AppSidebar user={user} />
       <SidebarInset>
-        <div className="md:ml-[210px] lg:ml-[260px]">
-          <DashboardNav user={user} />
-          <div className="pb-16 md:pb-0">{children}</div>
-        </div>
+        <DashboardNav user={user} />
+        <div className="pb-16 md:pb-0 min-w-0 w-full">{children}</div>
       </SidebarInset>
       <MobileBottomNav items={adminBottomNavItems} />
     </SidebarProvider>

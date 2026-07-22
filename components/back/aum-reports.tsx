@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { listPerformanceReports, generateAllReportsForDate } from "@/actions/portfolioPerformanceReports";
 import { generatePerformanceReportPDF } from "@/components/front-end/generate-report-pdf";
+import { downloadCashClientsPdf, type CashClientRow } from "@/lib/generate-cash-clients-pdf";
 
 const fmt = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -24,6 +25,8 @@ interface Props {
     depositFeeSummary?: { totalBankCost: number; totalTransactionCost: number; totalCashAtBank: number; totalFees: number; depositCount: number } | null;
     isCashOnly?: boolean;
     cashBalance?: number;
+    pureDepositCash?: number;
+    totalRedemptions?: number;
   }>;
   /** True while the shell is still fetching per-client portfolio data */
   isLoadingClients?: boolean;
@@ -46,6 +49,8 @@ interface CombinedRow {
   bankCost: number;
   transactionCost: number;
   cashAtBank: number;
+  cashAvailable: number;   // unallocated external master-wallet deposits (excl. redemptions)
+  totalCashAtBank: number; // cashAvailable + cashAtBank fee
 }
 
 function buildCombinedRows(
@@ -54,7 +59,7 @@ function buildCombinedRows(
   date: string
 ): CombinedRow[] {
   const rows: CombinedRow[] = [];
-  for (const { client, portfolios, masterWallet, feeTotals, depositFeeSummary, isCashOnly, cashBalance } of clientPortfolios) {
+  for (const { client, portfolios, masterWallet, feeTotals, depositFeeSummary, isCashOnly, pureDepositCash } of clientPortfolios) {
     const investorName = [client.firstName, client.lastName].filter(Boolean).join(" ") || client.email;
 
     // Fees: use deposit summary (most accurate) → portfolio wallet totals
@@ -62,25 +67,27 @@ function buildCombinedRows(
     const transactionCost = depositFeeSummary?.totalTransactionCost ?? feeTotals?.transactionFee ?? 0;
     const cashAtBank = depositFeeSummary?.totalCashAtBank ?? feeTotals?.feeAtBank ?? 0;
 
-    // Cash-only client: no portfolios, money sitting in the master wallet
+    // Cash is the pure-deposit balance (excludes redemption proceeds)
+    const cashAmt = pureDepositCash ?? 0;
+
+    // Cash-only client: no portfolios — one row showing cash in the dedicated column
     if (isCashOnly) {
-      const balance = cashBalance ?? masterWallet?.balance ?? masterWallet?.netAssetValue ?? 0;
-      if (balance > 0) {
-        rows.push({
-          investorName,
-          symbol: "CASH",
-          description: "Cash Available for Investment",
-          stocks: 0,
-          costPerShare: 0,
-          costPrice: 0,
-          closePrice: 1,
-          closeValue: balance,
-          unrealizedGainLoss: 0,
-          bankCost,
-          transactionCost,
-          cashAtBank,
-        });
-      }
+      rows.push({
+        investorName,
+        symbol: "—",
+        description: "Awaiting portfolio allocation",
+        stocks: 0,
+        costPerShare: 0,
+        costPrice: 0,
+        closePrice: 0,
+        closeValue: 0,
+        unrealizedGainLoss: 0,
+        bankCost,
+        transactionCost,
+        cashAtBank,
+        cashAvailable: cashAmt,
+        totalCashAtBank: cashAmt + cashAtBank,
+      });
       continue;
     }
 
@@ -121,8 +128,9 @@ function buildCombinedRows(
         const description = isSnapshot ? (a.description ?? "—") : (a.asset?.description ?? "—");
         const closePrice  = isSnapshot ? (a.closePrice  ?? 0)   : (a.asset?.closePrice  ?? 0);
 
+        const isFirstRow = !clientRowAdded && idx === 0;
         rows.push({
-          investorName: !clientRowAdded && idx === 0 ? investorName : "",
+          investorName:       isFirstRow ? investorName : "",
           symbol,
           description,
           stocks:             a.stock       ?? 0,
@@ -131,14 +139,18 @@ function buildCombinedRows(
           closePrice,
           closeValue:         a.closeValue  ?? 0,
           unrealizedGainLoss: a.lossGain    ?? 0,
-          bankCost:        !clientRowAdded && idx === 0 ? bankCost        : 0,
-          transactionCost: !clientRowAdded && idx === 0 ? transactionCost : 0,
-          cashAtBank:      !clientRowAdded && idx === 0 ? cashAtBank      : 0,
+          bankCost:        isFirstRow ? bankCost        : 0,
+          transactionCost: isFirstRow ? transactionCost : 0,
+          cashAtBank:      isFirstRow ? cashAtBank      : 0,
+          cashAvailable:   isFirstRow ? cashAmt         : 0,
+          totalCashAtBank: isFirstRow ? cashAmt + cashAtBank : 0,
         });
 
         if (idx === 0) clientRowAdded = true;
       });
     }
+
+    // cashAvailable and totalCashAtBank are captured on the first asset row above.
   }
   return rows;
 }
@@ -147,7 +159,7 @@ function exportToCSV(rows: CombinedRow[], date: string) {
   const headers = [
     "Investor Name", "Symbol (Description)", "Stocks", "Cost per share",
     "Cost price", "Close price", "Close value", "Unrealized gain/Loss",
-    "Bank cost", "Transaction cost", "Cash at bank",
+    "Bank cost", "Transaction cost", "Cash at bank", "Cash Available", "Total Cash at Bank",
   ];
   const escape = (v: any) => {
     const s = String(v ?? "");
@@ -163,7 +175,8 @@ function exportToCSV(rows: CombinedRow[], date: string) {
     ...rows.map((r) => [
       r.investorName, `${r.symbol} - ${r.description}`,
       r.stocks, r.costPerShare, r.costPrice, r.closePrice,
-      r.closeValue, r.unrealizedGainLoss, r.bankCost, r.transactionCost, r.cashAtBank,
+      r.closeValue, r.unrealizedGainLoss, r.bankCost, r.transactionCost,
+      r.cashAtBank, r.cashAvailable, r.totalCashAtBank,
     ].map(escape)),
   ];
   const csv = csvRows.map((r) => r.join(",")).join("\n");
@@ -185,7 +198,7 @@ function exportToExcel(rows: CombinedRow[], date: string) {
   const headers = [
     "Investor Name", "Symbol", "Description", "Stocks", "Cost per share",
     "Cost price", "Close price", "Close value", "Unrealized gain/Loss",
-    "Bank cost", "Transaction cost", "Cash at bank",
+    "Bank cost", "Transaction cost", "Cash at bank", "Cash Available", "Total Cash at Bank",
   ];
 
   const dataRows = rows.map((r) => [
@@ -201,6 +214,8 @@ function exportToExcel(rows: CombinedRow[], date: string) {
     numCell(r.bankCost),
     numCell(r.transactionCost),
     numCell(r.cashAtBank),
+    numCell(r.cashAvailable),
+    numCell(r.totalCashAtBank),
   ]);
 
   const titleRow = `<row><c t="inlineStr" s="1"><is><t>INFORMATION FOR AUM REPORT${date ? " - " + date : ""}</t></is></c></row>`;
@@ -458,6 +473,8 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
       s + cp.portfolios.reduce((ps: number, p: any) => ps + (p.totalLossGain ?? 0), 0), 0),
     totalPortfolioValue: clientPortfolios.reduce((s, cp) =>
       s + cp.portfolios.reduce((ps: number, p: any) => ps + (p.portfolioValue ?? 0), 0), 0),
+    totalCash: clientPortfolios.reduce((s, cp) => s + (cp.pureDepositCash ?? 0), 0),
+    cashClientsCount: clientPortfolios.filter(cp => (cp.pureDepositCash ?? 0) > 0).length,
   }), [clientPortfolios]);
 
   const filteredClients = searchQuery.trim()
@@ -473,7 +490,7 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
     <div className="space-y-6">
 
       {/* ── Summary KPI Cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-primary/20">
           <CardContent className="pt-5">
             <p className="text-xs text-slate-400 mb-1">Total Deposited</p>
@@ -495,6 +512,13 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
             <p className="text-xs text-slate-400 mb-1">Total Portfolio Value</p>
             <p className="text-2xl font-bold text-[#2B2F77] dark:text-[#3B82F6]">{fmt(summaryTotals.totalPortfolioValue)}</p>
             <p className="text-xs text-slate-400 mt-1">Current market value</p>
+          </CardContent>
+        </Card>
+        <Card className="border-amber-200 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-900/10">
+          <CardContent className="pt-5">
+            <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Total Cash (Unallocated)</p>
+            <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{fmt(summaryTotals.totalCash)}</p>
+            <p className="text-xs text-amber-500 dark:text-amber-500 mt-1">{summaryTotals.cashClientsCount} client{summaryTotals.cashClientsCount !== 1 ? "s" : ""} with uninvested funds</p>
           </CardContent>
         </Card>
       </div>
@@ -577,6 +601,8 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
                       <th className="px-3 py-2 text-right font-semibold">Bank cost</th>
                       <th className="px-3 py-2 text-right font-semibold">Transaction cost</th>
                       <th className="px-3 py-2 text-right font-semibold">Cash at bank</th>
+                      <th className="px-3 py-2 text-right font-semibold">Cash Available</th>
+                      <th className="px-3 py-2 text-right font-semibold">Total Cash at Bank</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -613,19 +639,27 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
                           <td className="px-3 py-1.5 text-right">{row.bankCost > 0 ? fmt(row.bankCost) : ""}</td>
                           <td className="px-3 py-1.5 text-right">{row.transactionCost > 0 ? fmt(row.transactionCost) : ""}</td>
                           <td className="px-3 py-1.5 text-right">{row.cashAtBank > 0 ? fmt(row.cashAtBank) : ""}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold text-green-600 dark:text-green-400">
+                            {row.cashAvailable > 0 ? fmt(row.cashAvailable) : ""}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-semibold text-amber-700 dark:text-amber-400">
+                            {row.totalCashAtBank > 0 ? fmt(row.totalCashAtBank) : ""}
+                          </td>
                         </tr>
                       );
                     })}
                     {/* Totals row */}
                     {(() => {
                       const totals = combinedRows.reduce((s, r) => ({
-                        costPrice: s.costPrice + r.costPrice,
-                        closeValue: s.closeValue + r.closeValue,
+                        costPrice:          s.costPrice          + r.costPrice,
+                        closeValue:         s.closeValue         + r.closeValue,
                         unrealizedGainLoss: s.unrealizedGainLoss + r.unrealizedGainLoss,
-                        bankCost: s.bankCost + r.bankCost,
-                        transactionCost: s.transactionCost + r.transactionCost,
-                        cashAtBank: s.cashAtBank + r.cashAtBank,
-                      }), { costPrice: 0, closeValue: 0, unrealizedGainLoss: 0, bankCost: 0, transactionCost: 0, cashAtBank: 0 });
+                        bankCost:           s.bankCost           + r.bankCost,
+                        transactionCost:    s.transactionCost    + r.transactionCost,
+                        cashAtBank:         s.cashAtBank         + r.cashAtBank,
+                        cashAvailable:      s.cashAvailable      + r.cashAvailable,
+                        totalCashAtBank:    s.totalCashAtBank    + r.totalCashAtBank,
+                      }), { costPrice: 0, closeValue: 0, unrealizedGainLoss: 0, bankCost: 0, transactionCost: 0, cashAtBank: 0, cashAvailable: 0, totalCashAtBank: 0 });
                       const tPos = totals.unrealizedGainLoss >= 0;
                       return (
                         <tr className="bg-[#2B2F77]/10 font-bold border-t-2 border-[#2B2F77]/30">
@@ -639,6 +673,8 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
                           <td className="px-3 py-2 text-right">{fmt(totals.bankCost)}</td>
                           <td className="px-3 py-2 text-right">{fmt(totals.transactionCost)}</td>
                           <td className="px-3 py-2 text-right">{fmt(totals.cashAtBank)}</td>
+                          <td className="px-3 py-2 text-right text-green-600 dark:text-green-400">{fmt(totals.cashAvailable)}</td>
+                          <td className="px-3 py-2 text-right text-amber-700 dark:text-amber-400">{fmt(totals.totalCashAtBank)}</td>
                         </tr>
                       );
                     })()}
@@ -649,6 +685,100 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
           </CardContent>
         )}
       </Card>
+
+      {/* ── Cash Clients List ───────────────────────────────────────────── */}
+      {(() => {
+        const cashRows: CashClientRow[] = clientPortfolios
+          .filter(cp => (cp.pureDepositCash ?? 0) > 0)
+          .map(cp => ({
+            name: [cp.client.firstName, cp.client.lastName].filter(Boolean).join(" ") || cp.client.email || "—",
+            accountNumber: cp.masterWallet?.accountNumber ?? "",
+            pureDepositCash: cp.pureDepositCash ?? 0,
+            totalDeposited: cp.masterWallet?.totalDeposited ?? 0,
+            totalWithdrawn: cp.masterWallet?.totalWithdrawn ?? 0,
+            totalRedemptions: cp.totalRedemptions ?? 0,
+          }))
+          .sort((a, b) => b.pureDepositCash - a.pureDepositCash);
+
+        const totalCash = cashRows.reduce((s, r) => s + r.pureDepositCash, 0);
+
+        return (
+          <Card className="border-amber-200 dark:border-amber-800/40">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-amber-600" />
+                    Cash Clients — Unallocated Deposits
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    Clients with external deposits not yet allocated or invested. Redeemed amounts are excluded.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
+                    {cashRows.length} client{cashRows.length !== 1 ? "s" : ""} · Total: {fmt(totalCash)}
+                  </span>
+                  {cashRows.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                      onClick={() => downloadCashClientsPdf(cashRows)}
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download PDF
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {cashRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center italic">
+                  No clients currently have unallocated cash deposits.
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-amber-100 dark:border-amber-900/30">
+                  <table className="w-full text-xs min-w-[700px]">
+                    <thead className="bg-amber-700 text-white">
+                      <tr>
+                        <th className="px-3 py-2 text-center w-9">#</th>
+                        <th className="px-3 py-2 text-left">Investor Name</th>
+                        <th className="px-3 py-2 text-left">GK Account</th>
+                        <th className="px-3 py-2 text-right">Total Deposited</th>
+                        <th className="px-3 py-2 text-right">Withdrawn</th>
+                        <th className="px-3 py-2 text-right">Redeemed</th>
+                        <th className="px-3 py-2 text-right">Cash Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cashRows.map((r, i) => (
+                        <tr key={r.accountNumber || i} className={i % 2 === 0 ? "bg-amber-50/50 dark:bg-amber-900/10" : ""}>
+                          <td className="px-3 py-2 text-center text-slate-400">{i + 1}</td>
+                          <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-100">{r.name}</td>
+                          <td className="px-3 py-2 font-mono text-blue-600 dark:text-blue-400 font-semibold text-[11px]">{r.accountNumber || "—"}</td>
+                          <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{fmt(r.totalDeposited)}</td>
+                          <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">{fmt(r.totalWithdrawn)}</td>
+                          <td className="px-3 py-2 text-right text-slate-500 dark:text-slate-400">{fmt(r.totalRedemptions)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-amber-700 dark:text-amber-400">{fmt(r.pureDepositCash)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-amber-300 dark:border-amber-700">
+                        <td></td>
+                        <td colSpan={2} className="px-3 py-2 font-bold text-slate-700 dark:text-slate-200">TOTAL</td>
+                        <td className="px-3 py-2 text-right font-bold">{fmt(cashRows.reduce((s, r) => s + r.totalDeposited, 0))}</td>
+                        <td className="px-3 py-2 text-right font-bold">{fmt(cashRows.reduce((s, r) => s + r.totalWithdrawn, 0))}</td>
+                        <td className="px-3 py-2 text-right font-bold">{fmt(cashRows.reduce((s, r) => s + r.totalRedemptions, 0))}</td>
+                        <td className="px-3 py-2 text-right font-bold text-amber-700 dark:text-amber-400 text-sm">{fmt(totalCash)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Date filter */}
       <Card>
@@ -698,9 +828,9 @@ export function AccountantReports({ clientPortfolios, isLoadingClients = false, 
           </CardContent>
         </Card>
       ) : (
-        filteredClients.map(({ client, portfolios, masterWallet, feeTotals, depositFeeSummary, isCashOnly, cashBalance }) => {
+        filteredClients.map(({ client, portfolios, masterWallet, feeTotals, depositFeeSummary, isCashOnly, cashBalance, pureDepositCash }) => {
         const clientName = [client.firstName, client.lastName].filter(Boolean).join(" ") || client.email;
-        const balance = cashBalance ?? masterWallet?.balance ?? masterWallet?.netAssetValue ?? 0;
+        const balance = pureDepositCash ?? cashBalance ?? masterWallet?.balance ?? masterWallet?.netAssetValue ?? 0;
 
         if (isCashOnly) {
           return (

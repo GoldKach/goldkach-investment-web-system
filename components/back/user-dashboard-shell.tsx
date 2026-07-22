@@ -32,10 +32,8 @@ export default function UserDashboardShell({
     <SidebarProvider>
       <UserSidebar user={user} isAlsoAgent={isAlsoAgent} />
       <SidebarInset>
-        <div className="md:ml-[220px] lg:ml-[225px]">
-          <DashboardNav user={user} />
-          <div className="pb-16 md:pb-0">{children}</div>
-        </div>
+        <DashboardNav user={user} />
+        <div className="pb-16 md:pb-0 min-w-0 w-full">{children}</div>
       </SidebarInset>
       <MobileBottomNav items={userBottomNavItems} />
     </SidebarProvider>
