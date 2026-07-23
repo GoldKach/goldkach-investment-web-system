@@ -23,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const user = users?.find((u: any) => u.id === session.user?.id) ?? session.user;
 
   // 3. Authorize by role
-  const adminRoles = ["SUPER_ADMIN", "ADMIN", "MANAGER"];
+  const adminRoles = ["SUPER_ADMIN", "ADMIN", "MANAGER", "COMPLIANCE"];
   const hasAdminRole =
     typeof user?.role === "string"
       ? adminRoles.includes(user.role)

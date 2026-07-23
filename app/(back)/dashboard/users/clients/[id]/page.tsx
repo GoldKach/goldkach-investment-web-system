@@ -137,7 +137,7 @@ export default async function ClientDetailPage({
         depositFeeSummary = feeSummaryRes.data ?? null;
       }
 
-      const allowedRoles = ["SUPER_ADMIN", "CLIENT_RELATIONS", "ADMIN", "MANAGER", "STAFF"];
+      const allowedRoles = ["SUPER_ADMIN", "CLIENT_RELATIONS", "ADMIN", "MANAGER", "STAFF", "ONBOARDING_OFFICER", "COMPLIANCE"];
       let onboardingData: { type: "individual"; data: any } | { type: "company"; data: any } | null = null;
       if (currentUserRole && allowedRoles.includes(currentUserRole.toUpperCase())) {
         const onboardingRes = await getOnboardingByUserId(user.id);

@@ -262,14 +262,10 @@ export function ClientDetail({
     startTransition(async () => {
       try {
         const raw = { ...onboardingForm };
-        // Convert empty strings to null for optional fields
-        Object.keys(raw).forEach((k) => { if (raw[k] === "") raw[k] = null; });
 
         // Only send fields relevant to the onboarding type to avoid schema validation errors
         let patch: Record<string, any>;
         if (effectiveOnboardingType === "company") {
-          // Strip individual-only fields; keep shared docs (bankStatementUrl, tinCertificateUrl,
-          // signatureUrl, additionalDocumentUrl, proofOfAddressUrl) in the company patch
           const {
             fullName, dateOfBirth, nationality, countryOfResidence,
             homeAddress, employmentStatus, occupation,
@@ -278,7 +274,6 @@ export function ClientDetail({
           } = raw;
           patch = companyFields;
         } else {
-          // Strip company-only fields; keep shared docs in the individual patch
           const {
             registrationNumber, companyAddress, businessType, incorporationDate,
             certificateOfIncorporationUrl, memorandumUrl, articlesUrl,
@@ -286,6 +281,14 @@ export function ClientDetail({
           } = raw;
           patch = individualFields;
         }
+
+        // Strip blank strings and nulls — only send fields that have actual values
+        // to avoid backend validation failures on required/non-nullable fields
+        Object.keys(patch).forEach((k) => {
+          if (patch[k] === "" || patch[k] === null || patch[k] === undefined) {
+            delete patch[k];
+          }
+        });
 
         const result = effectiveOnboardingType === "company"
           ? await updateCompanyOnboarding(effectiveOnboarding.id, patch)

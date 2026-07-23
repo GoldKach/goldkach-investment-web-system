@@ -130,7 +130,6 @@ export function EditOnboardingModal({
     startTransition(async () => {
       try {
         const raw = { ...form };
-        Object.keys(raw).forEach((k) => { if (raw[k] === "") raw[k] = null; });
 
         let patch: Record<string, any>;
         if (isCompany) {
@@ -150,6 +149,13 @@ export function EditOnboardingModal({
           } = raw;
           patch = individualFields;
         }
+
+        // Strip blank strings and nulls — only send fields with actual values
+        Object.keys(patch).forEach((k) => {
+          if (patch[k] === "" || patch[k] === null || patch[k] === undefined) {
+            delete patch[k];
+          }
+        });
 
         const result = isCompany
           ? await updateCompanyOnboarding(ob.id, patch)

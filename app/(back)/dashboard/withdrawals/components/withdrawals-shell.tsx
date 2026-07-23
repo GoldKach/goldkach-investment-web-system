@@ -24,6 +24,7 @@ export function WithdrawalsShell({
       const res = await listWithdrawals({
         sortBy: "createdAt",
         order: "desc",
+        pageSize: 500,
         include: ["user", "masterWallet", "portfolioWallet", "userPortfolio"],
       });
       if (res.success && res.data) {
@@ -64,5 +65,5 @@ export function WithdrawalsShell({
     );
   }
 
-  return <WithdrawalsContent withdrawals={withdrawals} adminId={adminId} adminName={adminName} />;
+  return <WithdrawalsContent withdrawals={withdrawals} adminId={adminId} adminName={adminName} onRefresh={load} />;
 }

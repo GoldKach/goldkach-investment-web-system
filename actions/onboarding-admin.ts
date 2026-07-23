@@ -14,7 +14,7 @@ const api = axios.create({
 });
 
 function msg(e: any, fallback = "Request failed") {
-  return e?.response?.data?.error || e?.message || fallback;
+  return e?.response?.data?.error || e?.response?.data?.message || e?.message || fallback;
 }
 
 async function authHeaderFromCookies(): Promise<Record<string, string>> {
@@ -31,8 +31,12 @@ async function withAuthRetry<T>(fn: (headers: Record<string, string>) => Promise
   } catch (e: any) {
     if (e?.digest?.startsWith("NEXT_REDIRECT")) throw e;
     if (axios.isAxiosError(e) && (e.response?.status === 401 || e.response?.status === 403)) {
-      await refreshAccessToken();
-      headers = await authHeaderFromCookies();
+      const refreshResult = await refreshAccessToken();
+      if (refreshResult.success && (refreshResult as any).accessToken) {
+        headers = { Authorization: `Bearer ${(refreshResult as any).accessToken}` };
+      } else {
+        headers = await authHeaderFromCookies();
+      }
       return await fn(headers);
     }
     throw e;

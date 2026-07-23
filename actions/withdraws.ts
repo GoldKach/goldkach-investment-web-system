@@ -435,6 +435,8 @@ export interface Withdrawal {
     firstName?: string | null;
     lastName?:  string | null;
     name?:      string | null;
+    imageUrl?:  string | null;
+    individualOnboarding?: { passportPhotoUrl?: string | null } | null;
   };
   portfolioWallet?: {
     id:             string;

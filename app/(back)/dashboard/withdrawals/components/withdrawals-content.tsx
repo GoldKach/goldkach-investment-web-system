@@ -25,7 +25,20 @@ import {
   Banknote, ArrowDownToLine, Building2, User,
   CalendarDays, Hash, FileText, TrendingDown, Wallet,
   Paperclip, X as XIcon, DollarSign, Layers, Calendar,
+  Download, FileDown, ChevronLeft, ChevronRight,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { downloadWithdrawalsPdf } from "@/lib/generate-withdrawals-pdf";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { WithdrawalsAnalytics } from "./withdrawals-analytics";
+import { WithdrawalTrendChart } from "./withdrawal-trend-chart";
 import { toast } from "sonner";
 import { approveWithdrawal, rejectWithdrawal, updateWithdrawal, createWithdrawal, type Withdrawal } from "@/actions/withdraws";
 import { EditDateInline } from "@/components/shared/edit-date-inline";
@@ -1503,24 +1516,33 @@ function AdminWithdrawDialog({
 /*  Main content                                                                */
 /* -------------------------------------------------------------------------- */
 
+const ITEMS_PER_PAGE = 15;
+
 export function WithdrawalsContent({
   withdrawals,
   adminId,
   adminName,
+  onRefresh,
 }: {
   withdrawals: Withdrawal[];
   adminId: string;
   adminName: string;
+  onRefresh?: () => void;
 }) {
   const router = useRouter();
 
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter,   setTypeFilter]   = useState("HARD_WITHDRAWAL"); // default: cash-outs needing approval
+  const [typeFilter,   setTypeFilter]   = useState("HARD_WITHDRAWAL");
+  const [dateFrom,     setDateFrom]     = useState("");
+  const [dateTo,       setDateTo]       = useState("");
+  const [page,         setPage]         = useState(1);
   const [selected,     setSelected]     = useState<Withdrawal | null>(null);
   const [detailsOpen,  setDetailsOpen]  = useState(false);
   const [redemptionApproveOpen, setRedemptionApproveOpen] = useState(false);
   const [adminWithdrawOpen, setAdminWithdrawOpen] = useState(false);
+
+  const hasDateRange = dateFrom || dateTo;
 
   /* ---- stats ---- */
   const stats = useMemo(() => {
@@ -1559,9 +1581,19 @@ export function WithdrawalsContent({
         w.id.toLowerCase().includes(q);
       const matchStatus = statusFilter === "all" || w.transactionStatus === statusFilter;
       const matchType   = typeFilter   === "all" || w.withdrawalType    === typeFilter;
-      return matchSearch && matchStatus && matchType;
+      const ds = (w.createdAt ?? "").slice(0, 10);
+      const matchFrom = !dateFrom || ds >= dateFrom;
+      const matchTo   = !dateTo   || ds <= dateTo;
+      return matchSearch && matchStatus && matchType && matchFrom && matchTo;
     });
-  }, [withdrawals, search, statusFilter, typeFilter]);
+  }, [withdrawals, search, statusFilter, typeFilter, dateFrom, dateTo]);
+
+  const totalPages    = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated     = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const startIdx      = (page - 1) * ITEMS_PER_PAGE + 1;
+  const endIdx        = Math.min(page * ITEMS_PER_PAGE, filtered.length);
+
+  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, dateFrom, dateTo, withdrawals.length]);
 
   function openDetails(w: Withdrawal) {
     setSelected(w);
@@ -1569,7 +1601,76 @@ export function WithdrawalsContent({
   }
 
   function handleRefresh() {
-    router.refresh();
+    if (onRefresh) onRefresh(); else router.refresh();
+  }
+
+  // ── Export helpers ────────────────────────────────────────────────────────
+
+  function friendlyDate(iso: string) {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+  }
+
+  function rangePeriodLabel() {
+    if (dateFrom && dateTo) return `${friendlyDate(dateFrom)} – ${friendlyDate(dateTo)}`;
+    if (dateFrom) return `From ${friendlyDate(dateFrom)}`;
+    if (dateTo)   return `Up to ${friendlyDate(dateTo)}`;
+    return "";
+  }
+
+  function exportCurrentView() {
+    const hasFilters = statusFilter !== "all" || typeFilter !== "all" || search || hasDateRange;
+    const label = hasDateRange
+      ? "Withdrawals — Date Range"
+      : hasFilters ? "Withdrawals — Filtered View" : "Withdrawals — All Loaded";
+    const sub = hasDateRange
+      ? rangePeriodLabel()
+      : `${filtered.length} withdrawal${filtered.length !== 1 ? "s" : ""} matching current filters`;
+    downloadWithdrawalsPdf({ label, period: sub, withdrawals: filtered });
+  }
+
+  function exportForRange() {
+    if (!hasDateRange) return;
+    downloadWithdrawalsPdf({
+      label:       "Withdrawals — Date Range",
+      period:      rangePeriodLabel(),
+      withdrawals: filtered,
+    });
+  }
+
+  function exportByPeriod(period: "today" | "week" | "month") {
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
+
+    const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
+    let list: Withdrawal[];
+    let label: string;
+    let sub: string;
+
+    if (period === "today") {
+      list  = withdrawals.filter(w => (w.createdAt ?? "").slice(0, 10) === todayStr);
+      label = "Withdrawals — Today";
+      sub   = now.toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+    } else if (period === "week") {
+      list  = withdrawals.filter(w => {
+        const ds = (w.createdAt ?? "").slice(0, 10);
+        return ds >= weekStartStr && ds <= todayStr;
+      });
+      label = "Withdrawals — This Week";
+      sub   = `${friendlyDate(weekStartStr)} – ${friendlyDate(todayStr)}`;
+    } else {
+      list  = withdrawals.filter(w => (w.createdAt ?? "").slice(0, 10) >= monthStartStr);
+      label = "Withdrawals — This Month";
+      sub   = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    }
+
+    downloadWithdrawalsPdf({ label, period: sub, withdrawals: list });
   }
 
   return (
@@ -1605,6 +1706,48 @@ export function WithdrawalsContent({
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <FileDown className="h-3.5 w-3.5" />
+                Export PDF
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-card border-border">
+              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Period
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => exportByPeriod("today")} className="gap-2 cursor-pointer">
+                <Download className="h-3.5 w-3.5 text-blue-500" /> Today
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportByPeriod("week")} className="gap-2 cursor-pointer">
+                <Download className="h-3.5 w-3.5 text-indigo-500" /> This Week
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportByPeriod("month")} className="gap-2 cursor-pointer">
+                <Download className="h-3.5 w-3.5 text-violet-500" /> This Month
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border" />
+              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Current View
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={exportCurrentView} className="gap-2 cursor-pointer">
+                <FileDown className="h-3.5 w-3.5 text-green-500" />
+                <span>Filtered view <span className="text-muted-foreground text-xs">({filtered.length})</span></span>
+              </DropdownMenuItem>
+              {hasDateRange && (
+                <>
+                  <DropdownMenuSeparator className="bg-border" />
+                  <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Date Range
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem onClick={exportForRange} className="gap-2 cursor-pointer">
+                    <CalendarDays className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="truncate">{rangePeriodLabel()}</span>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -1642,19 +1785,28 @@ export function WithdrawalsContent({
         />
       </div>
 
+      {/* Analytics (bar chart + period stat cards) */}
+      <WithdrawalsAnalytics withdrawals={withdrawals} />
+
+      {/* Trend chart (area chart: amount + count over time) */}
+      <WithdrawalTrendChart withdrawals={withdrawals} />
+
       {/* Filters */}
       <Card className="border-border bg-card">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, email, reference, bank..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-card dark:bg-muted/30 border-border text-foreground"
-              />
-            </div>
+        <CardContent className="pt-5 pb-4 px-4">
+          {/* Search */}
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, reference, bank..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 bg-card dark:bg-muted/30 border-border text-foreground"
+            />
+          </div>
+
+          {/* Filters row */}
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-full sm:w-44 bg-muted/50 border-border">
                 <SelectValue placeholder="Type" />
@@ -1676,7 +1828,54 @@ export function WithdrawalsContent({
                 <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
+            {/* Date range: From */}
+            <div className="relative flex items-center">
+              <CalendarDays className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                title="From date"
+                className="pl-9 pr-3 h-10 rounded-md border border-border bg-muted/50 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
+              />
+            </div>
+            <span className="text-muted-foreground text-sm hidden sm:inline self-center">to</span>
+            {/* Date range: To */}
+            <div className="relative flex items-center">
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                title="To date"
+                className="pl-3 pr-3 h-10 rounded-md border border-border bg-muted/50 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
+              />
+            </div>
+            {hasDateRange && (
+              <button
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                title="Clear date range"
+                className="text-muted-foreground hover:text-foreground shrink-0 self-center"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            )}
           </div>
+
+          {hasDateRange && (
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                {rangePeriodLabel()} — {filtered.length} withdrawal{filtered.length !== 1 ? "s" : ""}
+              </p>
+              <Button
+                size="sm"
+                onClick={exportForRange}
+                className="h-7 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <FileDown className="h-3.5 w-3.5" />
+                Print Range
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1713,15 +1912,33 @@ export function WithdrawalsContent({
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((w) => (
+                  {paginated.map((w) => (
                     <tr
                       key={w.id}
                       onClick={() => openDetails(w)}
                       className="border-b border-border last:border-0 hover:bg-muted/20 cursor-pointer transition-colors"
                     >
                       <td className="px-4 py-3">
-                        <p className="font-medium leading-tight">{userName(w)}</p>
-                        <p className="text-xs text-muted-foreground">{w.user?.email || "—"}</p>
+                        <div className="flex items-center gap-2.5">
+                          <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarImage
+                              src={
+                                w.user?.individualOnboarding?.passportPhotoUrl ||
+                                w.user?.imageUrl ||
+                                ""
+                              }
+                              alt={userName(w)}
+                            />
+                            <AvatarFallback className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-semibold">
+                              {(w.user?.firstName?.[0] ?? "").toUpperCase()}
+                              {(w.user?.lastName?.[0] ?? "").toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-medium leading-tight truncate">{userName(w)}</p>
+                            <p className="text-xs text-muted-foreground truncate">{w.user?.email || "—"}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant="outline" className={`text-xs ${typeBadge(w.withdrawalType)}`}>
@@ -1765,6 +1982,40 @@ export function WithdrawalsContent({
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing {startIdx}–{endIdx} of {filtered.length} withdrawals
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="h-7 w-7 p-0 border-border text-muted-foreground"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs text-muted-foreground px-2">
+                {page} / {totalPages}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="h-7 w-7 p-0 border-border text-muted-foreground"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Details + action modal */}
       <DetailsModal
